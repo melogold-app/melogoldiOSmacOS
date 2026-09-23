@@ -1,0 +1,10 @@
+xcuserdata/
+DerivedData/
+build/
+*.xcuserstate
+*.xcscmblueprint
+.swiftpm/
+.build/
+*.dmg
+*.xcarchive
+.DS_Store
