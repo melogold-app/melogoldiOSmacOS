@@ -4,24 +4,8 @@
     {
       "layers": [
         {
-          "image-name": "leaves.svg",
-          "name": "leaves"
-        }
-      ],
-      "shadow": {
-        "kind": "neutral",
-        "opacity": 0.5
-      },
-      "translucency": {
-        "enabled": true,
-        "value": 0.2
-      }
-    },
-    {
-      "layers": [
-        {
-          "image-name": "fruit.svg",
-          "name": "fruit"
+          "image-name": "melogold.png",
+          "name": "melogold"
         }
       ],
       "shadow": {
