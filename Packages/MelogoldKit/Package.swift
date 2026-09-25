@@ -30,5 +30,6 @@ let package = Package(
         ),
         .testTarget(name: "MelogoldCoreTests", dependencies: ["MelogoldCore"], swiftSettings: strictSwift),
         .testTarget(name: "MelogoldDataTests", dependencies: ["MelogoldData"], swiftSettings: strictSwift),
+        .testTarget(name: "MelogoldServerTests", dependencies: ["MelogoldServer"], swiftSettings: strictSwift),
     ]
 )
