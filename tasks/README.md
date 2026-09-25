@@ -22,3 +22,4 @@
 | [0004](0004-macos-dmg-release.md) | Выпуск для Mac: DMG в GitHub Releases и Sparkle | 8 |
 | [0005](0005-app-store.md) | App Store и TestFlight: iPhone, iPad, Vision Pro, часы | 8 |
 | [0006](0006-import-export.md) | Импорт и экспорт библиотеки, как на Android | 8 |
+| [0007](0007-all-tracks.md) | «Все треки» в Библиотеке, как «Песни» в ViTune | 4 |
