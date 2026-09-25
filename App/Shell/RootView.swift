@@ -74,6 +74,8 @@ struct RouteView: View {
         switch route {
         case .server(let prefill, let serverId):
             ServerView(prefill: prefill, expectedServerId: serverId)
+        case .account(let route):
+            AccountRouteView(route: route)
         }
     }
 }

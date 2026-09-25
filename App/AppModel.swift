@@ -2,6 +2,7 @@ import SwiftUI
 import MelogoldCore
 import MelogoldData
 import MelogoldPlayback
+import MelogoldServer
 
 /// Состояние окна: раздел, стеки разделов, сообщения. Настройки — в `AppSettings`.
 @MainActor
@@ -9,6 +10,8 @@ import MelogoldPlayback
 final class AppModel {
     let services: Services
     let search: SearchModel
+    /// Аккаунт на сервере Melogold: вход, токены, устройства (срез 5).
+    let account: Account
     var settings: AppSettings { services.settings }
     var paths: AppPaths? { services.paths }
 
@@ -53,6 +56,7 @@ final class AppModel {
     init(services: Services) {
         self.services = services
         self.search = SearchModel(catalog: services.catalog, history: services.searchHistory, settings: services.settings)
+        self.account = Account(settings: services.settings)
         self.section = services.settings.lastTab
         refreshCached()
     }

@@ -12,14 +12,7 @@ struct SettingsView: View {
         @Bindable var settings = model.settings
         Form {
             Section {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("settings.account.noAccount")
-                        .font(.headline)
-                    Text("settings.account.localLibrary")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.vertical, 2)
+                AccountSettingsSection()
                 NavigationLink(value: Route.server(prefill: nil, serverId: nil)) {
                     LabeledContent {
                         Text(verbatim: URL(string: settings.serverURL)?.host() ?? settings.serverURL)

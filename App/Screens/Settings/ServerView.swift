@@ -1,9 +1,11 @@
 import SwiftUI
 import MelogoldCore
 import MelogoldData
+import MelogoldServer
 
 /// «Сервер Melogold» (REWRITE §3.5.12, API §7.1): адрес проверяется `ServerAddressPolicy`, для `http` —
-/// предупреждение «Незащищённое соединение». Проверка `/server/info` и вход — срез 5.
+/// предупреждение «Незащищённое соединение». Перед переключением — `/server/info`: это Melogold, версия API
+/// подходит, `serverId` совпадает со ссылкой. Смена сервера завершает вход на прежнем.
 struct ServerView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
@@ -13,6 +15,9 @@ struct ServerView: View {
 
     @State private var address = ""
     @State private var didPrefill = false
+    @State private var checking = false
+    @State private var error: (any Error)?
+    @State private var mismatch = false
 
     private var result: ServerAddress { ServerAddressPolicy.normalize(address) }
 
@@ -32,8 +37,16 @@ struct ServerView: View {
             }
 
             Section {
-                Button("server.connect", action: save)
-                    .disabled(result.url == nil || result.url == model.settings.serverURL)
+                Button(action: save) {
+                    HStack {
+                        Text("server.connect")
+                        if checking {
+                            Spacer()
+                            ProgressView()
+                        }
+                    }
+                }
+                .disabled(result.url == nil || result.url == model.settings.serverURL || checking)
                 if model.settings.serverURL != ServerDefaults.baseURL {
                     Button("server.resetDefault") {
                         model.settings.serverURL = ServerDefaults.baseURL
@@ -68,12 +81,38 @@ struct ServerView: View {
             Text(ServerAddressText.message(for: error))
                 .foregroundStyle(.red)
         }
+        if mismatch {
+            Text("server.error.otherServer")
+                .foregroundStyle(.red)
+        } else if let error {
+            Text(AccountText.message(for: error))
+                .foregroundStyle(.red)
+        }
+        if model.account.isSignedIn {
+            Text("server.switchSignsOut")
+        }
     }
 
     private func save() {
-        guard let url = result.url else { return }
-        model.settings.serverURL = url
-        Log.info("server", "Адрес сервера изменён")
-        dismiss()
+        guard let url = result.url, !checking else { return }
+        checking = true
+        error = nil
+        mismatch = false
+        Task {
+            defer { checking = false }
+            do {
+                let info = try await model.account.check(url)
+                if let expectedServerId, info.serverId != expectedServerId {
+                    mismatch = true
+                    return
+                }
+                model.settings.serverURL = url
+                model.account.serverChanged()
+                Log.info("server", "Адрес сервера изменён: \(info.instanceName) \(info.version)")
+                dismiss()
+            } catch {
+                self.error = error
+            }
+        }
     }
 }

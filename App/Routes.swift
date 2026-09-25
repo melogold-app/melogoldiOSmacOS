@@ -5,4 +5,6 @@ import Foundation
 enum Route: Hashable {
     /// «Сервер Melogold»: адрес можно заполнить из ссылки `melogold://server` (API §7.2).
     case server(prefill: String?, serverId: String?)
+    /// Вход, регистрация, аккаунт и устройства (срез 5).
+    case account(AccountRoute)
 }

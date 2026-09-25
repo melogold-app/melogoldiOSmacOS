@@ -60,7 +60,7 @@ struct WatchSettingsView: View {
     var body: some View {
         List {
             Section {
-                Text("settings.account.noAccount")
+                WatchAccountSection()
             }
             Section("settings.about") {
                 LabeledContent {

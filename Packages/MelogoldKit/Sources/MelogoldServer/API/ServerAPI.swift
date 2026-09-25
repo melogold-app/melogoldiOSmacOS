@@ -130,14 +130,14 @@ public struct ServerAPI: Sendable {
         return request
     }
 
-    private func send<Response: Decodable>(
+    func send<Response: Decodable>(
         _ method: String, _ path: String, token: String? = nil, timeout: TimeInterval = defaultTimeout
     ) async throws -> Response {
         let (data, _) = try await perform(request(method, path, token: token, timeout: timeout))
         return try decode(data)
     }
 
-    private func send<Response: Decodable>(
+    func send<Response: Decodable>(
         _ method: String, _ path: String, body: some Encodable, token: String? = nil, timeout: TimeInterval = defaultTimeout
     ) async throws -> Response {
         let (data, _) = try await perform(withBody(request(method, path, token: token, timeout: timeout), body))
@@ -148,7 +148,7 @@ public struct ServerAPI: Sendable {
         _ = try await perform(withBody(request(method, path, token: token), body))
     }
 
-    private func withBody(_ request: URLRequest, _ body: some Encodable) throws -> URLRequest {
+    func withBody(_ request: URLRequest, _ body: some Encodable) throws -> URLRequest {
         var request = request
         request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(body)

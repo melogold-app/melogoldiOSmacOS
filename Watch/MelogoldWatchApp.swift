@@ -1,6 +1,7 @@
 import SwiftUI
 import MelogoldCore
 import MelogoldData
+import MelogoldServer
 
 /// Melogold для Apple Watch — самостоятельное приложение (docs/PROMPT.md §5.6): свой вход, поиск, поток,
 /// загрузки и синк, без iPhone. Код правил, сети и данных — общий, из MelogoldKit; интерфейс — свой, по HIG watchOS.
@@ -55,6 +56,8 @@ enum WatchRoute: Hashable {
 @Observable
 final class WatchModel {
     let services: Services
+    /// Свой вход: часы в аккаунте — отдельное устройство (§5.6).
+    let account: Account
     var path: [WatchRoute] = []
     /// Запрос, который Поиск выполнит при открытии (отладочный запуск `-MelogoldSearch`).
     var pendingQuery: String?
@@ -63,6 +66,7 @@ final class WatchModel {
 
     init(services: Services) {
         self.services = services
+        self.account = Account(settings: services.settings)
     }
 
     /// Нажатие по треку: играет по правилу очереди и открывает «Сейчас играет» — мини-плеера на часах нет (§5.6).
