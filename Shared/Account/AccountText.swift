@@ -79,3 +79,21 @@ enum UITestHooks {
         return ""
     }
 }
+
+/// Строка статуса синка — как на Android (`AccountEntryPoints.kt`): «Синхронизировано · 5 минут назад»,
+/// «Синхронизация…», «Нет связи с сервером». Время обновляется раз в минуту.
+struct SyncStatusLine: View {
+    let status: SyncStatus
+
+    var body: some View {
+        TimelineView(.everyMinute) { _ in
+            switch status {
+            case .off, .idle(lastSyncAt: nil): Text("sync.status.never")
+            case .idle(let last?): Text("sync.status.done \(last.formatted(.relative(presentation: .named)))")
+            case .syncing: Text("sync.status.syncing")
+            case .failed(let offline, _): Text(offline ? "sync.status.offline" : "sync.status.failed")
+            case .incompatible: Text("account.error.incompatible")
+            }
+        }
+    }
+}

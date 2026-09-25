@@ -30,7 +30,7 @@ struct AccountSettingsSection: View {
                 Label {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(verbatim: login)
-                        Text("account.syncOn")
+                        SyncStatusLine(status: model.sync.status)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }

@@ -1,4 +1,5 @@
 import SwiftUI
+import WatchKit
 import MelogoldCore
 import MelogoldData
 import MelogoldPlayback
@@ -99,6 +100,9 @@ final class WatchModel {
     let services: Services
     /// Свой вход: часы в аккаунте — отдельное устройство (§5.6).
     let account: Account
+    /// Синк библиотеки, истории и текстов — сам, без iPhone (§5.6): при открытии и пока приложение открыто или играет.
+    let sync: LibrarySync
+    @ObservationIgnored private var lifecycle: [any NSObjectProtocol] = []
     var path: [WatchRoute] = []
     /// Запрос, который Поиск выполнит при открытии (отладочный запуск `-MelogoldSearch`).
     var pendingQuery: String?
@@ -108,6 +112,18 @@ final class WatchModel {
     init(services: Services) {
         self.services = services
         self.account = Account(settings: services.settings)
+        self.sync = LibrarySync(account: account, database: services.database)
+        sync.start()
+        let center = NotificationCenter.default
+        let sync = sync
+        lifecycle = [
+            center.addObserver(forName: WKApplication.didBecomeActiveNotification, object: nil, queue: .main) { _ in
+                MainActor.assumeIsolated { sync.appDidBecomeActive() }
+            },
+            center.addObserver(forName: WKApplication.didEnterBackgroundNotification, object: nil, queue: .main) { _ in
+                MainActor.assumeIsolated { sync.flush() }
+            },
+        ]
     }
 
     /// Нажатие по треку: играет по правилу очереди и открывает «Сейчас играет» — мини-плеера на часах нет (§5.6).

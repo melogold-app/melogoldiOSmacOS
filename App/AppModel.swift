@@ -12,6 +12,9 @@ final class AppModel {
     let search: SearchModel
     /// Аккаунт на сервере Melogold: вход, токены, устройства (срез 5).
     let account: Account
+    /// Синк библиотеки, истории и своих текстов с аккаунтом (срез 5).
+    let sync: LibrarySync
+    @ObservationIgnored private var lifecycle: [any NSObjectProtocol] = []
     var settings: AppSettings { services.settings }
     var paths: AppPaths? { services.paths }
 
@@ -75,8 +78,11 @@ final class AppModel {
         self.services = services
         self.search = SearchModel(catalog: services.catalog, history: services.searchHistory, settings: services.settings)
         self.account = Account(settings: services.settings)
+        self.sync = LibrarySync(account: account, database: services.database)
         self.section = services.settings.lastTab
         refreshCached()
+        sync.start()
+        lifecycle = SyncLifecycle.observe(sync)
     }
 
     func refreshCached() {
@@ -189,5 +195,28 @@ enum ServerAddressText {
         case .credentialsOrParams: "server.error.credentials"
         case .httpsRequired: "server.error.https"
         }
+    }
+}
+
+/// Выход на передний план — синхронизация и живой поток, уход в фон — неотправленные правки сразу (REWRITE §4.12a).
+@MainActor
+enum SyncLifecycle {
+    static func observe(_ sync: LibrarySync) -> [any NSObjectProtocol] {
+        #if os(macOS)
+        let active = NSApplication.didBecomeActiveNotification
+        let background = NSApplication.didResignActiveNotification
+        #else
+        let active = UIApplication.didBecomeActiveNotification
+        let background = UIApplication.didEnterBackgroundNotification
+        #endif
+        let center = NotificationCenter.default
+        return [
+            center.addObserver(forName: active, object: nil, queue: .main) { _ in
+                MainActor.assumeIsolated { sync.appDidBecomeActive() }
+            },
+            center.addObserver(forName: background, object: nil, queue: .main) { _ in
+                MainActor.assumeIsolated { sync.flush() }
+            },
+        ]
     }
 }

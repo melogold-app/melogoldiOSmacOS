@@ -2,9 +2,10 @@ import SwiftUI
 import MelogoldCore
 import MelogoldServer
 
-/// «Аккаунт» (docs/PROMPT.md §5.9): устройства со значком по платформе, текущее отмечено; «Отозвать», «Выйти на
-/// других устройствах», «Добавить устройство», пароль, новый код восстановления и «Выйти». Если сервер требует
-/// пароль для недавно добавленного устройства (`recent_device_restricted`), спрашивает его и повторяет.
+/// «Аккаунт» (docs/PROMPT.md §5.9): синхронизация, устройства со значком по платформе, текущее отмечено;
+/// «Отозвать», «Выйти на других устройствах», «Добавить устройство», пароль, новый код восстановления и «Выйти».
+/// Если сервер требует пароль для недавно добавленного устройства (`recent_device_restricted`), спрашивает его и
+/// повторяет. Смена пароля без старого на другом устройстве — карточка с «Отозвать устройство» (API §4.3).
 struct AccountOverviewView: View {
     @Environment(AppModel.self) private var model
 
@@ -31,6 +32,10 @@ struct AccountOverviewView: View {
 
     var body: some View {
         Form {
+            if let warning = model.sync.accountWarning, warning.reason == "password_changed_without_old" {
+                warningSection(warning)
+            }
+
             Section {
                 LabeledContent("account.login") {
                     Text(verbatim: model.account.session?.login ?? "")
@@ -39,6 +44,29 @@ struct AccountOverviewView: View {
                 LabeledContent("settings.server") {
                     Text(verbatim: ServerHost.display(model.account.session?.serverURL ?? model.settings.serverURL))
                 }
+            }
+
+            Section {
+                HStack {
+                    SyncStatusLine(status: model.sync.status)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if model.sync.status == .syncing {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                }
+                Button {
+                    Task { await model.sync.sync() }
+                } label: {
+                    Label("sync.now", systemImage: "arrow.triangle.2.circlepath")
+                }
+                .disabled(model.sync.status == .syncing)
+                .accessibilityIdentifier("sync.now")
+            } header: {
+                Text("sync.title")
+            } footer: {
+                Text("sync.what")
             }
 
             Section {
@@ -102,7 +130,8 @@ struct AccountOverviewView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
-        .task { await load() }
+        // Список перечитывается и на `devices.updated` с сервера
+        .task(id: model.sync.devicesRevision) { await load() }
         .refreshable { await load() }
         .confirmationDialog("account.signOut.confirm", isPresented: $confirmingSignOut, titleVisibility: .visible) {
             Button("account.signOut", role: .destructive) {
@@ -121,7 +150,10 @@ struct AccountOverviewView: View {
             presenting: revoking
         ) { device in
             Button("account.revoke", role: .destructive) {
-                perform("account.revoke") { password in try await model.account.revokeDevice(device.id, password: password) }
+                perform("account.revoke") { password in
+                    try await model.account.revokeDevice(device.id, password: password)
+                    if model.sync.accountWarning?.byDeviceId == device.id { model.sync.dismissAccountWarning() }
+                }
             }
         } message: { _ in
             Text("account.revoke.explain")
@@ -165,6 +197,23 @@ struct AccountOverviewView: View {
             isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })
         ) {
             Button("account.done") {}
+        }
+    }
+
+    /// «Пароль изменён на „MacBook Air“ без старого пароля. Это не вы?» (API §4.3, SSE `account.updated`).
+    @ViewBuilder
+    private func warningSection(_ warning: AccountWarning) -> some View {
+        Section {
+            Label {
+                Text("account.warning.passwordWithoutOld \(warning.byDeviceName ?? "—")")
+            } icon: {
+                Image(systemName: "exclamationmark.shield.fill")
+                    .foregroundStyle(.orange)
+            }
+            if let device = devices.first(where: { $0.id == warning.byDeviceId && !$0.isCurrent }) {
+                Button("account.warning.revoke", role: .destructive) { revoking = device }
+            }
+            Button("account.warning.itWasMe") { model.sync.dismissAccountWarning() }
         }
     }
 

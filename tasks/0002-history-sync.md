@@ -90,3 +90,16 @@
   - фильтр «Это устройство» показывает только свои прослушивания;
   - трек, прослушанный на часах при выключенном iPhone, уходит с часов на сервер и потом появляется в Истории iPhone и Mac с именем часов.
 - Тестовые аккаунты после проверки удалить (`POST /auth/me/delete`).
+
+## 5. Что уже есть для экрана Истории (срез 5, ветка `apple/account`)
+
+Синк истории сделан в срезе 5: `play.add` (opId = eventId, `tracks`), `mergeUploadMax` и `play.baseline atLeast` после всех прослушиваний, `history.forget`/`history.clear`, `deferred op_rate_limited` → `historyRetryAt`, строки `plays`/`playStats`/`playForgets`, смена аккаунта. Экран Истории (срез 4) и запись событий плеером — за сессией среза 4; им нужно только это:
+
+- **Запись события** — `SyncStore(database:).recordPlay(SyncTrackRecord(track), playTimeMs:, playedAt:)` (`MelogoldData/Sync/SyncStore.swift`): `eventId` — новый UUID в нижнем регистре, `device_id` пустой, `synced = 0`, `tracks.total_play_ms` растёт. Порог 5 с и «Не сохранять историю» — у вызывающего (плеер). Отправка — сама: синк замечает новую строку `play_events` и отправляет через 2 с.
+- **«Убрать из истории»** — `SyncStore.forgetFromHistory(videoId:)`, **«Очистить историю»** — `SyncStore.clearHistory()`: удаляют события здесь и ставят `history.forget`/`history.clear` в `history_ops`; общее время трека остаётся (`resetTotal: false`). Отложенное выполнение с «Отменить» (§3.4) — на экране: вызвать эти методы, когда отсчёт кончился.
+- **Фильтр по устройствам** — `model.sync` (`LibrarySync`, есть и в `AppModel`, и в `WatchModel`):
+  - `await sync.historyDevices()` → `[HistoryDevice]` (`id`, `name`, `platform`) — другие устройства, чьи события лежат здесь, с именами из `GET /auth/me/devices`; `name == nil` — «Другое устройство». Пусто (нет аккаунта или событий с других устройств) — фильтр не показывать;
+  - `sync.currentDeviceId` — «Это устройство»: `device_id IS NULL OR device_id = :currentDeviceId`; другое устройство — `device_id = :id`; «Все устройства» — без условия;
+  - перечитывать список на `sync.devicesRevision` (растёт на SSE `devices.updated`), например `.task(id: model.sync.devicesRevision)`;
+  - «Чаще всего» за «Всё время» для «Все устройства» — `tracks.total_play_ms` (сервер присылает общее время по всем устройствам); иначе — сумма `play_events.play_time_ms` выбранного устройства за период.
+- Список событий обновляется сам: синк пишет в `play_events`, экран наблюдает таблицу (GRDB `ValueObservation`).

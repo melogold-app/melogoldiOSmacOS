@@ -20,7 +20,16 @@ struct WatchAccountSection: View {
             NavigationLink {
                 WatchAccountView()
             } label: {
-                Label(login, systemImage: "person.crop.circle.fill")
+                Label {
+                    VStack(alignment: .leading) {
+                        Text(verbatim: login)
+                        SyncStatusLine(status: model.sync.status)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    Image(systemName: "person.crop.circle.fill")
+                }
             }
         case .authRequired(let login):
             NavigationLink {
@@ -272,7 +281,7 @@ struct WatchLinkRequestView: View {
     }
 }
 
-/// Аккаунт на часах: логин, устройства аккаунта и «Выйти».
+/// Аккаунт на часах: логин, синхронизация (при открытии — сразу), устройства аккаунта и «Выйти».
 struct WatchAccountView: View {
     @Environment(WatchModel.self) private var model
     @Environment(\.dismiss) private var dismiss
@@ -285,6 +294,17 @@ struct WatchAccountView: View {
             Section {
                 Text(verbatim: model.account.session?.login ?? "")
                     .font(.headline)
+            }
+            Section {
+                SyncStatusLine(status: model.sync.status)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Button("sync.now", systemImage: "arrow.triangle.2.circlepath") {
+                    Task { await model.sync.sync() }
+                }
+                .disabled(model.sync.status == .syncing)
+            } header: {
+                Text("sync.title")
             }
             Section("account.devices") {
                 ForEach(devices) { device in
@@ -309,7 +329,8 @@ struct WatchAccountView: View {
             }
         }
         .navigationTitle(Text("account.title"))
-        .task { devices = (try? await model.account.devices().devices) ?? [] }
+        .task(id: model.sync.devicesRevision) { devices = (try? await model.account.devices().devices) ?? [] }
+        .task { await model.sync.sync() }
         .confirmationDialog("account.signOut.confirm", isPresented: $confirmingSignOut) {
             Button("account.signOut", role: .destructive) {
                 Task {

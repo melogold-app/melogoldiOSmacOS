@@ -114,3 +114,7 @@ type MyLyricsPage = { items: MyLyrics[]; rev: number; more: boolean };
   - удаление на одном устройстве убирает текст на другом;
   - второй аккаунт без своего текста видит общий с подписью «Текст от сообщества Melogold».
 - Тестовые аккаунты после проверки удалить (`POST /auth/me/delete`).
+
+## 5. Что уже сделано в срезе 5 (ветка `apple/account`)
+
+Цикл синхронизации текстов (§3.1, §3.3, §3.4, §3.7) — в `LibrarySync` вместе с библиотекой: свой текст (`user`/`file`) → `PUT`, пропавший → `DELETE`, `POST /auth/me/lyrics/changes` после `lyricsRev`, надгробие удаляет только неизменённый текст, 413 и 400 — `rev −1` в `synced_lyrics`, повод — SSE `lyrics.changed` и правка таблицы `lyrics` (через 2 с); только при `features.lyrics`. Правила — `MelogoldCore/Sync/LyricsSyncRules.swift` (как `LyricsSyncRules.cs` Windows), модель строки — `StoredLyrics`, источники — `LyricsSources`. Для среза 6 остаются модель текста (LRC/TTML), показ, поиск, импорт и редактор; для цепочки поиска уже есть `LibrarySync.serverLyrics(videoId)` (своя или общая версия, `mine`), а текст, не принятый сервером как слишком большой, — `LibrarySync.rejectedLyrics`.
