@@ -18,9 +18,16 @@ let package = Package(
         .library(name: "MelogoldServer", targets: ["MelogoldServer"]),
         .library(name: "MelogoldPlayback", targets: ["MelogoldPlayback"]),
     ],
+    dependencies: [
+        .package(url: "https://github.com/groue/GRDB.swift.git", from: "7.11.1"),
+    ],
     targets: [
         .target(name: "MelogoldCore", swiftSettings: strictSwift),
-        .target(name: "MelogoldData", dependencies: ["MelogoldCore"], swiftSettings: strictSwift),
+        .target(
+            name: "MelogoldData",
+            dependencies: ["MelogoldCore", .product(name: "GRDB", package: "GRDB.swift")],
+            swiftSettings: strictSwift
+        ),
         .target(name: "MelogoldInnerTube", dependencies: ["MelogoldCore"], swiftSettings: strictSwift),
         .target(name: "MelogoldServer", dependencies: ["MelogoldCore", "MelogoldData"], swiftSettings: strictSwift),
         .target(
@@ -31,5 +38,12 @@ let package = Package(
         .testTarget(name: "MelogoldCoreTests", dependencies: ["MelogoldCore"], swiftSettings: strictSwift),
         .testTarget(name: "MelogoldDataTests", dependencies: ["MelogoldData"], swiftSettings: strictSwift),
         .testTarget(name: "MelogoldServerTests", dependencies: ["MelogoldServer"], swiftSettings: strictSwift),
+        .testTarget(
+            name: "MelogoldInnerTubeTests",
+            dependencies: ["MelogoldInnerTube"],
+            resources: [.copy("Fixtures")],
+            swiftSettings: strictSwift
+        ),
+        .testTarget(name: "MelogoldPlaybackTests", dependencies: ["MelogoldPlayback"], swiftSettings: strictSwift),
     ]
 )

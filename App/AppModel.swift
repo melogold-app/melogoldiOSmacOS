@@ -1,13 +1,19 @@
 import SwiftUI
 import MelogoldCore
 import MelogoldData
+import MelogoldPlayback
 
 /// Состояние окна: раздел, стеки разделов, сообщения. Настройки — в `AppSettings`.
 @MainActor
 @Observable
 final class AppModel {
-    let settings: AppSettings
-    let paths: AppPaths?
+    let services: Services
+    let search: SearchModel
+    var settings: AppSettings { services.settings }
+    var paths: AppPaths? { services.paths }
+
+    /// Треки, лежащие в кэше целиком: метка «Есть без сети» и доступность без сети (задание 0003).
+    private(set) var cachedIds: Set<String> = []
 
     /// Текущий раздел. Запоминается в `shell.lastTab`.
     var section: AppSection {
@@ -32,16 +38,49 @@ final class AppModel {
     /// Сообщение поверх окна (разбор ссылки и т. п.).
     var notice: Notice?
 
+    /// Открыт «Сейчас играет».
+    var showNowPlaying = false
+
+    /// Курсор в поле ввода: пробел вводит пробел, а не ставит паузу (Mac, docs/PROMPT.md §5.4).
+    var textInputActive = false
+
     struct Notice: Identifiable {
         let id = UUID()
         let title: LocalizedStringResource
         let message: LocalizedStringResource?
     }
 
-    init(settings: AppSettings, paths: AppPaths?) {
-        self.settings = settings
-        self.paths = paths
-        self.section = settings.lastTab
+    init(services: Services) {
+        self.services = services
+        self.search = SearchModel(catalog: services.catalog, history: services.searchHistory, settings: services.settings)
+        self.section = services.settings.lastTab
+        refreshCached()
+    }
+
+    func refreshCached() {
+        guard let cache = services.cache else { return }
+        Task.detached(priority: .utility) {
+            let ids = Set(cache.completeVideoIds())
+            await MainActor.run { self.cachedIds = ids }
+        }
+    }
+
+    /// Одиночный трек из выдачи: трек и радио (REWRITE §2.3). Без сети трек не из кэша не играет — «Нет сети».
+    func play(single track: Track) {
+        guard canPlay(track) else { return }
+        services.player.playSingle(track)
+    }
+
+    /// Трек из списка: очередь — весь список с этого трека.
+    func play(_ tracks: [Track], startAt index: Int) {
+        guard tracks.indices.contains(index), canPlay(tracks[index]) else { return }
+        services.player.play(tracks: tracks, startAt: index)
+    }
+
+    private func canPlay(_ track: Track) -> Bool {
+        if services.network.isOnline || cachedIds.contains(track.videoId) { return true }
+        notice = Notice(title: "notice.offline", message: nil)
+        return false
     }
 
     func path(for section: AppSection) -> Binding<[Route]> {

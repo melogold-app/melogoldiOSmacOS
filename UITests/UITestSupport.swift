@@ -10,6 +10,10 @@ extension XCTestCase {
         let app = XCUIApplication()
         var launch = ["-AppleLanguages", "(\(language))", "-AppleLocale", language == "ru" ? "ru_RU" : "en_US"]
         if let section { launch += ["-shell.lastTab", section] }
+        // Отладочный прокси: при VPN на Mac симулятор не разрешает имена сам (docs/STATUS.md).
+        if let proxy = ProcessInfo.processInfo.environment["MELOGOLD_PROXY"], !proxy.isEmpty {
+            launch += ["-MelogoldDebugProxy", proxy]
+        }
         app.launchArguments = launch + arguments
         app.launch()
         return app

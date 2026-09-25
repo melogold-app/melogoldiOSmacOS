@@ -14,7 +14,10 @@ struct RootView: View {
         shell
             .onOpenURL { model.handle(url: $0) }
             #if DEBUG
-            .task { DebugLaunch.apply(to: model) }
+            .task {
+                DebugLaunch.apply(to: model)
+                DebugBenchmark.runIfRequested(model)
+            }
             #endif
             .alert(
                 model.notice.map { Text($0.title) } ?? Text(verbatim: ""),

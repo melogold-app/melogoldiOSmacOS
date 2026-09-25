@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		008ADFA16EFF781E50B386AA /* Services.swift in Sources */ = {isa = PBXBuildFile; fileRef = E06646CDF05B297C32A82774 /* Services.swift */; };
+		03CD15A17929BB9E19BC5994 /* StateViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 617A52A872CF4D7D7724B937 /* StateViews.swift */; };
+		066325A2E0A9B9E988EEF947 /* MiniPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D6C4E54E29C8CF7F8B0D862 /* MiniPlayer.swift */; };
 		0F943CFE0F06498E564634C0 /* MelogoldApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A071D3B7B2103C906F45A4F9 /* MelogoldApp.swift */; };
 		10EA20DE84359721EA31CE23 /* TabShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74D5802F9DB93D4977628101 /* TabShell.swift */; };
 		181309BE19354DF37DFAAE97 /* MelogoldServer in Frameworks */ = {isa = PBXBuildFile; productRef = 2973D1F8B1EADECCA8A6B50E /* MelogoldServer */; };
@@ -19,15 +22,21 @@
 		3E193FFD11048CC214283B56 /* MelogoldPlayback in Frameworks */ = {isa = PBXBuildFile; productRef = FFC92A7B0C3C480FDC51982E /* MelogoldPlayback */; };
 		487A4AFB6D59F59926D9F0D9 /* MelogoldInnerTube in Frameworks */ = {isa = PBXBuildFile; productRef = EE83B993730C176DE0BCEA02 /* MelogoldInnerTube */; };
 		4CB6CB531388EC4C9CEAF2B2 /* MelogoldPlayback in Frameworks */ = {isa = PBXBuildFile; productRef = 74C7DB990AB009185B29E337 /* MelogoldPlayback */; };
+		4DCAAA27EC8F64EC07C26110 /* WatchNowPlayingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9A09BA336EAC3188322DF40 /* WatchNowPlayingView.swift */; };
 		5125520C51D3281CB5DBBA66 /* WatchRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91B39EDD1852C5750CFF9520 /* WatchRootView.swift */; };
 		54E552D63E3171488285F922 /* DebugSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60D5E73AB6179004AA6A76AA /* DebugSnapshot.swift */; };
 		55C88BDF8593BFE632936A56 /* Melogold.icon in Resources */ = {isa = PBXBuildFile; fileRef = B37968274E19904FD5DE23BE /* Melogold.icon */; platformFilters = (ios, macos, ); };
 		582A1F17CACE0FAE6DACBC76 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D72E675CA1E535993FE48A90 /* PrivacyInfo.xcprivacy */; };
 		5AD7EAADB632942F3B269CA3 /* SectionStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ED1959497A998519DFBAEC6 /* SectionStyle.swift */; };
 		61BF2F42F34A5F6DBCBDCDAE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9039475AE7ED4067FC4BB3B1 /* Assets.xcassets */; };
+		647B78E2A8C972AE571345D1 /* SearchModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC8171812B4C4F41481F1303 /* SearchModel.swift */; };
+		67B5305E5D263A1E61CE33D2 /* NowPlayingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71E0614E21C5CA15E4B6BFF3 /* NowPlayingView.swift */; };
 		6C4AC9EDF614DE121A6F16FD /* DebugLaunch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A6EB7CA2C9AC85995734B19 /* DebugLaunch.swift */; };
+		720F7FE75D5D1A3D3EE84ADF /* WatchSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDE9EE13AFF02588C010A268 /* WatchSearchView.swift */; };
 		73FD23AEAC59899797069BFB /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 0024B4C3F56980A4999F2B94 /* InfoPlist.xcstrings */; };
 		771134A71C28716CD3A30DBA /* MelogoldInnerTube in Frameworks */ = {isa = PBXBuildFile; productRef = DC9CC894B07B9896638342CD /* MelogoldInnerTube */; };
+		782A43EE9CA71A84716D1787 /* ArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83FA08593BA80C10D1786A94 /* ArtworkView.swift */; };
+		7886385E3E5B8992E0901556 /* Rows.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE193EFD78D96A082588A882 /* Rows.swift */; };
 		7B7F06BEA52600084975FA9C /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = C305A7FFD78AB75764C9F3D0 /* PrivacyInfo.xcprivacy */; };
 		7EA3249E428FB6CF17568CE9 /* MelogoldCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93441BF35DA128B8AAFCDF1C /* MelogoldCommands.swift */; };
 		7FAA9163A0D77D5A2D6DB610 /* SectionPlaceholder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C31A6FD2D13A78CE31432CC /* SectionPlaceholder.swift */; };
@@ -38,16 +47,24 @@
 		99339B92DE84AF5471EB89E7 /* Melogold Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 73A40E76B3280821EE501843 /* Melogold Watch.app */; platformFilters = (ios, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		9F371FCD19E75A2E60428E9A /* MelogoldWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2881FC55A08451C2F452BB75 /* MelogoldWatchApp.swift */; };
 		A2132CB8024C6D31A1323B1A /* Routes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87B089AC25B6613CFBF2E0FF /* Routes.swift */; };
+		A70E987FE4FB687D1B6D518B /* Services.swift in Sources */ = {isa = PBXBuildFile; fileRef = E06646CDF05B297C32A82774 /* Services.swift */; };
+		A80173124DB9EE5F48306046 /* PlaybackStorageSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39AD56A4AE2A9E51E2F5D5D1 /* PlaybackStorageSettings.swift */; };
 		AD9762521ADF67969D008192 /* MelogoldCore in Frameworks */ = {isa = PBXBuildFile; productRef = 625BF3FEAD52620894C27DA0 /* MelogoldCore */; };
 		C1DE916B728425DA9D7A7EFE /* Melogold.icon in Resources */ = {isa = PBXBuildFile; fileRef = B37968274E19904FD5DE23BE /* Melogold.icon */; };
+		C2ECEAB367E75307F765505B /* PlayerControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44E7488F82A5E9E689DE17B0 /* PlayerControls.swift */; };
+		C4069967884AAA4A579F0ADF /* ArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83FA08593BA80C10D1786A94 /* ArtworkView.swift */; };
 		CC51D18BDDBB5EFDD32D8B4C /* MelogoldServer in Frameworks */ = {isa = PBXBuildFile; productRef = B5D32A80D75EB126504B9C0F /* MelogoldServer */; };
 		CCB7BFB2BBB534962FE2ABEE /* MelogoldData in Frameworks */ = {isa = PBXBuildFile; productRef = 76C23F0F53014853D597D1F9 /* MelogoldData */; };
 		D2E17263C8874BAF4ED062B0 /* NewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A854C582291C2EB866A3B85 /* NewView.swift */; };
 		D65EB5358A72B5069219DAEB /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 2425770C2FD4F63413D4E353 /* InfoPlist.xcstrings */; };
+		D98300DB4AA4D8F5B6903D2D /* MacPlayerBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A408396BE12A73C84983051 /* MacPlayerBar.swift */; };
 		DE3E8A5359002FD4CA9F6E8F /* ServerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B53F57A9A1B1CDC2A7FEEBDB /* ServerView.swift */; };
 		DEF932C917686C6E9BC6CEAE /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0606F8F802EDA814564C80E /* LibraryView.swift */; };
+		E1F098D49490EF6BC4A3B7BE /* PlaybackUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D36BEB67142D8EF879DBCC5 /* PlaybackUITests.swift */; };
+		E5D9FF739B2B0C2ED1C01161 /* RoutePickerButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 229BA01721F5407D1B919204 /* RoutePickerButton.swift */; };
 		EE794A34E673F168A7B05EAB /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5BC4994B458B516BAF06933 /* AppModel.swift */; };
 		F42A7A749C360FA3E6E10534 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2002A5E05B308C9C6AD5E580 /* SettingsView.swift */; };
+		F65F688275F404FC37157ED2 /* DebugBenchmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5CCDBAD0C5BE71085F14626 /* DebugBenchmark.swift */; };
 		FC76178926B9A1944384776F /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E523A3EDBF9604F373F12513 /* SearchView.swift */; };
 /* End PBXBuildFile section */
 
@@ -88,17 +105,26 @@
 		09C67B6DB37BD9B39F0015A5 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		0ED1959497A998519DFBAEC6 /* SectionStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionStyle.swift; sourceTree = "<group>"; };
 		2002A5E05B308C9C6AD5E580 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		229BA01721F5407D1B919204 /* RoutePickerButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoutePickerButton.swift; sourceTree = "<group>"; };
 		2425770C2FD4F63413D4E353 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
 		2881FC55A08451C2F452BB75 /* MelogoldWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MelogoldWatchApp.swift; sourceTree = "<group>"; };
 		34213AD788C67BDC3B6AF8E3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		39AD56A4AE2A9E51E2F5D5D1 /* PlaybackStorageSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackStorageSettings.swift; sourceTree = "<group>"; };
 		4134F65B1F3D3F4517BE4E71 /* UITestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestSupport.swift; sourceTree = "<group>"; };
+		44E7488F82A5E9E689DE17B0 /* PlayerControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerControls.swift; sourceTree = "<group>"; };
 		4A6EB7CA2C9AC85995734B19 /* DebugLaunch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLaunch.swift; sourceTree = "<group>"; };
 		5C2E03261E4E5FEE84A79BE3 /* ShellUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShellUITests.swift; sourceTree = "<group>"; };
+		5D36BEB67142D8EF879DBCC5 /* PlaybackUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackUITests.swift; sourceTree = "<group>"; };
 		60D5E73AB6179004AA6A76AA /* DebugSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugSnapshot.swift; sourceTree = "<group>"; };
+		617A52A872CF4D7D7724B937 /* StateViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StateViews.swift; sourceTree = "<group>"; };
 		68CE44484027E235BABE4E9B /* SplitShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitShell.swift; sourceTree = "<group>"; };
+		6A408396BE12A73C84983051 /* MacPlayerBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacPlayerBar.swift; sourceTree = "<group>"; };
 		6C31A6FD2D13A78CE31432CC /* SectionPlaceholder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionPlaceholder.swift; sourceTree = "<group>"; };
+		71E0614E21C5CA15E4B6BFF3 /* NowPlayingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingView.swift; sourceTree = "<group>"; };
 		73A40E76B3280821EE501843 /* Melogold Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Melogold Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		74D5802F9DB93D4977628101 /* TabShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabShell.swift; sourceTree = "<group>"; };
+		7D6C4E54E29C8CF7F8B0D862 /* MiniPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniPlayer.swift; sourceTree = "<group>"; };
+		83FA08593BA80C10D1786A94 /* ArtworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkView.swift; sourceTree = "<group>"; };
 		87B089AC25B6613CFBF2E0FF /* Routes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Routes.swift; sourceTree = "<group>"; };
 		8A854C582291C2EB866A3B85 /* NewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewView.swift; sourceTree = "<group>"; };
 		8C224EDA06CCB6048D3EE231 /* TrendsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendsView.swift; sourceTree = "<group>"; };
@@ -106,18 +132,24 @@
 		91B39EDD1852C5750CFF9520 /* WatchRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchRootView.swift; sourceTree = "<group>"; };
 		93441BF35DA128B8AAFCDF1C /* MelogoldCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MelogoldCommands.swift; sourceTree = "<group>"; };
 		A071D3B7B2103C906F45A4F9 /* MelogoldApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MelogoldApp.swift; sourceTree = "<group>"; };
+		A5CCDBAD0C5BE71085F14626 /* DebugBenchmark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugBenchmark.swift; sourceTree = "<group>"; };
+		A9A09BA336EAC3188322DF40 /* WatchNowPlayingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchNowPlayingView.swift; sourceTree = "<group>"; };
 		B37968274E19904FD5DE23BE /* Melogold.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Melogold.icon; sourceTree = "<group>"; };
 		B53F57A9A1B1CDC2A7FEEBDB /* ServerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerView.swift; sourceTree = "<group>"; };
 		BA1E666D2EB50A9A2A7486C4 /* MelogoldKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MelogoldKit; path = Packages/MelogoldKit; sourceTree = SOURCE_ROOT; };
+		BC8171812B4C4F41481F1303 /* SearchModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchModel.swift; sourceTree = "<group>"; };
 		C305A7FFD78AB75764C9F3D0 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		CFA350B01580D05B8B5A7E0C /* Project.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Project.xcconfig; sourceTree = "<group>"; };
 		D0606F8F802EDA814564C80E /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		D72E675CA1E535993FE48A90 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		E06646CDF05B297C32A82774 /* Services.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services.swift; sourceTree = "<group>"; };
 		E2CD0B3EB6727B5331CCE032 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		E523A3EDBF9604F373F12513 /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
 		E59F5F588452F498D6413117 /* Melogold.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Melogold.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F35CC0B73BA7B96B4B82E927 /* MelogoldUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MelogoldUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F5BC4994B458B516BAF06933 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		FDE9EE13AFF02588C010A268 /* WatchSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSearchView.swift; sourceTree = "<group>"; };
+		FE193EFD78D96A082588A882 /* Rows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Rows.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -175,9 +207,22 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		65227F087AB7D0FFDC88438F /* Player */ = {
+			isa = PBXGroup;
+			children = (
+				6A408396BE12A73C84983051 /* MacPlayerBar.swift */,
+				7D6C4E54E29C8CF7F8B0D862 /* MiniPlayer.swift */,
+				71E0614E21C5CA15E4B6BFF3 /* NowPlayingView.swift */,
+				44E7488F82A5E9E689DE17B0 /* PlayerControls.swift */,
+				229BA01721F5407D1B919204 /* RoutePickerButton.swift */,
+			);
+			path = Player;
+			sourceTree = "<group>";
+		};
 		6D718C14C3C87D91ACB42A8E /* UITests */ = {
 			isa = PBXGroup;
 			children = (
+				5D36BEB67142D8EF879DBCC5 /* PlaybackUITests.swift */,
 				5C2E03261E4E5FEE84A79BE3 /* ShellUITests.swift */,
 				4134F65B1F3D3F4517BE4E71 /* UITestSupport.swift */,
 			);
@@ -187,6 +232,8 @@
 		72DA2FCE7F97876772CC9550 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				E6EA26CE3A0FA5CD32489132 /* Components */,
+				65227F087AB7D0FFDC88438F /* Player */,
 				AB40B357D5F0B2FE84A745C4 /* Resources */,
 				F69C6ACD4FA38DDDC6D2C5A7 /* Screens */,
 				BF857F65D7ED590FE0DC02FA /* Shell */,
@@ -202,7 +249,9 @@
 			isa = PBXGroup;
 			children = (
 				F40A091940277003CEE23522 /* Resources */,
+				E6D2449DBC85BBE12EAF7CDC /* UI */,
 				0ED1959497A998519DFBAEC6 /* SectionStyle.swift */,
+				E06646CDF05B297C32A82774 /* Services.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -226,6 +275,7 @@
 		997FCB0DC346956613EB5244 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				39AD56A4AE2A9E51E2F5D5D1 /* PlaybackStorageSettings.swift */,
 				B53F57A9A1B1CDC2A7FEEBDB /* ServerView.swift */,
 				2002A5E05B308C9C6AD5E580 /* SettingsView.swift */,
 			);
@@ -248,7 +298,9 @@
 				1C5D37CFD89899924D1FADD6 /* Resources */,
 				34213AD788C67BDC3B6AF8E3 /* Info.plist */,
 				2881FC55A08451C2F452BB75 /* MelogoldWatchApp.swift */,
+				A9A09BA336EAC3188322DF40 /* WatchNowPlayingView.swift */,
 				91B39EDD1852C5750CFF9520 /* WatchRootView.swift */,
+				FDE9EE13AFF02588C010A268 /* WatchSearchView.swift */,
 			);
 			path = Watch;
 			sourceTree = "<group>";
@@ -264,6 +316,7 @@
 		BF857F65D7ED590FE0DC02FA /* Shell */ = {
 			isa = PBXGroup;
 			children = (
+				A5CCDBAD0C5BE71085F14626 /* DebugBenchmark.swift */,
 				4A6EB7CA2C9AC85995734B19 /* DebugLaunch.swift */,
 				60D5E73AB6179004AA6A76AA /* DebugSnapshot.swift */,
 				93441BF35DA128B8AAFCDF1C /* MelogoldCommands.swift */,
@@ -296,6 +349,23 @@
 			);
 			sourceTree = "<group>";
 		};
+		E6D2449DBC85BBE12EAF7CDC /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				83FA08593BA80C10D1786A94 /* ArtworkView.swift */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		E6EA26CE3A0FA5CD32489132 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				FE193EFD78D96A082588A882 /* Rows.swift */,
+				617A52A872CF4D7D7724B937 /* StateViews.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
 		F40A091940277003CEE23522 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
@@ -320,6 +390,7 @@
 		FA9DB47BEF2A6C32876DDA3F /* Search */ = {
 			isa = PBXGroup;
 			children = (
+				BC8171812B4C4F41481F1303 /* SearchModel.swift */,
 				E523A3EDBF9604F373F12513 /* SearchView.swift */,
 			);
 			path = Search;
@@ -476,6 +547,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E1F098D49490EF6BC4A3B7BE /* PlaybackUITests.swift in Sources */,
 				202AB5FF65B21800A3C42AEC /* ShellUITests.swift in Sources */,
 				8ACCEDC6EB23CFFA6B08E705 /* UITestSupport.swift in Sources */,
 			);
@@ -486,20 +558,32 @@
 			buildActionMask = 2147483647;
 			files = (
 				EE794A34E673F168A7B05EAB /* AppModel.swift in Sources */,
+				C4069967884AAA4A579F0ADF /* ArtworkView.swift in Sources */,
+				F65F688275F404FC37157ED2 /* DebugBenchmark.swift in Sources */,
 				6C4AC9EDF614DE121A6F16FD /* DebugLaunch.swift in Sources */,
 				54E552D63E3171488285F922 /* DebugSnapshot.swift in Sources */,
 				DEF932C917686C6E9BC6CEAE /* LibraryView.swift in Sources */,
+				D98300DB4AA4D8F5B6903D2D /* MacPlayerBar.swift in Sources */,
 				0F943CFE0F06498E564634C0 /* MelogoldApp.swift in Sources */,
 				7EA3249E428FB6CF17568CE9 /* MelogoldCommands.swift in Sources */,
+				066325A2E0A9B9E988EEF947 /* MiniPlayer.swift in Sources */,
 				D2E17263C8874BAF4ED062B0 /* NewView.swift in Sources */,
+				67B5305E5D263A1E61CE33D2 /* NowPlayingView.swift in Sources */,
+				A80173124DB9EE5F48306046 /* PlaybackStorageSettings.swift in Sources */,
+				C2ECEAB367E75307F765505B /* PlayerControls.swift in Sources */,
 				373ABF28FB0AE1BC2575DFF3 /* RootView.swift in Sources */,
+				E5D9FF739B2B0C2ED1C01161 /* RoutePickerButton.swift in Sources */,
 				A2132CB8024C6D31A1323B1A /* Routes.swift in Sources */,
+				7886385E3E5B8992E0901556 /* Rows.swift in Sources */,
+				647B78E2A8C972AE571345D1 /* SearchModel.swift in Sources */,
 				FC76178926B9A1944384776F /* SearchView.swift in Sources */,
 				7FAA9163A0D77D5A2D6DB610 /* SectionPlaceholder.swift in Sources */,
 				5AD7EAADB632942F3B269CA3 /* SectionStyle.swift in Sources */,
 				DE3E8A5359002FD4CA9F6E8F /* ServerView.swift in Sources */,
+				A70E987FE4FB687D1B6D518B /* Services.swift in Sources */,
 				F42A7A749C360FA3E6E10534 /* SettingsView.swift in Sources */,
 				1B1F41525428EEB1C939DEDF /* SplitShell.swift in Sources */,
+				03CD15A17929BB9E19BC5994 /* StateViews.swift in Sources */,
 				10EA20DE84359721EA31CE23 /* TabShell.swift in Sources */,
 				1AEBC8A022AEBC0AC34CD9E5 /* TrendsView.swift in Sources */,
 			);
@@ -509,9 +593,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				782A43EE9CA71A84716D1787 /* ArtworkView.swift in Sources */,
 				9F371FCD19E75A2E60428E9A /* MelogoldWatchApp.swift in Sources */,
 				1FA4F7F8356615AE62FC0DD4 /* SectionStyle.swift in Sources */,
+				008ADFA16EFF781E50B386AA /* Services.swift in Sources */,
+				4DCAAA27EC8F64EC07C26110 /* WatchNowPlayingView.swift in Sources */,
 				5125520C51D3281CB5DBBA66 /* WatchRootView.swift in Sources */,
+				720F7FE75D5D1A3D3EE84ADF /* WatchSearchView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

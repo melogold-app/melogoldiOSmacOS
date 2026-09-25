@@ -20,7 +20,15 @@ struct MelogoldApp: App {
             CrashDiagnostics.shared.start(directory: paths.logs)
         }
         Log.info("app", "Melogold \(AppVersion.current) (\(AppVersion.build)) запущен")
-        _model = State(initialValue: AppModel(settings: AppSettings(), paths: paths))
+        #if DEBUG
+        HTTPConfiguration.setDebugProxy(UserDefaults.standard.string(forKey: "MelogoldDebugProxy"))
+        #endif
+        if let paths {
+            // Обложки — в Caches: их не жалко, система может их стереть (docs/PROMPT.md §3 «Данные»).
+            ArtworkSession.configure(directory: paths.artwork)
+        }
+        let services = Services(settings: AppSettings(), paths: paths)
+        _model = State(initialValue: AppModel(services: services))
     }
 
     var body: some Scene {

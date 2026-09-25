@@ -17,29 +17,57 @@ struct MelogoldWatchApp: App {
         } catch {
             paths = nil
         }
-        if let paths { Log.configure(directory: paths.logs) }
+        if let paths {
+            Log.configure(directory: paths.logs)
+            ArtworkSession.configure(directory: paths.artwork)
+        }
+        #if DEBUG
+        HTTPConfiguration.setDebugProxy(UserDefaults.standard.string(forKey: "MelogoldDebugProxy"))
+        #endif
         Log.info("app", "Melogold для часов \(AppVersion.current) (\(AppVersion.build)) запущен")
-        _model = State(initialValue: WatchModel(settings: AppSettings(), paths: paths))
+        _model = State(initialValue: WatchModel(services: Services(settings: AppSettings(), paths: paths)))
     }
 
     var body: some Scene {
         WindowGroup {
             WatchRootView()
                 .environment(model)
+                #if DEBUG
+                .task {
+                    if let query = UserDefaults.standard.string(forKey: "MelogoldSearch") {
+                        model.pendingQuery = query
+                        model.path = [.section(.search)]
+                    }
+                }
+                #endif
         }
     }
+}
+
+/// Куда ведёт строка корня часов.
+enum WatchRoute: Hashable {
+    case section(AppSection)
+    case nowPlaying
 }
 
 /// Состояние приложения часов.
 @MainActor
 @Observable
 final class WatchModel {
-    let settings: AppSettings
-    let paths: AppPaths?
-    var path: [AppSection] = []
+    let services: Services
+    var path: [WatchRoute] = []
+    /// Запрос, который Поиск выполнит при открытии (отладочный запуск `-MelogoldSearch`).
+    var pendingQuery: String?
 
-    init(settings: AppSettings, paths: AppPaths?) {
-        self.settings = settings
-        self.paths = paths
+    var settings: AppSettings { services.settings }
+
+    init(services: Services) {
+        self.services = services
+    }
+
+    /// Нажатие по треку: играет по правилу очереди и открывает «Сейчас играет» — мини-плеера на часах нет (§5.6).
+    func play(single track: Track) {
+        services.player.playSingle(track)
+        path.append(.nowPlaying)
     }
 }

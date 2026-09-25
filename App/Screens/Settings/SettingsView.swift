@@ -39,6 +39,9 @@ struct SettingsView: View {
                 languageRow
             }
 
+            PlaybackSettingsSection()
+            StorageSettingsSection()
+
             Section("settings.about") {
                 LabeledContent {
                     Text(verbatim: "\(AppVersion.current) (\(AppVersion.build))")

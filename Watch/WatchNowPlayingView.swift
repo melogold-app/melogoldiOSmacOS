@@ -1,0 +1,44 @@
+import SwiftUI
+import WatchKit
+import MelogoldCore
+import MelogoldPlayback
+
+/// «Сейчас играет» на часах (docs/PROMPT.md §5.6): системный `NowPlayingView` — название, обложка, управление,
+/// громкость колесиком Digital Crown и выбор наушников. ♡, «Текст» и «Очередь» добавляются в следующих срезах.
+/// Длинное аудио watchOS выводит только в Bluetooth: без наушников — понятная причина и «Повторить».
+struct WatchNowPlayingView: View {
+    @Environment(WatchModel.self) private var model
+
+    var body: some View {
+        let player = model.services.player
+        if player.phase == .failed, let failure = player.failure {
+            VStack(spacing: 8) {
+                Image(systemName: failure.kind == .noAudioRoute ? "headphones" : "exclamationmark.triangle")
+                    .font(.title2)
+                Text(failure.watchText)
+                    .font(.footnote)
+                    .multilineTextAlignment(.center)
+                Button("common.retry") { player.retryCurrent() }
+            }
+            .padding()
+        } else {
+            NowPlayingView()
+        }
+    }
+}
+
+extension PlaybackFailure {
+    var watchText: LocalizedStringResource {
+        switch kind {
+        case .noAudioRoute: "player.error.noRoute"
+        case .network: "player.error.network"
+        case .botCheck: "player.error.botCheck"
+        case .geo: "player.error.geo"
+        case .unavailable: "player.error.unavailable"
+        case .age: "player.error.age"
+        case .timeout: "player.error.timeout"
+        case .extractor: "player.error.extractor"
+        case .manySkips: "player.error.manySkips"
+        }
+    }
+}
