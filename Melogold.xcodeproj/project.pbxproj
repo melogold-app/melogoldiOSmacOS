@@ -1,0 +1,898 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0F943CFE0F06498E564634C0 /* MelogoldApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A071D3B7B2103C906F45A4F9 /* MelogoldApp.swift */; };
+		10EA20DE84359721EA31CE23 /* TabShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74D5802F9DB93D4977628101 /* TabShell.swift */; };
+		181309BE19354DF37DFAAE97 /* MelogoldServer in Frameworks */ = {isa = PBXBuildFile; productRef = 2973D1F8B1EADECCA8A6B50E /* MelogoldServer */; };
+		1AEBC8A022AEBC0AC34CD9E5 /* TrendsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C224EDA06CCB6048D3EE231 /* TrendsView.swift */; };
+		1B1F41525428EEB1C939DEDF /* SplitShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68CE44484027E235BABE4E9B /* SplitShell.swift */; };
+		1FA4F7F8356615AE62FC0DD4 /* SectionStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ED1959497A998519DFBAEC6 /* SectionStyle.swift */; };
+		202AB5FF65B21800A3C42AEC /* ShellUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2E03261E4E5FEE84A79BE3 /* ShellUITests.swift */; };
+		238ABA984DA91ED32A2D0F22 /* MelogoldCore in Frameworks */ = {isa = PBXBuildFile; productRef = 00E31265CD9323121FDDEB60 /* MelogoldCore */; };
+		373ABF28FB0AE1BC2575DFF3 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05609036F2EA8B7D37C79D06 /* RootView.swift */; };
+		3E193FFD11048CC214283B56 /* MelogoldPlayback in Frameworks */ = {isa = PBXBuildFile; productRef = FFC92A7B0C3C480FDC51982E /* MelogoldPlayback */; };
+		487A4AFB6D59F59926D9F0D9 /* MelogoldInnerTube in Frameworks */ = {isa = PBXBuildFile; productRef = EE83B993730C176DE0BCEA02 /* MelogoldInnerTube */; };
+		4CB6CB531388EC4C9CEAF2B2 /* MelogoldPlayback in Frameworks */ = {isa = PBXBuildFile; productRef = 74C7DB990AB009185B29E337 /* MelogoldPlayback */; };
+		5125520C51D3281CB5DBBA66 /* WatchRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91B39EDD1852C5750CFF9520 /* WatchRootView.swift */; };
+		54E552D63E3171488285F922 /* DebugSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60D5E73AB6179004AA6A76AA /* DebugSnapshot.swift */; };
+		55C88BDF8593BFE632936A56 /* Melogold.icon in Resources */ = {isa = PBXBuildFile; fileRef = B37968274E19904FD5DE23BE /* Melogold.icon */; platformFilters = (ios, macos, ); };
+		582A1F17CACE0FAE6DACBC76 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D72E675CA1E535993FE48A90 /* PrivacyInfo.xcprivacy */; };
+		5AD7EAADB632942F3B269CA3 /* SectionStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ED1959497A998519DFBAEC6 /* SectionStyle.swift */; };
+		61BF2F42F34A5F6DBCBDCDAE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9039475AE7ED4067FC4BB3B1 /* Assets.xcassets */; };
+		6C4AC9EDF614DE121A6F16FD /* DebugLaunch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A6EB7CA2C9AC85995734B19 /* DebugLaunch.swift */; };
+		73FD23AEAC59899797069BFB /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 0024B4C3F56980A4999F2B94 /* InfoPlist.xcstrings */; };
+		771134A71C28716CD3A30DBA /* MelogoldInnerTube in Frameworks */ = {isa = PBXBuildFile; productRef = DC9CC894B07B9896638342CD /* MelogoldInnerTube */; };
+		7B7F06BEA52600084975FA9C /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = C305A7FFD78AB75764C9F3D0 /* PrivacyInfo.xcprivacy */; };
+		7EA3249E428FB6CF17568CE9 /* MelogoldCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93441BF35DA128B8AAFCDF1C /* MelogoldCommands.swift */; };
+		7FAA9163A0D77D5A2D6DB610 /* SectionPlaceholder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C31A6FD2D13A78CE31432CC /* SectionPlaceholder.swift */; };
+		845064408A0914C55E91722E /* MelogoldData in Frameworks */ = {isa = PBXBuildFile; productRef = 072FCA9CE57C410C91C3C70D /* MelogoldData */; };
+		8823ABE459D3EB82DDE6600D /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = E2CD0B3EB6727B5331CCE032 /* Localizable.xcstrings */; };
+		8ACCEDC6EB23CFFA6B08E705 /* UITestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4134F65B1F3D3F4517BE4E71 /* UITestSupport.swift */; };
+		95330FB1AE771766FA75BDEA /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = E2CD0B3EB6727B5331CCE032 /* Localizable.xcstrings */; };
+		99339B92DE84AF5471EB89E7 /* Melogold Watch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 73A40E76B3280821EE501843 /* Melogold Watch.app */; platformFilters = (ios, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		9F371FCD19E75A2E60428E9A /* MelogoldWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2881FC55A08451C2F452BB75 /* MelogoldWatchApp.swift */; };
+		A2132CB8024C6D31A1323B1A /* Routes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87B089AC25B6613CFBF2E0FF /* Routes.swift */; };
+		AD9762521ADF67969D008192 /* MelogoldCore in Frameworks */ = {isa = PBXBuildFile; productRef = 625BF3FEAD52620894C27DA0 /* MelogoldCore */; };
+		C1DE916B728425DA9D7A7EFE /* Melogold.icon in Resources */ = {isa = PBXBuildFile; fileRef = B37968274E19904FD5DE23BE /* Melogold.icon */; };
+		CC51D18BDDBB5EFDD32D8B4C /* MelogoldServer in Frameworks */ = {isa = PBXBuildFile; productRef = B5D32A80D75EB126504B9C0F /* MelogoldServer */; };
+		CCB7BFB2BBB534962FE2ABEE /* MelogoldData in Frameworks */ = {isa = PBXBuildFile; productRef = 76C23F0F53014853D597D1F9 /* MelogoldData */; };
+		D2E17263C8874BAF4ED062B0 /* NewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A854C582291C2EB866A3B85 /* NewView.swift */; };
+		D65EB5358A72B5069219DAEB /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 2425770C2FD4F63413D4E353 /* InfoPlist.xcstrings */; };
+		DE3E8A5359002FD4CA9F6E8F /* ServerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B53F57A9A1B1CDC2A7FEEBDB /* ServerView.swift */; };
+		DEF932C917686C6E9BC6CEAE /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0606F8F802EDA814564C80E /* LibraryView.swift */; };
+		EE794A34E673F168A7B05EAB /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5BC4994B458B516BAF06933 /* AppModel.swift */; };
+		F42A7A749C360FA3E6E10534 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2002A5E05B308C9C6AD5E580 /* SettingsView.swift */; };
+		FC76178926B9A1944384776F /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E523A3EDBF9604F373F12513 /* SearchView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		2F2E00B741554BE7F4BD4EBF /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D398183C133EE8B68B13AD18 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 895D2F9E15B8E0F15F0FC1E6;
+			remoteInfo = Melogold;
+		};
+		CF0F14B97CC2E5CFC4764EE7 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D398183C133EE8B68B13AD18 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 25A049D4D1212EE4C009B2A5;
+			remoteInfo = "Melogold Watch";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A418226E0C9222B507C9E843 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				99339B92DE84AF5471EB89E7 /* Melogold Watch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		0024B4C3F56980A4999F2B94 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
+		05609036F2EA8B7D37C79D06 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		09C67B6DB37BD9B39F0015A5 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		0ED1959497A998519DFBAEC6 /* SectionStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionStyle.swift; sourceTree = "<group>"; };
+		2002A5E05B308C9C6AD5E580 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		2425770C2FD4F63413D4E353 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
+		2881FC55A08451C2F452BB75 /* MelogoldWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MelogoldWatchApp.swift; sourceTree = "<group>"; };
+		34213AD788C67BDC3B6AF8E3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		4134F65B1F3D3F4517BE4E71 /* UITestSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITestSupport.swift; sourceTree = "<group>"; };
+		4A6EB7CA2C9AC85995734B19 /* DebugLaunch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLaunch.swift; sourceTree = "<group>"; };
+		5C2E03261E4E5FEE84A79BE3 /* ShellUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShellUITests.swift; sourceTree = "<group>"; };
+		60D5E73AB6179004AA6A76AA /* DebugSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugSnapshot.swift; sourceTree = "<group>"; };
+		68CE44484027E235BABE4E9B /* SplitShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitShell.swift; sourceTree = "<group>"; };
+		6C31A6FD2D13A78CE31432CC /* SectionPlaceholder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionPlaceholder.swift; sourceTree = "<group>"; };
+		73A40E76B3280821EE501843 /* Melogold Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Melogold Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		74D5802F9DB93D4977628101 /* TabShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabShell.swift; sourceTree = "<group>"; };
+		87B089AC25B6613CFBF2E0FF /* Routes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Routes.swift; sourceTree = "<group>"; };
+		8A854C582291C2EB866A3B85 /* NewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewView.swift; sourceTree = "<group>"; };
+		8C224EDA06CCB6048D3EE231 /* TrendsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendsView.swift; sourceTree = "<group>"; };
+		9039475AE7ED4067FC4BB3B1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		91B39EDD1852C5750CFF9520 /* WatchRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchRootView.swift; sourceTree = "<group>"; };
+		93441BF35DA128B8AAFCDF1C /* MelogoldCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MelogoldCommands.swift; sourceTree = "<group>"; };
+		A071D3B7B2103C906F45A4F9 /* MelogoldApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MelogoldApp.swift; sourceTree = "<group>"; };
+		B37968274E19904FD5DE23BE /* Melogold.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Melogold.icon; sourceTree = "<group>"; };
+		B53F57A9A1B1CDC2A7FEEBDB /* ServerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerView.swift; sourceTree = "<group>"; };
+		BA1E666D2EB50A9A2A7486C4 /* MelogoldKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MelogoldKit; path = Packages/MelogoldKit; sourceTree = SOURCE_ROOT; };
+		C305A7FFD78AB75764C9F3D0 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		CFA350B01580D05B8B5A7E0C /* Project.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Project.xcconfig; sourceTree = "<group>"; };
+		D0606F8F802EDA814564C80E /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
+		D72E675CA1E535993FE48A90 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		E2CD0B3EB6727B5331CCE032 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		E523A3EDBF9604F373F12513 /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
+		E59F5F588452F498D6413117 /* Melogold.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Melogold.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F35CC0B73BA7B96B4B82E927 /* MelogoldUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MelogoldUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		F5BC4994B458B516BAF06933 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		58B246D6F80722885523A23F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AD9762521ADF67969D008192 /* MelogoldCore in Frameworks */,
+				CCB7BFB2BBB534962FE2ABEE /* MelogoldData in Frameworks */,
+				771134A71C28716CD3A30DBA /* MelogoldInnerTube in Frameworks */,
+				CC51D18BDDBB5EFDD32D8B4C /* MelogoldServer in Frameworks */,
+				3E193FFD11048CC214283B56 /* MelogoldPlayback in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7ED6DB9693761082ED4AD885 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				238ABA984DA91ED32A2D0F22 /* MelogoldCore in Frameworks */,
+				845064408A0914C55E91722E /* MelogoldData in Frameworks */,
+				487A4AFB6D59F59926D9F0D9 /* MelogoldInnerTube in Frameworks */,
+				181309BE19354DF37DFAAE97 /* MelogoldServer in Frameworks */,
+				4CB6CB531388EC4C9CEAF2B2 /* MelogoldPlayback in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		1C5D37CFD89899924D1FADD6 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				2425770C2FD4F63413D4E353 /* InfoPlist.xcstrings */,
+				D72E675CA1E535993FE48A90 /* PrivacyInfo.xcprivacy */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		47CD97D50E937683CEC29C2B /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				CFA350B01580D05B8B5A7E0C /* Project.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		63DB9E90EE3AF914BC9F9A9F /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				73A40E76B3280821EE501843 /* Melogold Watch.app */,
+				E59F5F588452F498D6413117 /* Melogold.app */,
+				F35CC0B73BA7B96B4B82E927 /* MelogoldUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		6D718C14C3C87D91ACB42A8E /* UITests */ = {
+			isa = PBXGroup;
+			children = (
+				5C2E03261E4E5FEE84A79BE3 /* ShellUITests.swift */,
+				4134F65B1F3D3F4517BE4E71 /* UITestSupport.swift */,
+			);
+			path = UITests;
+			sourceTree = "<group>";
+		};
+		72DA2FCE7F97876772CC9550 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				AB40B357D5F0B2FE84A745C4 /* Resources */,
+				F69C6ACD4FA38DDDC6D2C5A7 /* Screens */,
+				BF857F65D7ED590FE0DC02FA /* Shell */,
+				F5BC4994B458B516BAF06933 /* AppModel.swift */,
+				09C67B6DB37BD9B39F0015A5 /* Info.plist */,
+				A071D3B7B2103C906F45A4F9 /* MelogoldApp.swift */,
+				87B089AC25B6613CFBF2E0FF /* Routes.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		86BC53320E1339C839F09663 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				F40A091940277003CEE23522 /* Resources */,
+				0ED1959497A998519DFBAEC6 /* SectionStyle.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		8936E17A7DA2B4E92309387C /* Trends */ = {
+			isa = PBXGroup;
+			children = (
+				8C224EDA06CCB6048D3EE231 /* TrendsView.swift */,
+			);
+			path = Trends;
+			sourceTree = "<group>";
+		};
+		940136195CA3335CF4F2F8B9 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				BA1E666D2EB50A9A2A7486C4 /* MelogoldKit */,
+			);
+			path = Packages;
+			sourceTree = "<group>";
+		};
+		997FCB0DC346956613EB5244 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				B53F57A9A1B1CDC2A7FEEBDB /* ServerView.swift */,
+				2002A5E05B308C9C6AD5E580 /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		AB40B357D5F0B2FE84A745C4 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				9039475AE7ED4067FC4BB3B1 /* Assets.xcassets */,
+				0024B4C3F56980A4999F2B94 /* InfoPlist.xcstrings */,
+				C305A7FFD78AB75764C9F3D0 /* PrivacyInfo.xcprivacy */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		B448FE91BEB1E5F509766ED1 /* Watch */ = {
+			isa = PBXGroup;
+			children = (
+				1C5D37CFD89899924D1FADD6 /* Resources */,
+				34213AD788C67BDC3B6AF8E3 /* Info.plist */,
+				2881FC55A08451C2F452BB75 /* MelogoldWatchApp.swift */,
+				91B39EDD1852C5750CFF9520 /* WatchRootView.swift */,
+			);
+			path = Watch;
+			sourceTree = "<group>";
+		};
+		B9D924C04B1C99C185324ABD /* Library */ = {
+			isa = PBXGroup;
+			children = (
+				D0606F8F802EDA814564C80E /* LibraryView.swift */,
+			);
+			path = Library;
+			sourceTree = "<group>";
+		};
+		BF857F65D7ED590FE0DC02FA /* Shell */ = {
+			isa = PBXGroup;
+			children = (
+				4A6EB7CA2C9AC85995734B19 /* DebugLaunch.swift */,
+				60D5E73AB6179004AA6A76AA /* DebugSnapshot.swift */,
+				93441BF35DA128B8AAFCDF1C /* MelogoldCommands.swift */,
+				05609036F2EA8B7D37C79D06 /* RootView.swift */,
+				68CE44484027E235BABE4E9B /* SplitShell.swift */,
+				74D5802F9DB93D4977628101 /* TabShell.swift */,
+			);
+			path = Shell;
+			sourceTree = "<group>";
+		};
+		CACC837F32C5EA5C27F5FC6B /* New */ = {
+			isa = PBXGroup;
+			children = (
+				8A854C582291C2EB866A3B85 /* NewView.swift */,
+			);
+			path = New;
+			sourceTree = "<group>";
+		};
+		E295C5FB0A95BB12DA5DD09E = {
+			isa = PBXGroup;
+			children = (
+				72DA2FCE7F97876772CC9550 /* App */,
+				47CD97D50E937683CEC29C2B /* Config */,
+				940136195CA3335CF4F2F8B9 /* Packages */,
+				86BC53320E1339C839F09663 /* Shared */,
+				6D718C14C3C87D91ACB42A8E /* UITests */,
+				B448FE91BEB1E5F509766ED1 /* Watch */,
+				B37968274E19904FD5DE23BE /* Melogold.icon */,
+				63DB9E90EE3AF914BC9F9A9F /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		F40A091940277003CEE23522 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				E2CD0B3EB6727B5331CCE032 /* Localizable.xcstrings */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		F69C6ACD4FA38DDDC6D2C5A7 /* Screens */ = {
+			isa = PBXGroup;
+			children = (
+				B9D924C04B1C99C185324ABD /* Library */,
+				CACC837F32C5EA5C27F5FC6B /* New */,
+				FA9DB47BEF2A6C32876DDA3F /* Search */,
+				997FCB0DC346956613EB5244 /* Settings */,
+				8936E17A7DA2B4E92309387C /* Trends */,
+				6C31A6FD2D13A78CE31432CC /* SectionPlaceholder.swift */,
+			);
+			path = Screens;
+			sourceTree = "<group>";
+		};
+		FA9DB47BEF2A6C32876DDA3F /* Search */ = {
+			isa = PBXGroup;
+			children = (
+				E523A3EDBF9604F373F12513 /* SearchView.swift */,
+			);
+			path = Search;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		25A049D4D1212EE4C009B2A5 /* Melogold Watch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DC7AFBA09C0B5C0839D5C2B7 /* Build configuration list for PBXNativeTarget "Melogold Watch" */;
+			buildPhases = (
+				EF0C1C98B2A2016B84D19749 /* Sources */,
+				BFB63EB80E6327F00171F8BB /* Resources */,
+				7ED6DB9693761082ED4AD885 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Melogold Watch";
+			packageProductDependencies = (
+				00E31265CD9323121FDDEB60 /* MelogoldCore */,
+				072FCA9CE57C410C91C3C70D /* MelogoldData */,
+				EE83B993730C176DE0BCEA02 /* MelogoldInnerTube */,
+				2973D1F8B1EADECCA8A6B50E /* MelogoldServer */,
+				74C7DB990AB009185B29E337 /* MelogoldPlayback */,
+			);
+			productName = "Melogold Watch";
+			productReference = 73A40E76B3280821EE501843 /* Melogold Watch.app */;
+			productType = "com.apple.product-type.application";
+		};
+		5F9C11218D60EFECF3E4F085 /* MelogoldUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9C63A6CB6F48EEC31FCDB00E /* Build configuration list for PBXNativeTarget "MelogoldUITests" */;
+			buildPhases = (
+				650B2949BD0220C40C5D10DA /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				1A746D3F7F256BF428956341 /* PBXTargetDependency */,
+			);
+			name = MelogoldUITests;
+			packageProductDependencies = (
+			);
+			productName = MelogoldUITests;
+			productReference = F35CC0B73BA7B96B4B82E927 /* MelogoldUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		895D2F9E15B8E0F15F0FC1E6 /* Melogold */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B7197C8B9E2030CA394A88BF /* Build configuration list for PBXNativeTarget "Melogold" */;
+			buildPhases = (
+				A4D03268DF33B77583D7AC1B /* Sources */,
+				E541E27E6BF6B0945F723A26 /* Resources */,
+				58B246D6F80722885523A23F /* Frameworks */,
+				A418226E0C9222B507C9E843 /* Embed Watch Content */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				8F5A6BE876ACF96912971537 /* PBXTargetDependency */,
+			);
+			name = Melogold;
+			packageProductDependencies = (
+				625BF3FEAD52620894C27DA0 /* MelogoldCore */,
+				76C23F0F53014853D597D1F9 /* MelogoldData */,
+				DC9CC894B07B9896638342CD /* MelogoldInnerTube */,
+				B5D32A80D75EB126504B9C0F /* MelogoldServer */,
+				FFC92A7B0C3C480FDC51982E /* MelogoldPlayback */,
+			);
+			productName = Melogold;
+			productReference = E59F5F588452F498D6413117 /* Melogold.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		D398183C133EE8B68B13AD18 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					25A049D4D1212EE4C009B2A5 = {
+						DevelopmentTeam = "$(MELOGOLD_TEAM)";
+						ProvisioningStyle = "$(MELOGOLD_SIGN_STYLE)";
+					};
+					5F9C11218D60EFECF3E4F085 = {
+						DevelopmentTeam = "$(MELOGOLD_TEAM)";
+						ProvisioningStyle = "$(MELOGOLD_SIGN_STYLE)";
+						TestTargetID = 895D2F9E15B8E0F15F0FC1E6;
+					};
+					895D2F9E15B8E0F15F0FC1E6 = {
+						DevelopmentTeam = "$(MELOGOLD_TEAM)";
+						ProvisioningStyle = "$(MELOGOLD_SIGN_STYLE)";
+					};
+				};
+			};
+			buildConfigurationList = 3287DC6687CD497A22F6BC4E /* Build configuration list for PBXProject "Melogold" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+				ru,
+			);
+			mainGroup = E295C5FB0A95BB12DA5DD09E;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				C5BCE0B4A5752A707AE6B05F /* XCLocalSwiftPackageReference "Packages/MelogoldKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 63DB9E90EE3AF914BC9F9A9F /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				895D2F9E15B8E0F15F0FC1E6 /* Melogold */,
+				25A049D4D1212EE4C009B2A5 /* Melogold Watch */,
+				5F9C11218D60EFECF3E4F085 /* MelogoldUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		BFB63EB80E6327F00171F8BB /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D65EB5358A72B5069219DAEB /* InfoPlist.xcstrings in Resources */,
+				95330FB1AE771766FA75BDEA /* Localizable.xcstrings in Resources */,
+				C1DE916B728425DA9D7A7EFE /* Melogold.icon in Resources */,
+				582A1F17CACE0FAE6DACBC76 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E541E27E6BF6B0945F723A26 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				61BF2F42F34A5F6DBCBDCDAE /* Assets.xcassets in Resources */,
+				73FD23AEAC59899797069BFB /* InfoPlist.xcstrings in Resources */,
+				8823ABE459D3EB82DDE6600D /* Localizable.xcstrings in Resources */,
+				55C88BDF8593BFE632936A56 /* Melogold.icon in Resources */,
+				7B7F06BEA52600084975FA9C /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		650B2949BD0220C40C5D10DA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				202AB5FF65B21800A3C42AEC /* ShellUITests.swift in Sources */,
+				8ACCEDC6EB23CFFA6B08E705 /* UITestSupport.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A4D03268DF33B77583D7AC1B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EE794A34E673F168A7B05EAB /* AppModel.swift in Sources */,
+				6C4AC9EDF614DE121A6F16FD /* DebugLaunch.swift in Sources */,
+				54E552D63E3171488285F922 /* DebugSnapshot.swift in Sources */,
+				DEF932C917686C6E9BC6CEAE /* LibraryView.swift in Sources */,
+				0F943CFE0F06498E564634C0 /* MelogoldApp.swift in Sources */,
+				7EA3249E428FB6CF17568CE9 /* MelogoldCommands.swift in Sources */,
+				D2E17263C8874BAF4ED062B0 /* NewView.swift in Sources */,
+				373ABF28FB0AE1BC2575DFF3 /* RootView.swift in Sources */,
+				A2132CB8024C6D31A1323B1A /* Routes.swift in Sources */,
+				FC76178926B9A1944384776F /* SearchView.swift in Sources */,
+				7FAA9163A0D77D5A2D6DB610 /* SectionPlaceholder.swift in Sources */,
+				5AD7EAADB632942F3B269CA3 /* SectionStyle.swift in Sources */,
+				DE3E8A5359002FD4CA9F6E8F /* ServerView.swift in Sources */,
+				F42A7A749C360FA3E6E10534 /* SettingsView.swift in Sources */,
+				1B1F41525428EEB1C939DEDF /* SplitShell.swift in Sources */,
+				10EA20DE84359721EA31CE23 /* TabShell.swift in Sources */,
+				1AEBC8A022AEBC0AC34CD9E5 /* TrendsView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EF0C1C98B2A2016B84D19749 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9F371FCD19E75A2E60428E9A /* MelogoldWatchApp.swift in Sources */,
+				1FA4F7F8356615AE62FC0DD4 /* SectionStyle.swift in Sources */,
+				5125520C51D3281CB5DBBA66 /* WatchRootView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		1A746D3F7F256BF428956341 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 895D2F9E15B8E0F15F0FC1E6 /* Melogold */;
+			targetProxy = 2F2E00B741554BE7F4BD4EBF /* PBXContainerItemProxy */;
+		};
+		8F5A6BE876ACF96912971537 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilters = (
+				ios,
+			);
+			target = 25A049D4D1212EE4C009B2A5 /* Melogold Watch */;
+			targetProxy = CF0F14B97CC2E5CFC4764EE7 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		027BA74362E69EC724471C44 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = Melogold;
+				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=xros*]" = AppIcon;
+				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=xrsimulator*]" = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_IDENTITY = "$(MELOGOLD_SIGN_IDENTITY)";
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = App/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.melogold.Melogold;
+				PRODUCT_NAME = Melogold;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator xros xrsimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+			};
+			name = Debug;
+		};
+		03C783FA84FD71758389457A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = CFA350B01580D05B8B5A7E0C /* Project.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "$(MELOGOLD_SIGN_IDENTITY)";
+				CODE_SIGN_STYLE = "$(MELOGOLD_SIGN_STYLE)";
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "$(MELOGOLD_TEAM)";
+				ENABLE_PREVIEWS = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		2A1F2667AFFFB80E1A6F6D53 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "$(MELOGOLD_SIGN_IDENTITY)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.melogold.MelogoldUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Melogold;
+			};
+			name = Debug;
+		};
+		3D7F59486CC79ACED6894826 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = Melogold;
+				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=xros*]" = AppIcon;
+				"ASSETCATALOG_COMPILER_APPICON_NAME[sdk=xrsimulator*]" = AppIcon;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_IDENTITY = "$(MELOGOLD_SIGN_IDENTITY)";
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = App/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.melogold.Melogold;
+				PRODUCT_NAME = Melogold;
+				SDKROOT = auto;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator xros xrsimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+			};
+			name = Release;
+		};
+		61106215E758D592AFE8991C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "$(MELOGOLD_SIGN_IDENTITY)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = app.melogold.MelogoldUITests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Melogold;
+			};
+			name = Release;
+		};
+		68CB581C68B3C15AF8DDEE4D /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = CFA350B01580D05B8B5A7E0C /* Project.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "$(MELOGOLD_SIGN_IDENTITY)";
+				CODE_SIGN_STYLE = "$(MELOGOLD_SIGN_STYLE)";
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "$(MELOGOLD_TEAM)";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 6.0;
+				WATCHOS_DEPLOYMENT_TARGET = 26.0;
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
+		8881B08774A5AAC871ECF8AE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = Melogold;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_IDENTITY = "$(MELOGOLD_SIGN_IDENTITY)";
+				INFOPLIST_FILE = Watch/Info.plist;
+				PRODUCT_BUNDLE_IDENTIFIER = app.melogold.Melogold.watchkitapp;
+				PRODUCT_NAME = "Melogold Watch";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				TARGETED_DEVICE_FAMILY = 4;
+			};
+			name = Debug;
+		};
+		C82CF43BAF8C239D29AEA68E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = Melogold;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_IDENTITY = "$(MELOGOLD_SIGN_IDENTITY)";
+				INFOPLIST_FILE = Watch/Info.plist;
+				PRODUCT_BUNDLE_IDENTIFIER = app.melogold.Melogold.watchkitapp;
+				PRODUCT_NAME = "Melogold Watch";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				TARGETED_DEVICE_FAMILY = 4;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		3287DC6687CD497A22F6BC4E /* Build configuration list for PBXProject "Melogold" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				03C783FA84FD71758389457A /* Debug */,
+				68CB581C68B3C15AF8DDEE4D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		9C63A6CB6F48EEC31FCDB00E /* Build configuration list for PBXNativeTarget "MelogoldUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2A1F2667AFFFB80E1A6F6D53 /* Debug */,
+				61106215E758D592AFE8991C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B7197C8B9E2030CA394A88BF /* Build configuration list for PBXNativeTarget "Melogold" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				027BA74362E69EC724471C44 /* Debug */,
+				3D7F59486CC79ACED6894826 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		DC7AFBA09C0B5C0839D5C2B7 /* Build configuration list for PBXNativeTarget "Melogold Watch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8881B08774A5AAC871ECF8AE /* Debug */,
+				C82CF43BAF8C239D29AEA68E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		C5BCE0B4A5752A707AE6B05F /* XCLocalSwiftPackageReference "Packages/MelogoldKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/MelogoldKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		00E31265CD9323121FDDEB60 /* MelogoldCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MelogoldCore;
+		};
+		072FCA9CE57C410C91C3C70D /* MelogoldData */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MelogoldData;
+		};
+		2973D1F8B1EADECCA8A6B50E /* MelogoldServer */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MelogoldServer;
+		};
+		625BF3FEAD52620894C27DA0 /* MelogoldCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MelogoldCore;
+		};
+		74C7DB990AB009185B29E337 /* MelogoldPlayback */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MelogoldPlayback;
+		};
+		76C23F0F53014853D597D1F9 /* MelogoldData */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MelogoldData;
+		};
+		B5D32A80D75EB126504B9C0F /* MelogoldServer */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MelogoldServer;
+		};
+		DC9CC894B07B9896638342CD /* MelogoldInnerTube */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MelogoldInnerTube;
+		};
+		EE83B993730C176DE0BCEA02 /* MelogoldInnerTube */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MelogoldInnerTube;
+		};
+		FFC92A7B0C3C480FDC51982E /* MelogoldPlayback */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MelogoldPlayback;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = D398183C133EE8B68B13AD18 /* Project object */;
+}

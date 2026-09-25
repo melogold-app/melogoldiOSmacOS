@@ -1,0 +1,5 @@
+// Версия приложения — единственное место (docs/PROMPT.md §3 «Обновления»). Без суффиксов.
+// Номер сборки = major×10000 + minor×100 + patch, как versionCode Android. Меняйте оба значения
+// скриптом scripts/set-version.sh X.Y.Z; CI сверяет номер сборки с версией.
+MARKETING_VERSION = 0.1.0
+CURRENT_PROJECT_VERSION = 100

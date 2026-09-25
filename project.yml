@@ -1,0 +1,178 @@
+# Единственный источник проекта (docs/PROMPT.md §3). Melogold.xcodeproj генерируется из него:
+#   scripts/generate-project.sh
+# project.pbxproj руками не правится; CI проверяет, что проект совпадает с этим файлом.
+name: Melogold
+
+options:
+  bundleIdPrefix: app.melogold
+  developmentLanguage: en
+  createIntermediateGroups: true
+  groupSortPosition: top
+  generateEmptyDirectories: false
+  minimumXcodeGenVersion: 2.46.0
+  xcodeVersion: "27.0"
+  deploymentTarget:
+    iOS: "26.0"
+    macOS: "26.0"
+    visionOS: "26.0"
+    watchOS: "26.0"
+
+configFiles:
+  Debug: Config/Project.xcconfig
+  Release: Config/Project.xcconfig
+
+settings:
+  base:
+    CODE_SIGN_STYLE: $(MELOGOLD_SIGN_STYLE)
+    CODE_SIGN_IDENTITY: $(MELOGOLD_SIGN_IDENTITY)
+    DEVELOPMENT_TEAM: $(MELOGOLD_TEAM)
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    LOCALIZATION_PREFERS_STRING_CATALOGS: YES
+    SWIFT_EMIT_LOC_STRINGS: YES
+    DEAD_CODE_STRIPPING: YES
+    ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
+    ENABLE_PREVIEWS: YES
+  configs:
+    Debug:
+      SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+
+packages:
+  MelogoldKit:
+    path: Packages/MelogoldKit
+
+targets:
+  Melogold:
+    type: application
+    supportedDestinations: [iOS, macOS, visionOS]
+    sources:
+      - path: App
+      - path: Shared
+      - path: Melogold.icon
+        destinationFilters: [iOS, macOS]
+    dependencies:
+      - package: MelogoldKit
+        products: [MelogoldCore, MelogoldData, MelogoldInnerTube, MelogoldServer, MelogoldPlayback]
+      - target: Melogold Watch
+        destinationFilters: [iOS]
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Melogold
+        CFBundleDevelopmentRegion: $(DEVELOPMENT_LANGUAGE)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleURLTypes:
+          - CFBundleURLName: app.melogold.Melogold
+            CFBundleTypeRole: Viewer
+            CFBundleURLSchemes: [melogold]
+        ITSAppUsesNonExemptEncryption: false
+        LSApplicationCategoryType: public.app-category.music
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        NSLocalNetworkUsageDescription: Melogold connects to your own Melogold server on the local network.
+        UIBackgroundModes: [audio]
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+    settings:
+      base:
+        PRODUCT_NAME: Melogold
+        PRODUCT_BUNDLE_IDENTIFIER: app.melogold.Melogold
+        CODE_SIGN_IDENTITY: $(MELOGOLD_SIGN_IDENTITY)
+        TARGETED_DEVICE_FAMILY: "1,2,7"
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+        SWIFT_APPROACHABLE_CONCURRENCY: YES
+        # .icon (Icon Composer) — iPhone, iPad и Mac; у visionOS свой набор в Assets.xcassets.
+        ASSETCATALOG_COMPILER_APPICON_NAME: Melogold
+        "ASSETCATALOG_COMPILER_APPICON_NAME[sdk=xros*]": AppIcon
+        "ASSETCATALOG_COMPILER_APPICON_NAME[sdk=xrsimulator*]": AppIcon
+        ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: NO
+        ENABLE_HARDENED_RUNTIME: YES
+
+  Melogold Watch:
+    type: application
+    platform: watchOS
+    sources:
+      - path: Watch
+      - path: Shared
+      - path: Melogold.icon
+    dependencies:
+      - package: MelogoldKit
+        products: [MelogoldCore, MelogoldData, MelogoldInnerTube, MelogoldServer, MelogoldPlayback]
+    info:
+      path: Watch/Info.plist
+      properties:
+        CFBundleDisplayName: Melogold
+        CFBundleDevelopmentRegion: $(DEVELOPMENT_LANGUAGE)
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        ITSAppUsesNonExemptEncryption: false
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        NSLocalNetworkUsageDescription: Melogold connects to your own Melogold server on the local network.
+        UIBackgroundModes: [audio]
+        # Самостоятельное приложение (docs/PROMPT.md §5.6): ставится и работает без приложения на iPhone.
+        WKApplication: true
+        WKCompanionAppBundleIdentifier: app.melogold.Melogold
+        WKRunsIndependentlyOfCompanionApp: true
+    settings:
+      base:
+        PRODUCT_NAME: Melogold Watch
+        PRODUCT_BUNDLE_IDENTIFIER: app.melogold.Melogold.watchkitapp
+        CODE_SIGN_IDENTITY: $(MELOGOLD_SIGN_IDENTITY)
+        TARGETED_DEVICE_FAMILY: "4"
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+        SWIFT_APPROACHABLE_CONCURRENCY: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: Melogold
+        ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: NO
+
+  MelogoldUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: Melogold
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.melogold.MelogoldUITests
+        CODE_SIGN_IDENTITY: $(MELOGOLD_SIGN_IDENTITY)
+        TEST_TARGET_NAME: Melogold
+        TARGETED_DEVICE_FAMILY: "1,2"
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  Melogold:
+    build:
+      targets:
+        Melogold: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - MelogoldUITests
+    archive:
+      config: Release
+  Melogold Watch:
+    build:
+      targets:
+        Melogold Watch: all
+    run:
+      config: Debug
+    archive:
+      config: Release

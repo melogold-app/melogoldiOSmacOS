@@ -21,6 +21,18 @@
 
 Иконка приложения — `Melogold.icon` (Icon Composer, Liquid Glass) и `Assets/AppIcon-1024.png`.
 
+## Сборка
+
+Нужен Xcode 27. Проект генерируется из `project.yml`; XcodeGen собирается сам из `BuildTools/`, Homebrew не нужен.
+
+```sh
+scripts/generate-project.sh                          # Melogold.xcodeproj из project.yml
+swift test --package-path Packages/MelogoldKit       # правила, парсеры и общие векторы
+open Melogold.xcodeproj                              # схемы Melogold (iPhone, iPad, Mac, Vision) и Melogold Watch
+```
+
+Подпись по умолчанию — ad-hoc; своя команда — в `Config/Local.xcconfig` (образец — `Config/Local.example.xcconfig`). Ход работы и что проверено — [docs/STATUS.md](docs/STATUS.md).
+
 ## Лицензия
 
 [GPL-3.0](./LICENSE).

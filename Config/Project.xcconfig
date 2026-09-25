@@ -1,0 +1,12 @@
+// Общие настройки сборки всех таргетов. project.yml ссылается на этот файл для Debug и Release.
+#include "Version.xcconfig"
+
+// Подпись по умолчанию — ad-hoc («Sign to Run Locally»): Mac-сборка запускается локально, симуляторам
+// подпись не нужна. Команда разработчика — только в локальном Config/Local.xcconfig (в .gitignore),
+// в CI — секрет APPLE_TEAM_ID. На устройство без команды не собрать — так и задумано.
+// Таргеты в project.yml берут подпись из этих переменных: свои значения XcodeGen иначе перекрыли бы xcconfig.
+MELOGOLD_SIGN_STYLE = Manual
+MELOGOLD_SIGN_IDENTITY = -
+MELOGOLD_TEAM =
+
+#include? "Local.xcconfig"

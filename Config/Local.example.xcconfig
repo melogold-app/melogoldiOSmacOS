@@ -1,0 +1,6 @@
+// Скопируйте в Config/Local.xcconfig (он в .gitignore), чтобы подписывать сборки своей командой.
+// Отладочные сборки на Mac лучше подписывать командой: без неё macOS спрашивает доступ к связке ключей
+// после каждой пересборки (docs/PROMPT.md §9, п. 13).
+MELOGOLD_SIGN_STYLE = Automatic
+MELOGOLD_SIGN_IDENTITY = Apple Development
+MELOGOLD_TEAM = ABCDE12345

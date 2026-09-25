@@ -8,3 +8,4 @@ build/
 *.dmg
 *.xcarchive
 .DS_Store
+Config/Local.xcconfig

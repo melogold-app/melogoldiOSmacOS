@@ -38,7 +38,9 @@
   - Swift 6 (языковой режим 6, строгая проверка конкурентности), SwiftUI, Observation (`@Observable`), async/await;
   - Mac — нативный SwiftUI, не Mac Catalyst.
 - **Проект:**
-  - `project.yml` (XcodeGen) — единственный источник проекта. `Melogold.xcodeproj` генерируется командой `xcodegen generate` и тоже лежит в репозитории, чтобы открываться в Xcode без инструментов. `project.pbxproj` руками не правится; CI проверяет, что проект совпадает с `project.yml`. Если XcodeGen не справится с чем-то из Xcode 27 (иконка `.icon`, часы), выбери самый маленький обход и скажи пользователю;
+  - `project.yml` (XcodeGen) — единственный источник проекта. `Melogold.xcodeproj` генерируется командой `scripts/generate-project.sh` и тоже лежит в репозитории, чтобы открываться в Xcode без инструментов. `project.pbxproj` руками не правится; CI проверяет, что проект совпадает с `project.yml`. Если XcodeGen не справится с чем-то из Xcode 27 (иконка `.icon`, часы), выбери самый маленький обход и скажи пользователю;
+  - XcodeGen закреплён пакетом SwiftPM `BuildTools/` (2.46.0) и собирается из исходников — Homebrew не нужен ни на Mac, ни в CI. Обход для Xcode 27: XcodeGen пишет у `.icon` тип `wrapper.icon`, а Xcode ждёт `folder.iconcomposer.icon` — скрипт генерации правит эту строку;
+  - подпись по умолчанию — ad-hoc («Sign to Run Locally», `Config/Project.xcconfig`); команда разработчика — только в `Config/Local.xcconfig` (в `.gitignore`, образец — `Config/Local.example.xcconfig`);
   - таргет `Melogold` — одно мультиплатформенное приложение: iPhone, iPad, Mac, Apple Vision;
   - таргет `Melogold Watch` — самостоятельное приложение watchOS (§5.6): встроено в приложение iOS и ставится на часы вместе с ним, но работает и без него (`WKRunsIndependentlyOfCompanionApp`);
   - идентификаторы — `app.melogold.Melogold` и `app.melogold.Melogold.watchkitapp`. ID команды — вне репозитория: локальный xcconfig в `.gitignore`, в CI — секрет `APPLE_TEAM_ID`.
@@ -81,7 +83,8 @@
   - Mac — Sparkle 2: DMG и `appcast.xml` в GitHub Releases, подпись EdDSA, проверка при старте не чаще раза в 6 часов и пунктом «Проверить обновления…» (задание 0004);
   - iPhone, iPad, Vision, часы — App Store, тесты — TestFlight (задание 0005). Своего механизма обновления нет;
   - версия — в одном месте (`Config/Version.xcconfig`, `MARKETING_VERSION`), без суффиксов. Номер сборки считается из неё: major×10000 + minor×100 + patch, как `versionCode` Android.
-- **CI:** GitHub Actions на macOS-раннере (`macos-26` или новее), Xcode выбирается явно — той же мажорной версии, что на Mac пользователя. Если на GitHub его ещё нет, возьми ближайший и скажи пользователю. На каждый push: `swift test` пакета и сборка `Melogold` для iOS, macOS и visionOS и `Melogold Watch`.
+- **CI:** GitHub Actions на macOS-раннере (`macos-26` или новее), Xcode выбирается явно — той же мажорной версии, что на Mac пользователя. Если на GitHub его ещё нет, возьми ближайший и скажи пользователю. На каждый push: `swift test` пакета и сборка `Melogold` для iOS, macOS и visionOS и `Melogold Watch`. Раннер — образ `xcode-27` (macOS 27, Xcode 27.0; у GitHub это публичное превью с 10.09.2026): в образах `macos-26` Xcode 27 нет.
+- **UI-тесты** — таргет `MelogoldUITests` (XCUITest, iPhone): нажатия и снимки экрана без ручного управления симулятором. Отладочные параметры запуска: `-shell.lastTab <раздел>`, `-AppleLanguages "(ru)"`, `-MelogoldOpenURL <ссылка>`; на Mac — `-MelogoldSnapshotPath <png>` (снимок окна самим приложением, когда экран Mac заблокирован).
 
 ## 4. Воспроизведение (решено, с учётом граблей Android и Windows)
 

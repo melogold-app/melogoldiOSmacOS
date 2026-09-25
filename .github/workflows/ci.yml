@@ -1,0 +1,74 @@
+# Каждый push: правила пакета (swift test), проект совпадает с project.yml, сборка всех таргетов
+# (docs/PROMPT.md §3 «CI»). Xcode — той же мажорной версии, что на Mac пользователя (27).
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # Образ Xcode 27 (macOS 27, arm64) — публичное превью GitHub с 10.09.2026.
+    runs-on: xcode-27
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Xcode 27
+        run: |
+          xcode=$(ls -d /Applications/Xcode_27.app /Applications/Xcode_27.0*.app 2>/dev/null | head -1)
+          if [ -z "$xcode" ]; then echo "Xcode 27 не найден" >&2; ls -d /Applications/Xcode*.app; exit 1; fi
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
+
+      - name: Версия и номер сборки
+        run: scripts/check-version.sh
+
+      - name: Строки на двух языках
+        run: python3 scripts/strings.py --check Shared/Resources/Localizable.xcstrings
+
+      - name: Кэш XcodeGen
+        uses: actions/cache@v4
+        with:
+          path: BuildTools/.build
+          key: buildtools-${{ runner.os }}-${{ hashFiles('BuildTools/Package.resolved', 'BuildTools/Package.swift') }}
+
+      - name: Проект совпадает с project.yml
+        run: |
+          scripts/generate-project.sh
+          if ! git diff --exit-code -- Melogold.xcodeproj App/Info.plist Watch/Info.plist; then
+            echo "::error::Melogold.xcodeproj не совпадает с project.yml — запустите scripts/generate-project.sh и закоммитьте"
+            exit 1
+          fi
+
+      - name: swift test (MelogoldKit)
+        run: swift test --package-path Packages/MelogoldKit
+
+      - name: iOS и часы
+        run: |
+          set -o pipefail
+          xcodebuild -project Melogold.xcodeproj -scheme Melogold -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build | xcbeautify
+
+      - name: macOS
+        run: |
+          set -o pipefail
+          xcodebuild -project Melogold.xcodeproj -scheme Melogold -destination 'generic/platform=macOS' \
+            build | xcbeautify
+
+      - name: visionOS
+        run: |
+          set -o pipefail
+          xcodebuild -project Melogold.xcodeproj -scheme Melogold -destination 'generic/platform=visionOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build | xcbeautify
+
+      - name: watchOS
+        run: |
+          set -o pipefail
+          xcodebuild -project Melogold.xcodeproj -scheme "Melogold Watch" -destination 'generic/platform=watchOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build | xcbeautify
