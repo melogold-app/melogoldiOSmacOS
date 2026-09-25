@@ -8,7 +8,7 @@
 - Главный смысл: треки, которые в России вырезали из Apple Music, есть на YouTube (часто перезаливами). Поэтому обычный YouTube — такой же источник, как каталог YouTube Music: видео ищутся, играют, лежат в плейлистах и очереди наравне с песнями.
 - Работает без аккаунта. По желанию пользователь входит на сервер Melogold (логин и пароль), и Избранное, плейлисты, сохранённые альбомы и исполнители, история и свои тексты синхронизируются между устройствами. Сервер хранит только метаданные (`videoId` и т. п.). Звук каждый клиент берёт с YouTube сам.
 - Части (все репозитории публичные, организация `melogold-app`; локальные клоны — в `/Users/maxim/Documents/melogold/`):
-  - `melogoldAndroid` — Kotlin, Material 3 Expressive, выпущен 0.1.2. Эталон поведения и спецификаций. Самые свежие код и документы — ветка `redesign/m3e` (она впереди `main`). Её рабочая копия сейчас лежит в `/private/tmp/claude-501/-Users-maxim-Documents-vitunefork/bf62c35e-adb5-4b18-a3a1-0f97764a65cd/scratchpad/wt-android`; если папки уже нет — `git -C /Users/maxim/Documents/melogold/melogoldAndroid fetch` и читай `origin/redesign/m3e` через `git show`;
+  - `melogoldAndroid` — Kotlin, Material 3 Expressive, выпущен 0.1.3. Эталон поведения и спецификаций. Самые свежие код и документы — ветка `redesign/m3e` (она впереди `main`). Её рабочая копия сейчас лежит в `/private/tmp/claude-501/-Users-maxim-Documents-vitunefork/bf62c35e-adb5-4b18-a3a1-0f97764a65cd/scratchpad/wt-android`; если папки уже нет — `git -C /Users/maxim/Documents/melogold/melogoldAndroid fetch` и читай `origin/redesign/m3e` через `git show`;
   - `melogoldServer` — TypeScript/Node, контракт API (`docs/API.md`);
   - `melogoldWindows` — C#, WinUI 3, выпущен 0.1.2. Ближайший образец по устройству: поток без yt-dlp, SQLite, синк, тексты;
   - `melogoldiOSmacOS` — этот репозиторий;
@@ -54,7 +54,7 @@
   - Windows-клиент (`/Users/maxim/Documents/melogold/melogoldWindows`) — ближе всех по устройству: поток без yt-dlp, схема SQLite, синк, тексты. Повторяй поведение, код не переводи строка в строку;
   - Apple-клиент Clementine VPN того же пользователя (`/Users/maxim/Documents/VPN/iOS:macOS Clementine`; бери локально, с GitHub не клонируй): SwiftUI для iPhone, iPad и Mac, Keychain, данные устройства, боковая панель на Mac, `Localizable.xcstrings` и `InfoPlist.xcstrings`, `PrivacyInfo.xcprivacy`, скрипт выпуска Mac с Developer ID и нотаризацией (`scripts/publish-macos-release.sh`). Бери приёмы, VPN-специфику не переноси.
 - **Данные:**
-  - SQLite через GRDB. Схема и имена — как у Windows (`src/Melogold.Core/Data/LibraryDatabase.cs`): `tracks`, `albums`, `artists`, `playlists`, `playlist_items`, `play_events`, `search_history`, `lyrics`, `content_blocks`, `app_state` и снимки синка `sync_state`, `synced_likes`, `synced_bookmarks`, `synced_playlists`, `synced_lyrics`. Чего у Windows ещё нет (например, загрузки и устройство прослушивания), добавляй по Android REWRITE §4.2 и §4.12a в том же стиле. Тогда резервная копия переносится между Windows и Apple — проверь это в срезе «Выпуск»;
+  - SQLite через GRDB. Схема и имена — как у Windows (`src/Melogold.Core/Data/LibraryDatabase.cs`): `tracks`, `albums`, `artists`, `playlists`, `playlist_items`, `play_events`, `search_history`, `lyrics`, `content_blocks`, `app_state` и снимки синка `sync_state`, `synced_likes`, `synced_bookmarks`, `synced_playlists`, `synced_lyrics`. Чего у Windows ещё нет (например, загрузки и устройство прослушивания), добавляй по Android REWRITE §4.2 и §4.12a в том же стиле. Копия библиотеки при этом общая для всех клиентов, свой формат: `melogoldAndroid/docs/spec/backup-format.md`, задание 0006;
   - схема идёт от модели сервера: трек по `videoId`, плейлист с `syncId`, позиция трека с `sortKey`, лайки, закладки альбомов и исполнителей. Только локально — очередь, кэш и загрузки;
   - база и логи — в `Application Support/Melogold/`. Кэш музыки и загрузки — тоже там, а не в `Caches`: оттуда система стирает файлы при нехватке места, а пользователь этого не хочет (на Android кэш по той же причине перенесли из системного cache в `Android/data`). Папкам кэша и загрузок — `isExcludedFromBackup`, чтобы гигабайты музыки не уходили в резервную копию iCloud. Обложки — в `Caches`;
   - настройки — `UserDefaults` с ключами реестра Android (REWRITE §4.11.5: `shell.lastTab`, `playback.normalization`, `sort.*` и т. д.).
@@ -66,7 +66,8 @@
   - домашний сервер по http (API §7.1): `NSAllowsLocalNetworking` и `NSLocalNetworkUsageDescription`, диапазон `100.64/10` — только по https. API называет это для macOS; на iPhone, iPad и Vision ключи те же.
 - **Сессия и устройство:**
   - токены — в Keychain (`kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`), не в `UserDefaults`;
-  - `hwid` — по API §1.6, векторы `melogoldServer/spec/hwid.vectors.json`. Mac: `platformId` = `IOPlatformUUID` как есть. iPhone, iPad, Vision: своего `platformId` в контракте нет, но есть запасной для любой платформы — случайный UUID v4 в приватном хранилище без резервных копий (DESIGN §4.6). Здесь это Keychain с `…ThisDeviceOnly`: переживает переустановку и не переезжает на новое устройство;
+  - `hwid` — по API §1.6, векторы `melogoldServer/spec/hwid.vectors.json`. Mac: `platformId` = `IOPlatformUUID` как есть. iPhone, iPad, Vision: `platformId` — случайный UUID v4 в Keychain с `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` (API §1.6, сервер 651b1a7): переживает переустановку и не переезжает на новое устройство;
+  - `platform` и User-Agent `melogold-<platform>/<версия>` (API §1.2, §1.6): Mac — `macos`, iPhone — `ios`, iPad — `ipados`, Vision Pro — `visionos`. У часов своего входа нет;
   - `DeviceInput` (имя, `osVersion`, `model`) — как `Networking/DeviceIdentityService.swift` в Clementine. На iPhone без особого права Apple система отдаёт имя «iPhone», а не имя владельца, — так и оставь.
 - **Логи:**
   - `Logger` (os.log) и свой файл до 2 МБ; при старте он переименовывается в `previous`;
@@ -249,7 +250,7 @@
   - выдача: области поиска (`searchScopes`) «Всё · Музыка · YouTube». Тип внутри области — фильтр: в «Музыке» — Песни, Альбомы, Исполнители, Клипы, Плейлисты; в «YouTube» — Видео, Каналы, Трансляции, Плейлисты.
 - **Тренды:** «В тренде», «Настроения и жанры».
 - **Новое:** новые альбомы и синглы, «Для вас», похожие исполнители и альбомы, плейлисты для вас.
-- **Библиотека** — хаб: Избранное, Скачанное (с группой «В кэше»), История, Плейлисты, Альбомы, Исполнители и каналы. Импорта копий ViTune нет: они бывают только на Android.
+- **Библиотека** — хаб: Избранное, Скачанное (с группой «В кэше»), История, Плейлисты, Альбомы, Исполнители и каналы. Последняя строка — «Импорт из ViTune или ViMusic» (задание 0006).
 - **История:** «Недавние · Чаще всего», период — 7 дней · 30 дней · Год · Всё время; фильтр по устройствам (задание 0002).
 - **Детальные экраны:**
   - шапка с обложкой, название, подзаголовок, кнопки «Слушать · Перемешать · Сохранить · …», под ней список;
@@ -261,7 +262,7 @@
   - «Внешний вид»: тема; язык — строка, которая открывает системный выбор языка приложения (на Mac — подсказка, где он в Системных настройках);
   - «Воспроизведение»: нормализация, автовоспроизведение, скорость, «Сведения о потоке», «Не гасить экран, пока открыт текст» (iPhone, iPad);
   - «Библиотека и история»: «Не сохранять историю», «Скрывать треки с пометкой E», «Скрытые»;
-  - «Хранилище и данные»: кэш и его размер, загрузки и «Только по Wi‑Fi», обложки, место на часах, резервная копия (как у Windows, `src/Melogold.Core/Data/LibraryBackup.cs`);
+  - «Хранилище и данные»: кэш и его размер, загрузки и «Только по Wi‑Fi», обложки, место на часах, «Сохранить копию» и «Импорт копии» (задание 0006);
   - «О приложении»: версия, «Проверить обновления…» (Mac), «Диагностика», «Лицензии», исходный код;
   - каждая настройка множится на все клиенты, поэтому добавляй только те, что есть на Android (плюс платформенные вроде часов).
 - **Аккаунт** (Android `ui/screens/settings/account/AccountScreens.kt`):
@@ -300,10 +301,11 @@
 | Android Auto | CarPlay | 7 |
 | Голосовой запрос | Siri | 7 |
 | Самообновление | Mac — Sparkle; остальные — App Store | 8 |
-| Диагностика, лицензии, резервная копия | iPhone, iPad, Mac, Vision | 8 |
+| Диагностика, лицензии | iPhone, iPad, Mac, Vision | 8 |
+| Импорт ViTune и ViMusic, «Сохранить копию» и «Импорт копии» в общем формате | iPhone, iPad, Mac, Vision | 8, задание 0006 |
 | Планшет и складные | iPad, Mac, Vision | все |
 | «Поделиться» → Melogold | «Вставить ссылку» и перетаскивание; расширение — позже | 3 |
-| Импорт ViTune и ViMusic, работа в фоне, настройки Android Auto | не нужно: это только Android | — |
+| Работа в фоне, настройки Android Auto | не нужно: это только Android | — |
 | SponsorBlock, эквалайзер | позже: SponsorBlock ждёт решения пользователя (REWRITE §1.8, п. 5), системного эквалайзера на Apple нет | — |
 
 ## 7. Что сделать в 0.1 (порядок срезов)
@@ -334,7 +336,7 @@
 6. **Тексты:** цепочка поиска как у Android (`ui/screens/player/LyricsFetcher.kt`), синхронный текст, меню текста, поиск по LrcLib, импорт, редактор, тексты через сервер (задание 0001).
 7. **Отделка плеера:** очередь, таймер сна, скорость, нормализация, столбики под звук, мини-плеер окном на Mac, меню в Dock, CarPlay, Siri, окно «Сейчас играет» на Vision, отделка часов.
 8. **Выпуск:**
-   - Настройки целиком, «О приложении», «Диагностика», «Лицензии», резервная копия;
+   - Настройки целиком, «О приложении», «Диагностика», «Лицензии», импорт и экспорт библиотеки (задание 0006);
    - Mac: DMG и Sparkle (задание 0004), релиз 0.1.0 на GitHub, затем проверка обновления 0.1.0 → 0.1.1;
    - iPhone, iPad, Vision, часы: TestFlight (задание 0005).
 
@@ -419,13 +421,10 @@
 
 Всё новое, что нужно сделать, лежит в `tasks/`: одно задание — один файл, порядок работы — `tasks/README.md`. В начале каждой сессии открывай эту папку. Задания 0001–0005 привязаны к срезам §7; новые задания без среза выполняй сразу, по номерам. Задания для других клиентов лежат в `melogoldAndroid/tasks/` и `melogoldWindows/tasks/`.
 
-## 11. Открытые вопросы (спросить в начале, до среза 5)
+## 11. Решено после брифа
 
-1. **Платформа iPhone, iPad и Vision для сервера.** User-Agent в контракте (API §1.2) знает только `android`, `macos`, `windows` и `linux`, `Platform` (§1.6) — их же и `other`. DESIGN сервера прямо пишет «iOS нет». Формат `Platform` (`^[a-z0-9_]{1,16}$`) пропустил бы любое значение, а User-Agent сервер только логирует, но значения выбирает контракт, а не клиент. Спроси пользователя и сессию сервера:
-   - какие значения `platform` и User-Agent у iPhone, iPad и Vision (и у часов, если у них когда-нибудь будет свой вход);
-   - вписать ли в §1.6 для них `platformId` — запасной вариант (UUID в Keychain, §3).
-
-   До ответа срез 5 на iPhone, iPad и Vision не начинай; Mac делай по контракту.
+1. **Платформы Apple для сервера** (сервер 651b1a7): `platform` и User-Agent — `macos`, `ios`, `ipados`, `visionos`; `platformId` на iPhone, iPad и Vision — UUID в Keychain (§3). Срез 5 делай на всех устройствах сразу.
+2. **Импорт и экспорт** (пользователь, 2026-09-25): как на Android, на всех клиентах, в общем формате копии — задание 0006.
 
 ## 12. Готово, когда
 

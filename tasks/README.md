@@ -21,3 +21,4 @@
 | [0003](0003-audio-cache.md) | Кэш музыки 4 ГБ и «есть без сети» | 2 |
 | [0004](0004-macos-dmg-release.md) | Выпуск для Mac: DMG в GitHub Releases и Sparkle | 8 |
 | [0005](0005-app-store.md) | App Store и TestFlight: iPhone, iPad, Vision Pro, часы | 8 |
+| [0006](0006-import-export.md) | Импорт и экспорт библиотеки, как на Android | 8 |
