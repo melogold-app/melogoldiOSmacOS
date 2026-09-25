@@ -144,7 +144,7 @@ public struct ServerAPI: Sendable {
         return try decode(data)
     }
 
-    private func sendEmpty(_ method: String, _ path: String, body: some Encodable, token: String? = nil) async throws {
+    func sendEmpty(_ method: String, _ path: String, body: some Encodable, token: String? = nil) async throws {
         _ = try await perform(withBody(request(method, path, token: token), body))
     }
 
@@ -194,7 +194,7 @@ public struct ServerAPI: Sendable {
         }
     }
 
-    private func decode<Response: Decodable>(_ data: Data) throws -> Response {
+    func decode<Response: Decodable>(_ data: Data) throws -> Response {
         do {
             return try JSONDecoder().decode(Response.self, from: data)
         } catch {

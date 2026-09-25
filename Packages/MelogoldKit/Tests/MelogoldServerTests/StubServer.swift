@@ -14,7 +14,10 @@ final class StubServer: Sendable {
         }
     }
 
+    /// Статус меньше нуля — сети нет: запрос падает с `URLError.notConnectedToInternet`.
     typealias Handler = @Sendable (Request) -> (Int, String)
+
+    static let offline = -1
 
     let host: String
     private let routes = Mutex<[String: Handler]>([:])
@@ -72,6 +75,10 @@ final class StubProtocol: URLProtocol, @unchecked Sendable {
             body: request.httpBody ?? readStream(request.httpBodyStream)
         )
         let (status, text) = server.handle(stub)
+        if status < 0 {
+            client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
+            return
+        }
         let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json"])!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: Data(text.utf8))

@@ -14,4 +14,14 @@ public enum IsoTime {
     public static func string(_ date: Date) -> String {
         withFraction.format(date)
     }
+
+    /// Время базы (epoch-мс UTC, API §1.5) → строка API.
+    public static func string(epochMs: Int64) -> String {
+        string(Date(timeIntervalSince1970: Double(epochMs) / 1000))
+    }
+
+    /// Строка API → epoch-мс; `nil` — не время.
+    public static func epochMs(_ text: String?) -> Int64? {
+        date(text).map { Int64(($0.timeIntervalSince1970 * 1000).rounded()) }
+    }
 }

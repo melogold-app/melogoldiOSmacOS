@@ -36,8 +36,16 @@ let package = Package(
             swiftSettings: strictSwift
         ),
         .testTarget(name: "MelogoldCoreTests", dependencies: ["MelogoldCore"], swiftSettings: strictSwift),
-        .testTarget(name: "MelogoldDataTests", dependencies: ["MelogoldData"], swiftSettings: strictSwift),
-        .testTarget(name: "MelogoldServerTests", dependencies: ["MelogoldServer"], swiftSettings: strictSwift),
+        .testTarget(
+            name: "MelogoldDataTests",
+            dependencies: ["MelogoldData", .product(name: "GRDB", package: "GRDB.swift")],
+            swiftSettings: strictSwift
+        ),
+        .testTarget(
+            name: "MelogoldServerTests",
+            dependencies: ["MelogoldServer", .product(name: "GRDB", package: "GRDB.swift")],
+            swiftSettings: strictSwift
+        ),
         .testTarget(
             name: "MelogoldInnerTubeTests",
             dependencies: ["MelogoldInnerTube"],

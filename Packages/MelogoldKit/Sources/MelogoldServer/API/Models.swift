@@ -57,14 +57,28 @@ public struct ServerInfo: Decodable, Sendable, Equatable {
         }
     }
 
-    /// Нужная клиенту часть `ServerLimits` (API §11): правила логина и пароля для подсказок у полей.
+    /// Нужная клиенту часть `ServerLimits` (API §11): правила логина и пароля для подсказок у полей, лимиты синка
+    /// и истории.
     public struct Limits: Decodable, Sendable, Equatable {
         public let account: Account?
+        public let sync: Sync?
+        public let history: History?
 
         public struct Account: Decodable, Sendable, Equatable {
             public let maxDevices: Int?
             public let login: Rule?
             public let password: Rule?
+        }
+
+        public struct Sync: Decodable, Sendable, Equatable {
+            public let maxOpsPerRequest: Int?
+        }
+
+        public struct History: Decodable, Sendable, Equatable {
+            public let retentionDays: Int?
+            public let maxEvents: Int?
+            /// Столько последних прослушиваний отправить при первом синке, не больше (задание 0002).
+            public let mergeUploadMax: Int?
         }
 
         public struct Rule: Decodable, Sendable, Equatable {
