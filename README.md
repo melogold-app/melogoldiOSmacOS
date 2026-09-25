@@ -11,7 +11,7 @@
 В разработке. Основа клиента — [docs/PROMPT.md](docs/PROMPT.md), задания — [tasks/](tasks/).
 
 - **Платформы:** iPhone, iPad, Mac, Apple Vision Pro и Apple Watch — iOS, iPadOS, macOS, visionOS и watchOS 26 и новее.
-- **Приложение:** Swift и SwiftUI, одна кодовая база; часы — спутник iPhone.
+- **Приложение:** Swift и SwiftUI, одна кодовая база; часы — самостоятельное приложение: свой вход, поиск, поток и загрузки без iPhone.
 - **Распространение:**
   - iPhone, iPad, Vision Pro и часы — App Store, тесты — TestFlight;
   - Mac — DMG из [GitHub Releases](https://github.com/melogold-app/melogoldiOSmacOS/releases), дальше приложение

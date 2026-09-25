@@ -12,7 +12,8 @@
 
 ## 2. Решение
 
-- **Запись приложения** в App Store Connect одна: bundle ID `app.melogold.Melogold`, платформы iOS (iPhone и iPad) и visionOS. Приложение часов (`app.melogold.Melogold.watchkitapp`) едет внутри сборки iOS, своей записи у него нет. Mac в App Store не идёт (задание 0004).
+- **Запись приложения** в App Store Connect одна: bundle ID `app.melogold.Melogold`, платформы iOS (iPhone и iPad) и visionOS. Mac в App Store не идёт (задание 0004).
+- **Часы:** приложение часов (`app.melogold.Melogold.watchkitapp`) едет внутри сборки iOS, своей записи у него нет. Оно самостоятельное (`WKRunsIndependentlyOfCompanionApp = YES`, `docs/PROMPT.md` §5.6): в App Store на часах его можно поставить без приложения на iPhone. Для страницы в App Store нужны скриншоты часов.
 - **Без fastlane:** хватает `xcodebuild` и ключа App Store Connect API — меньше зависимостей.
 - **Workflow** `.github/workflows/testflight.yml` — по тегу `vX.Y.Z` и вручную (`workflow_dispatch`):
   1. временная связка ключей с «Apple Distribution» из секретов, ключ API — во временный файл;
@@ -45,4 +46,4 @@
 ## 5. Проверка
 
 - Workflow без секретов зелёный: оба архива собраны, в итоге — каких секретов не хватает.
-- С секретами: сборки iOS и visionOS появляются в TestFlight; на iPhone из TestFlight ставятся приложение и приложение часов; на iPad — то же приложение.
+- С секретами: сборки iOS и visionOS появляются в TestFlight; на iPhone из TestFlight ставятся приложение и приложение часов; на iPad — то же приложение. Приложение часов работает при выключенном iPhone: вход, поиск, поток, загрузки.
