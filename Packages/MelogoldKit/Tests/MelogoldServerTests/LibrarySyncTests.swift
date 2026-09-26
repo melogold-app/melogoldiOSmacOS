@@ -238,6 +238,31 @@ struct LibrarySyncTests {
         #expect(try h.state("needsMerge") == "0")
     }
 
+    /// «Убрать из истории» и «Очистить историю» до первого входа — только на этом устройстве: в новый аккаунт они не
+    /// уходят и его историю на других устройствах не стирают (как на Android и Windows); сделанное после входа уходит.
+    @Test func historyActionsBeforeSignInDoNotReachTheNewAccount() async throws {
+        let h = try SyncHarness(bound: false)
+        h.library.recordPlay(Track(videoId: "t1", title: "Song t1"), playTimeMs: 60_000, endedAt: 1_790_000_000_000)
+        h.library.recordPlay(Track(videoId: "t2", title: "Song t2"), playTimeMs: 30_000, endedAt: 1_790_000_001_000)
+        h.library.removeFromHistory("t1", at: 1_790_000_002_000)
+        #expect(try h.strings("SELECT kind FROM history_ops") == ["history.forget"])
+        h.server.on("POST", "/sync") { request in (200, SyncFixtures.response(request)) }
+
+        await h.engine.sync()
+
+        let kinds = h.syncRequests.indices.flatMap { h.ops($0).compactMap { $0["kind"] as? String } }
+        #expect(kinds == ["play.add", "play.baseline"])
+        #expect(try h.strings("SELECT kind FROM history_ops").isEmpty)
+
+        // После входа — на все устройства аккаунта
+        h.library.removeFromHistory("t2", at: 1_790_000_003_000)
+        await h.engine.sync()
+        let forget = try #require(h.ops(h.syncRequests.count - 1).first)
+        #expect(forget["kind"] as? String == "history.forget")
+        #expect(forget["videoId"] as? String == "t2")
+        #expect(try h.strings("SELECT kind FROM history_ops").isEmpty)
+    }
+
     @Test func expiredCursorRestartsFromTheBeginningOnce() async throws {
         let h = try SyncHarness()
         try h.sql("UPDATE sync_state SET value = 'stale.1.1' WHERE key = 'cursor'")
@@ -422,7 +447,7 @@ struct LibrarySyncTests {
         try h.track("t1", likedAt: 1_790_000_000_000)
         try h.sql("INSERT INTO albums (browse_id, title, bookmarked_at) VALUES ('MPREb_1', 'Album', 1790000000000)")
         try h.sql("INSERT INTO play_events (event_id, video_id, played_at, play_time_ms, synced, device_id) VALUES ('e1', 't1', 1790000000000, 60000, 0, NULL)")
-        try await h.store.forgetFromHistory(videoId: "t2", at: 1_790_000_001_000)
+        h.library.removeFromHistory("t2", at: 1_790_000_001_000)
         h.server.on("POST", "/sync") { request in
             (200, SyncFixtures.response(request, result: { opId, kind in
                 switch kind {
@@ -458,7 +483,7 @@ struct LibrarySyncTests {
         let h = try SyncHarness()
         try h.track("t1", likedAt: 1_000)
         try h.sql("INSERT INTO albums (browse_id, title, bookmarked_at) VALUES ('MPREb_1', 'Album', 1000)")
-        try await h.store.clearHistory(at: 1_000)
+        h.library.clearHistory(at: 1_000)
         try h.sql("INSERT INTO play_events (event_id, video_id, played_at, play_time_ms, synced, device_id) VALUES ('e1', 't1', 1000, 60000, 0, NULL)")
         h.server.on("POST", "/sync") { request in (200, SyncFixtures.response(request)) }
 
@@ -566,7 +591,7 @@ struct LibrarySyncTests {
     @Test func deferredPlaysWaitForRetryAt() async throws {
         let h = try SyncHarness()
         try h.track("t1")
-        try await h.store.recordPlay(SyncTrackRecord(videoId: "t1", title: "Song t1"), playTimeMs: 60_000, playedAt: 1_790_000_000_000)
+        h.library.recordPlay(Track(videoId: "t1", title: "Song t1"), playTimeMs: 60_000, endedAt: 1_790_000_000_000)
         h.server.on("POST", "/sync") { request in
             (200, SyncFixtures.response(request, result: { opId, _ in SyncFixtures.result(opId, "deferred", code: "op_rate_limited", retryAfter: 120) }))
         }
@@ -613,8 +638,8 @@ struct LibrarySyncTests {
 
     @Test func historyForgetAndClearGoUp() async throws {
         let h = try SyncHarness()
-        try await h.store.forgetFromHistory(videoId: "t1", at: 1_790_000_000_000)
-        try await h.store.clearHistory(at: 1_790_000_001_000)
+        h.library.removeFromHistory("t1", at: 1_790_000_000_000)
+        h.library.clearHistory(at: 1_790_000_001_000)
         h.server.on("POST", "/sync") { request in (200, SyncFixtures.response(request)) }
 
         await h.engine.sync()
@@ -841,5 +866,19 @@ struct LibrarySyncTests {
         #expect(devices.map(\.id) == ["phone", "gone"])
         #expect(devices.map(\.name) == ["Pixel", nil])
         #expect(h.engine.currentDeviceId == "d1")
+
+        // Имена не запрашиваются заново на каждую правку истории; новое устройство прослушиваний и devices.updated —
+        // запрашиваются; без связи — прошлый список
+        _ = await h.engine.historyDevices()
+        #expect(h.server.requests("GET", "/auth/me/devices").count == 1)
+        try h.sql("INSERT INTO play_events (event_id, video_id, played_at, play_time_ms, synced, device_id) VALUES ('e5', 't1', 5, 1, 1, 'watch')")
+        _ = await h.engine.historyDevices()
+        #expect(h.server.requests("GET", "/auth/me/devices").count == 2)
+        _ = await h.engine.historyDevices()
+        #expect(h.server.requests("GET", "/auth/me/devices").count == 2)
+        h.server.on("GET", "/auth/me/devices") { _ in (503, Fixtures.error("unavailable", 503)) }
+        h.engine.handle(LiveEvent(id: "1", type: "devices.updated", at: "", kind: .devicesUpdated(reason: "device_added", deviceId: "watch")))
+        #expect(await h.engine.historyDevices().map(\.name) == ["Pixel", nil, nil])
+        #expect(h.server.requests("GET", "/auth/me/devices").count == 3)
     }
 }

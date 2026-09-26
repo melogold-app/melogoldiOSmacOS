@@ -126,6 +126,8 @@ public final class LibrarySync {
     /// (`rejected`, `deferred` не по лимиту): не отправляются, пока здесь не изменится то, о чём они (DESIGN §3.9
     /// `client_bug`), — иначе каждый проход упирался бы в них.
     @ObservationIgnored private var skipped: Set<PendingOp> = []
+    /// Устройства аккаунта для имён в фильтре Истории.
+    @ObservationIgnored private var accountDevices: AccountDeviceList?
 
     nonisolated static let streams = ["library", "history"]
     nonisolated static let maxOps = 500
@@ -149,11 +151,14 @@ public final class LibrarySync {
         }
     }
 
-    public init(account: Account, database: AppDatabase?, timing: SyncTiming = SyncTiming(), liveEvents: Bool = true) {
+    /// `library` — библиотека этого устройства (без базы — `nil`, синка нет). Её «Убрать из истории» и «Очистить
+    /// историю» с этого момента ставят `history.forget`/`history.clear` в очередь синка (`SyncStore.queueHistoryOps`).
+    public init(account: Account, library: Library?, timing: SyncTiming = SyncTiming(), liveEvents: Bool = true) {
         self.account = account
-        self.store = database.map { SyncStore(database: $0) }
+        self.store = library.map { SyncStore(database: $0.database) }
         self.timing = timing
         self.followsLiveEvents = liveEvents
+        if let library, let store { store.queueHistoryOps(of: library) }
     }
 
     // MARK: - Поводы
@@ -667,12 +672,21 @@ public final class LibrarySync {
     public var currentDeviceId: String? { account.session?.deviceId }
 
     /// Другие устройства, чьи прослушивания лежат в Истории, с именами из списка устройств аккаунта. Пусто — фильтр
-    /// Истории не показывается (задание 0002 §3.5).
+    /// Истории не показывается (задание 0002 §3.5). Список устройств запрашивается у сервера, только когда он изменился
+    /// (`devicesRevision`), сменился сеанс или появились прослушивания устройства, которого при прошлом запросе не было;
+    /// без связи — прошлый список. Устройство, которого нет в аккаунте, — без имени («Другое устройство»).
     public func historyDevices() async -> [HistoryDevice] {
-        guard account.isSignedIn, let store, let ids = try? await store.historyDeviceIds() else { return [] }
-        let others = ids.subtracting([currentDeviceId].compactMap { $0 })
+        guard let session = account.session, let store, let ids = try? await store.historyDeviceIds() else { return [] }
+        let others = ids.subtracting([session.deviceId])
         guard !others.isEmpty else { return [] }
-        let known = (try? await account.devices().devices) ?? []
+        let key = session.binding + "|" + session.deviceId
+        let revision = devicesRevision
+        let cached = accountDevices.flatMap { $0.session == key ? $0 : nil }
+        if cached == nil || cached?.revision != revision || !others.isSubset(of: cached?.lookedUp ?? []),
+           let fresh = try? await account.devices().devices, account.session.map({ $0.binding + "|" + $0.deviceId }) == key {
+            accountDevices = AccountDeviceList(session: key, revision: revision, devices: fresh, lookedUp: others)
+        }
+        let known = accountDevices?.session == key ? accountDevices?.devices ?? [] : []
         let byId = Dictionary(known.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         return others.map { HistoryDevice(id: $0, name: byId[$0]?.name, platform: byId[$0]?.platform) }
             .sorted { ($0.name ?? "\u{10FFFF}", $0.id) < ($1.name ?? "\u{10FFFF}", $1.id) }
@@ -776,6 +790,16 @@ public final class LibrarySync {
     nonisolated private static func date(_ epochMs: Int64) -> Date {
         Date(timeIntervalSince1970: Double(epochMs) / 1000)
     }
+}
+
+/// Устройства аккаунта (`GET /auth/me/devices`) для имён в фильтре Истории: для какого сеанса (аккаунт и это устройство
+/// в нём), при каком `devicesRevision` и для каких устройств прослушиваний прочитаны. Устройство прослушиваний, которого
+/// тогда не было, — повод перечитать один раз: вдруг его добавили, пока поток событий молчал.
+private struct AccountDeviceList {
+    let session: String
+    let revision: Int
+    let devices: [DeviceDto]
+    let lookedUp: Set<String>
 }
 
 /// Поток событий закрыт этим клиентом, чтобы открыть новый с новым токеном.

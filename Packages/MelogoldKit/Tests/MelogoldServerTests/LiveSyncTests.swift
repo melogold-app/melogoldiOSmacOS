@@ -18,19 +18,22 @@ struct LiveSyncTests {
     @MainActor
     final class Device {
         let database: AppDatabase
+        /// Прослушивания и действия с историей — через библиотеку, как в приложении.
+        let library: Library
         let account: Account
         let engine: LibrarySync
 
         /// `recording` — запросы идут через `RecordingProtocol`: тест видит, что устройство отправило.
         init(name: String, platform: String, liveEvents: Bool = false, recording: Bool = false) throws {
             database = try AppDatabase.inMemory()
+            library = Library(database: database)
             let settings = AppSettings(defaults: UserDefaults(suiteName: "live-\(UUID())")!)
             settings.serverURL = liveServerURL ?? ""
             let identity = DeviceIdentity(platform: platform, platformId: UUID().uuidString.lowercased(), name: name, osVersion: "27.0",
                                           model: "Test", clientVersion: "0.1.0")
             account = Account(settings: settings, secrets: MemorySecretStore(), identity: identity,
                               urlSession: recording ? RecordingProtocol.session() : .shared)
-            engine = LibrarySync(account: account, database: database, liveEvents: liveEvents)
+            engine = LibrarySync(account: account, library: library, liveEvents: liveEvents)
         }
 
         func sql(_ sql: String, _ arguments: StatementArguments = []) throws {
@@ -102,7 +105,7 @@ struct LiveSyncTests {
             // трека, снятая закладка, свой текст изменён, имя плейлиста
             try a.sql("INSERT INTO playlist_items (playlist_id, video_id, position, added_at) VALUES (1, ?, 4, 2)", [ids[4]])
             try a.sql("UPDATE tracks SET liked_at = ? WHERE video_id = ?", [EpochMs.now() - 2_000, ids[5]])
-            _ = try await SyncStore(database: a.database).recordPlay(SyncTrackRecord(videoId: ids[0], title: "Song"), playTimeMs: 10_000)
+            a.library.recordPlay(Track(videoId: ids[0], title: "Song"), playTimeMs: 10_000)
             let pb = try #require(try b.numbers("SELECT id FROM playlists").first)
             try b.sql("UPDATE playlist_items SET position = CASE video_id WHEN ? THEN 0 WHEN ? THEN 1 WHEN ? THEN 2 ELSE 3 END WHERE playlist_id = ?",
                       [ids[3], ids[0], ids[1], pb])
@@ -111,7 +114,7 @@ struct LiveSyncTests {
             try b.sql("UPDATE tracks SET liked_at = ? WHERE video_id = ?", [EpochMs.now() - 1_000, ids[1]])
             try b.sql("UPDATE albums SET bookmarked_at = NULL")
             try b.sql("UPDATE lyrics SET synced = '[00:02.00]two', source = 'user'")
-            _ = try await SyncStore(database: b.database).recordPlay(SyncTrackRecord(videoId: ids[0], title: "Song"), playTimeMs: 5_000)
+            b.library.recordPlay(Track(videoId: ids[0], title: "Song"), playTimeMs: 5_000)
 
             await a.synced()
             await b.synced()
@@ -141,7 +144,7 @@ struct LiveSyncTests {
             try a.track("local:song1")
             try a.sql("UPDATE tracks SET liked_at = 1000")
             try a.sql("INSERT INTO albums (browse_id, title, bookmarked_at) VALUES ('MPREb_old', 'Старый', 1000)")
-            _ = try await SyncStore(database: a.database).recordPlay(SyncTrackRecord(videoId: liked, title: "Song"), playTimeMs: 10_000, playedAt: 1000)
+            a.library.recordPlay(Track(videoId: liked, title: "Song"), playTimeMs: 10_000, endedAt: 1000)
 
             let sent = await a.traffic { await a.synced() }
             #expect(sent.filter { $0.path == "/sync" }.count == 1, "без бисекции")
@@ -206,7 +209,7 @@ struct LiveSyncTests {
         try b.sql("INSERT INTO playlists (name, created_at) VALUES ('  дорога ', ?)", [EpochMs.now()])
         try b.sql("INSERT INTO playlist_items (playlist_id, video_id, position, added_at) VALUES (1, ?, 0, 1), (1, ?, 1, 1)", [t[1], t[2]])
         try b.sql("UPDATE tracks SET liked_at = ?, total_play_ms = 90000 WHERE video_id = ?", [EpochMs.now(), t[2]])
-        _ = try await SyncStore(database: b.database).recordPlay(SyncTrackRecord(videoId: t[2], title: "Song"), playTimeMs: 30_000)
+        b.library.recordPlay(Track(videoId: t[2], title: "Song"), playTimeMs: 30_000)
         try await withAccount(a, b) {
             for id in t.prefix(2) { try a.track(id) }
             try a.sql("INSERT INTO playlists (name, created_at) VALUES ('Дорога', ?)", [EpochMs.now()])
@@ -256,7 +259,7 @@ struct LiveSyncTests {
             try mac.track("kJQP7kiw5Fk")
             try mac.sql("INSERT INTO playlists (name, created_at) VALUES ('Дорога', 1)")
             try mac.sql("INSERT INTO playlist_items (playlist_id, video_id, position, added_at) VALUES (1, 'kJQP7kiw5Fk', 0, 1)")
-            try await SyncStore(database: mac.database).recordPlay(SyncTrackRecord(videoId: "dQw4w9WgXcQ", title: "Song dQw4w9WgXcQ"), playTimeMs: 60_000)
+            mac.library.recordPlay(Track(videoId: "dQw4w9WgXcQ", title: "Song dQw4w9WgXcQ"), playTimeMs: 60_000)
             await mac.engine.sync()
 
             // Лайк, который снимок Mac считает отправленным, а «восстановленный» сервер не знает
@@ -323,8 +326,8 @@ struct LiveSyncTests {
         let songs = ["kJQP7kiw5Fk", "9bZkp7q19f0", "a1B2c3D4e5F"]
         let album = "MPREb_melogoldE2E"
         let lyrics = "[00:01.00]Never gonna\n[00:03.50]give you up"
-        func record(_ videoId: String) -> SyncTrackRecord {
-            SyncTrackRecord(videoId: videoId, title: "Song \(videoId)", artistsText: "Melogold test")
+        func record(_ videoId: String) -> Track {
+            Track(videoId: videoId, title: "Song \(videoId)", artistsText: "Melogold test")
         }
 
         // A: лайк и плейлист из трёх треков — первая синхронизация создаёт плейлист на сервере
@@ -340,12 +343,11 @@ struct LiveSyncTests {
         try a.sql("UPDATE playlist_items SET position = CASE video_id WHEN ? THEN 0 WHEN ? THEN 1 ELSE 2 END", [songs[2], songs[0]])
         try a.sql("INSERT INTO albums (browse_id, title, artists_text, year, bookmarked_at) VALUES (?, 'Альбом', 'Исполнитель', '2020', ?)",
                   [album, EpochMs.now()])
-        let store = SyncStore(database: a.database)
         let now = EpochMs.now()
         let plays = [
-            try await store.recordPlay(record(liked), playTimeMs: 60_000, playedAt: now - 180_000),
-            try await store.recordPlay(record(songs[0]), playTimeMs: 30_000, playedAt: now - 120_000),
-            try await store.recordPlay(record(liked), playTimeMs: 45_000, playedAt: now - 60_000),
+            try #require(a.library.recordPlay(record(liked), playTimeMs: 60_000, endedAt: now - 180_000)),
+            try #require(a.library.recordPlay(record(songs[0]), playTimeMs: 30_000, endedAt: now - 120_000)),
+            try #require(a.library.recordPlay(record(liked), playTimeMs: 45_000, endedAt: now - 60_000)),
         ]
         try a.sql("INSERT INTO lyrics (video_id, synced, plain, source, plain_source, offset_ms, language, fetched_at) VALUES (?, ?, NULL, 'user', NULL, 0, 'en', 0)",
                   [liked, lyrics])
@@ -381,7 +383,7 @@ struct LiveSyncTests {
         // B: снятый лайк, убранный трек плейлиста, «Убрать из истории»
         try b.sql("UPDATE tracks SET liked_at = NULL WHERE video_id = ?", [liked])
         try b.sql("DELETE FROM playlist_items WHERE video_id = ?", [songs[0]])
-        try await SyncStore(database: b.database).forgetFromHistory(videoId: liked)
+        b.library.removeFromHistory(liked)
         let edits = await b.traffic { await b.synced() }
         #expect(kinds(edits) == ["like.set", "playlist.item.remove", "history.forget"])
 
@@ -406,7 +408,7 @@ struct LiveSyncTests {
         for id in ["kJQP7kiw5Fk", "9bZkp7q19f0", "a1B2c3D4e5F"] { try mac.track(id) }
         try mac.sql("INSERT INTO playlists (name, created_at) VALUES ('Дорога', 1)")
         try mac.sql("INSERT INTO playlist_items (playlist_id, video_id, position, added_at) VALUES (1, 'kJQP7kiw5Fk', 0, 1), (1, '9bZkp7q19f0', 1, 1), (1, 'a1B2c3D4e5F', 2, 1)")
-        try await SyncStore(database: mac.database).recordPlay(SyncTrackRecord(videoId: "dQw4w9WgXcQ", title: "Song dQw4w9WgXcQ"), playTimeMs: 60_000)
+        mac.library.recordPlay(Track(videoId: "dQw4w9WgXcQ", title: "Song dQw4w9WgXcQ"), playTimeMs: 60_000)
         try mac.sql("INSERT INTO lyrics (video_id, synced, plain, source, plain_source, offset_ms, fetched_at) VALUES ('dQw4w9WgXcQ', '[00:01.00]Never gonna', NULL, 'file', NULL, 0, 0)")
         await mac.engine.sync()
         #expect(mac.engine.status != .failed(offline: true, lastSyncAt: nil))
@@ -429,7 +431,7 @@ struct LiveSyncTests {
         #expect(try mac.strings("SELECT video_id FROM tracks WHERE liked_at IS NOT NULL").isEmpty)
 
         // Mac: «Очистить историю» и удалённый текст — на часах их тоже нет
-        try await SyncStore(database: mac.database).clearHistory()
+        mac.library.clearHistory()
         try mac.sql("DELETE FROM lyrics")
         await mac.engine.sync()
         await watch.engine.sync()

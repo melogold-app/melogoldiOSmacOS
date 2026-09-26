@@ -5,7 +5,7 @@ import Synchronization
 import Testing
 @testable import MelogoldData
 
-/// Снимки синка и доступ к ним (срез 5): миграция, смена аккаунта, порядок по ключам сервера, история.
+/// Снимки синка и доступ к ним (срез 5): миграция, смена аккаунта, порядок по ключам сервера, история и её очередь.
 @Suite("SyncStore — снимки синка")
 struct SyncStoreTests {
     let database: AppDatabase
@@ -117,24 +117,53 @@ struct SyncStoreTests {
         #expect(snapshot?.videoIds == ["v3", "v2", "v1"])
     }
 
-    @Test func historyActionsQueueOpsForTheServer() async throws {
-        let first = try await store.recordPlay(track("aaaaaaaaaaa"), playTimeMs: 120_000, playedAt: 1_000)
-        try await store.recordPlay(track("bbbbbbbbbbb"), playTimeMs: 60_000, playedAt: 2_000)
+    /// Прослушивание пишет только `Library.recordPlay`: своё событие, неотправленное, общее время растёт; синк видит его
+    /// среди неотправленных (задание 0002 §3.1).
+    @Test func recordPlayCreatesAnUnsentOwnEvent() async throws {
+        let library = Library(database: database)
+        let eventId = try #require(library.recordPlay(Track(videoId: "aaaaaaaaaaa", title: "Song"), playTimeMs: 120_000, endedAt: 1_000))
+        #expect(eventId == eventId.lowercased() && UUID(uuidString: eventId) != nil)
+        #expect(try await strings("SELECT synced || ' · ' || COALESCE(device_id, '-') FROM play_events") == ["0 · -"])
+        #expect(try await store.read { try $0.unsentPlays() } == [SyncPlayRecord(eventId: eventId, videoId: "aaaaaaaaaaa", playedAt: 1_000, playTimeMs: 120_000)])
+        #expect(try await store.read { try $0.playTotals() }.map(\.totalMs) == [120_000])
+        // Сеанс короче 5 с — не прослушивание
+        #expect(library.recordPlay(Track(videoId: "bbbbbbbbbbb", title: "Short"), playTimeMs: 4_999) == nil)
+        #expect(try await strings("SELECT event_id FROM play_events") == [eventId])
+    }
+
+    /// «Убрать из истории» и «Очистить историю» библиотеки ставят ровно по одной op в очередь синка той же транзакцией;
+    /// общее время трека остаётся (`resetTotal: false`).
+    @Test func historyActionsQueueExactlyOneOpEach() async throws {
+        let library = Library(database: database)
+        store.queueHistoryOps(of: library)
+        library.recordPlay(Track(videoId: "aaaaaaaaaaa", title: "A"), playTimeMs: 120_000, endedAt: 1_000)
+        library.recordPlay(Track(videoId: "bbbbbbbbbbb", title: "B"), playTimeMs: 60_000, endedAt: 2_000)
         try await store.write { try $0.insertPlay(eventId: "e-phone", videoId: "bbbbbbbbbbb", playedAt: 1_500, playTimeMs: 1, deviceId: "phone") }
-        #expect(first == first.lowercased())
         #expect(try await store.historyDeviceIds() == ["phone"])
-        #expect(try await store.read { try $0.playTotals() }.map(\.totalMs) == [120_000, 60_000])
 
-        try await store.forgetFromHistory(videoId: "aaaaaaaaaaa", at: 3_000)
-        try await store.clearHistory(at: 4_000)
-
-        #expect(try await strings("SELECT event_id FROM play_events").isEmpty)
-        let ops = try await store.read { try $0.historyOps() }
-        #expect(ops.map(\.kind) == ["history.forget", "history.clear"])
+        library.removeFromHistory("aaaaaaaaaaa", at: 3_000)
+        #expect(try await strings("SELECT video_id FROM play_events ORDER BY played_at") == ["bbbbbbbbbbb", "bbbbbbbbbbb"])
+        var ops = try await store.read { try $0.historyOps() }
+        #expect(ops.map(\.kind) == ["history.forget"])
         #expect(ops.first?.videoId == "aaaaaaaaaaa")
+
+        library.clearHistory(at: 4_000)
+        #expect(try await strings("SELECT event_id FROM play_events").isEmpty)
+        ops = try await store.read { try $0.historyOps() }
+        #expect(ops.map(\.kind) == ["history.forget", "history.clear"])
         #expect(ops.map(\.eventsBefore) == [3_000, 4_000])
-        // Общее время трека остаётся (resetTotal: false)
-        #expect(try await store.read { try $0.playTotals() }.count == 2)
+        #expect(ops[1].videoId == nil)
+        #expect(Set(ops.map(\.opId)).count == 2 && ops.allSatisfy { $0.opId == $0.opId.lowercased() })
+        #expect(try await store.read { try $0.playTotals() }.map(\.totalMs) == [120_000, 60_000])
+    }
+
+    /// Пока синк не поставил запись операций (`queueHistoryOps`), действия с историей остаются на этом устройстве.
+    @Test func historyActionsWithoutSyncStayLocal() async throws {
+        let library = Library(database: database)
+        library.recordPlay(Track(videoId: "aaaaaaaaaaa", title: "A"), playTimeMs: 10_000, endedAt: 1_000)
+        library.clearHistory(at: 2_000)
+        #expect(library.playCount() == 0)
+        #expect(try await store.read { try $0.historyOps() }.isEmpty)
     }
 
     @Test func serverMetadataUpgradesOnlyStubs() async throws {

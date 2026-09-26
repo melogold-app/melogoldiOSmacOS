@@ -34,6 +34,25 @@ public struct TopEntry: Hashable, Sendable {
     public var playTimeMs: Int64
 }
 
+/// Чьи прослушивания показывает История (задание 0002 §3.5): все; это устройство — события без `device_id` и с
+/// `device_id` этого устройства в аккаунте (своё событие, вернувшееся с сервера); другое устройство аккаунта.
+public enum HistoryDeviceFilter: Hashable, Sendable {
+    case all
+    /// `currentDeviceId` — это устройство в аккаунте; `nil` — без аккаунта: только события без `device_id`.
+    case thisDevice(currentDeviceId: String?)
+    case device(String)
+
+    /// Условие на `play_events` и его аргументы.
+    var condition: (sql: String, arguments: StatementArguments) {
+        switch self {
+        case .all: ("1 = 1", [])
+        case .thisDevice(nil): ("device_id IS NULL", [])
+        case .thisDevice(let id?): ("(device_id IS NULL OR device_id = ?)", [id])
+        case .device(let id): ("device_id = ?", [id])
+        }
+    }
+}
+
 /// Трек «Всех треков»: когда слушали последний раз (`nil` — не слушали), сколько всего и когда лайкнули.
 public struct AllTracksEntry: Hashable, Sendable {
     public var track: Track
@@ -66,7 +85,9 @@ public struct LibraryCounts: Hashable, Sendable {
 
 /// Библиотека на устройстве (порт `Library.cs` Windows): Избранное, закладки альбомов и исполнителей, свои плейлисты,
 /// история, «Все треки», скрытые треки. Правки пишутся прямо в таблицы `library-v1` — синк замечает их сам
-/// (наблюдение GRDB); «Очистить историю» и «Убрать из истории» дополнительно зовут `historyOp` в той же транзакции.
+/// (наблюдение GRDB); «Очистить историю» и «Убрать из истории» дополнительно ставят операцию для сервера в очередь синка
+/// (`setHistoryOpRecorder`) в той же транзакции. Прослушивания, «Убрать из истории» и «Очистить историю» пишутся
+/// только отсюда — и плеером, и экранами, и тестами синка.
 public final class Library: Sendable {
     public let database: AppDatabase
 
@@ -83,7 +104,8 @@ public final class Library: Sendable {
         self.database = database
     }
 
-    /// Синк ставит сюда запись операции истории в свою очередь.
+    /// Синк ставит сюда запись операции истории в свою очередь (`SyncStore.queueHistoryOps(of:)`, его зовёт
+    /// `LibrarySync`). Без неё действия с историей остаются только на этом устройстве.
     public func setHistoryOpRecorder(_ recorder: (@Sendable (Database, HistoryOp) throws -> Void)?) {
         historyOpBox.set(recorder)
     }
@@ -340,7 +362,7 @@ public final class Library: Sendable {
                     link == nil ? nil : Self.snapshot(tracks.map(\.videoId)),
                 ])
             let id = db.lastInsertedRowID
-            try Self.append(db, id, tracks)
+            _ = try Self.append(db, id, tracks)
             return id
         }
     }
@@ -494,61 +516,78 @@ public final class Library: Sendable {
 
     private static func snapshot(_ ids: [String]) -> String { ids.joined(separator: "\n") }
 
-    // MARK: - История (REWRITE §3.2.4, Windows DESIGN §3.11)
+    // MARK: - История (REWRITE §3.2.4, Windows DESIGN §3.11, задание 0002)
 
-    /// Прослушивание (сеанс ≥ 5 с): трек, событие с UUID и счётчик времени — одной транзакцией.
-    public func recordPlay(_ track: Track, playTimeMs: Int64, endedAt: Int64 = EpochMs.now()) {
-        guard playTimeMs >= 5000 else { return }
-        write { db in
+    /// Прослушивание этого устройства (сеанс ≥ 5 с, задание 0002 §3.1): трек, событие с новым UUID в нижнем регистре,
+    /// `device_id` пустой («это устройство»), не отправлено (`synced = 0`), общее время трека растёт — одной транзакцией.
+    /// Синк замечает новую строку сам и отправляет её `play.add`. «Не сохранять историю» — у вызывающего (плеер).
+    /// Возвращает `eventId`; `nil` — сеанс короче 5 с или запись не прошла.
+    @discardableResult
+    public func recordPlay(_ track: Track, playTimeMs: Int64, endedAt: Int64 = EpochMs.now()) -> String? {
+        guard playTimeMs >= 5000 else { return nil }
+        let eventId = UUID().uuidString.lowercased()
+        return write { db in
             try Self.upsert(db, track)
-            try db.execute(sql: "INSERT INTO play_events (event_id, video_id, played_at, play_time_ms) VALUES (?, ?, ?, ?)",
-                           arguments: [UUID().uuidString.lowercased(), track.videoId, endedAt, playTimeMs])
+            try db.execute(sql: """
+                INSERT INTO play_events (event_id, video_id, played_at, play_time_ms, synced, device_id) VALUES (?, ?, ?, ?, 0, NULL)
+                """, arguments: [eventId, track.videoId, endedAt, playTimeMs])
             try db.execute(sql: "UPDATE tracks SET total_play_ms = total_play_ms + ? WHERE video_id = ?", arguments: [playTimeMs, track.videoId])
+            return eventId
         }
     }
 
-    /// «Недавние»: разные треки по последнему прослушиванию.
-    public func recentHistory(limit: Int = 500) -> [HistoryEntry] {
-        read { db in
+    /// «Недавние»: разные треки выбранного устройства по последнему прослушиванию.
+    public func recentHistory(limit: Int = 500, device: HistoryDeviceFilter = .all) -> [HistoryEntry] {
+        let condition = device.condition
+        return read { db in
             try Row.fetchAll(db, sql: """
                 SELECT \(Self.columns("t")), h.last FROM (
-                    SELECT video_id, MAX(played_at) AS last FROM play_events GROUP BY video_id ORDER BY last DESC LIMIT ?
+                    SELECT video_id, MAX(played_at) AS last FROM play_events WHERE \(condition.sql)
+                    GROUP BY video_id ORDER BY last DESC LIMIT ?
                 ) h JOIN tracks t ON t.video_id = h.video_id ORDER BY h.last DESC
-                """, arguments: [limit]).map { HistoryEntry(track: Self.track($0), playedAt: $0["last"]) }
+                """, arguments: condition.arguments + [limit]).map { HistoryEntry(track: Self.track($0), playedAt: $0["last"]) }
         } ?? []
     }
 
-    /// «Чаще всего» за период (`since` — epoch-мс; `nil` — всё время: общее время трека).
-    public func mostPlayed(since: Int64?, limit: Int = 100) -> [TopEntry] {
-        read { db in
-            let sql = since == nil
-                ? "SELECT \(Self.trackColumns), total_play_ms AS total FROM tracks WHERE total_play_ms > 0 ORDER BY total_play_ms DESC LIMIT ?"
-                : """
-                  SELECT \(Self.columns("t")), s.total FROM (
-                      SELECT video_id, SUM(play_time_ms) AS total FROM play_events WHERE played_at >= ? GROUP BY video_id ORDER BY total DESC LIMIT ?
-                  ) s JOIN tracks t ON t.video_id = s.video_id ORDER BY s.total DESC
-                  """
-            let arguments: StatementArguments = since.map { [$0, limit] } ?? [limit]
-            return try Row.fetchAll(db, sql: sql, arguments: arguments).map { TopEntry(track: Self.track($0), playTimeMs: $0["total"]) }
+    /// «Чаще всего» за период (`since` — epoch-мс, `nil` — всё время): сумма времени событий выбранного устройства. За всё
+    /// время у «Все устройства» — общее время трека (`playStats` сервера уже включает все устройства аккаунта).
+    public func mostPlayed(since: Int64?, limit: Int = 100, device: HistoryDeviceFilter = .all) -> [TopEntry] {
+        let condition = device.condition
+        return read { db in
+            if since == nil, device == .all {
+                return try Row.fetchAll(db, sql: """
+                    SELECT \(Self.trackColumns), total_play_ms AS total FROM tracks WHERE total_play_ms > 0 ORDER BY total_play_ms DESC LIMIT ?
+                    """, arguments: [limit]).map { TopEntry(track: Self.track($0), playTimeMs: $0["total"]) }
+            }
+            return try Row.fetchAll(db, sql: """
+                SELECT \(Self.columns("t")), s.total FROM (
+                    SELECT video_id, SUM(play_time_ms) AS total FROM play_events WHERE played_at >= ? AND \(condition.sql)
+                    GROUP BY video_id ORDER BY total DESC LIMIT ?
+                ) s JOIN tracks t ON t.video_id = s.video_id ORDER BY s.total DESC
+                """, arguments: [since ?? 0] + condition.arguments + [limit]).map { TopEntry(track: Self.track($0), playTimeMs: $0["total"]) }
         } ?? []
     }
 
-    public func playCount() -> Int {
-        (read { db in try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM play_events") } ?? nil) ?? 0
+    /// Сколько прослушиваний выбранного устройства лежит здесь.
+    public func playCount(device: HistoryDeviceFilter = .all) -> Int {
+        let condition = device.condition
+        return (read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM play_events WHERE \(condition.sql)", arguments: condition.arguments)
+        } ?? nil) ?? 0
     }
 
-    /// «Очистить историю»: события удаляются, общее время треков остаётся (как в ViTune).
-    public func clearHistory() {
-        let now = EpochMs.now()
+    /// «Очистить историю» — на всех устройствах аккаунта: события до `now` удаляются здесь, `history.clear` уходит в
+    /// очередь синка той же транзакцией. Общее время треков остаётся (как в ViTune).
+    public func clearHistory(at now: Int64 = EpochMs.now()) {
         write { db in
             try db.execute(sql: "DELETE FROM play_events WHERE played_at <= ?", arguments: [now])
             try historyOpBox.record(db, HistoryOp(kind: "history.clear", videoId: nil, eventsBefore: now))
         }
     }
 
-    /// «Убрать из истории»: события трека удаляются, общее время остаётся.
-    public func removeFromHistory(_ videoId: String) {
-        let now = EpochMs.now()
+    /// «Убрать из истории» — на всех устройствах аккаунта: события трека до `now` удаляются здесь, `history.forget` уходит
+    /// в очередь синка той же транзакцией. Общее время трека остаётся (`resetTotal: false`, как на Windows).
+    public func removeFromHistory(_ videoId: String, at now: Int64 = EpochMs.now()) {
         write { db in
             try db.execute(sql: "DELETE FROM play_events WHERE video_id = ? AND played_at <= ?", arguments: [videoId, now])
             try historyOpBox.record(db, HistoryOp(kind: "history.forget", videoId: videoId, eventsBefore: now))
@@ -707,11 +746,13 @@ public final class Library: Sendable {
         (read { db in try Bool.fetchOne(db, sql: sql, arguments: arguments) } ?? nil) ?? false
     }
 
-    private func write(_ work: (Database) throws -> Void) {
+    @discardableResult
+    private func write<T>(_ work: (Database) throws -> T) -> T? {
         do {
-            try database.writer.write(work)
+            return try database.writer.write(work)
         } catch {
             Log.error("library", "Запись: \(error.localizedDescription)")
+            return nil
         }
     }
 

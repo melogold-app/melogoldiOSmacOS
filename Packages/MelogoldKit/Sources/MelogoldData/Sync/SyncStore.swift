@@ -129,7 +129,8 @@ public struct SyncHistoryOpRecord: Equatable, Sendable {
 
 /// Доступ синка к базе: состояние (`sync_state`), снимок сервера (`synced_*`), `sync_id` плейлистов и `sort_key` их
 /// треков, история и свои тексты. Чтение-изменение-запись — одной транзакцией `write`; сети внутри транзакций нет.
-/// Отсюда же берёт данные История (задание 0002): «Убрать из истории», «Очистить историю», устройства прослушиваний.
+/// Прослушивания и действия с историей пишет `Library` (задание 0002): отсюда — очередь её операций истории
+/// (`queueHistoryOps(of:)`) и устройства прослушиваний для фильтра Истории.
 public struct SyncStore: Sendable {
     public let database: AppDatabase
 
@@ -153,36 +154,15 @@ public struct SyncStore: Sendable {
 
     // MARK: - История (задание 0002)
 
-    /// Прослушивание этого устройства: `deviceId` пустой («это устройство»), не отправлено, общее время трека растёт.
-    /// «Не сохранять историю» и порог 5 с — у вызывающего. Возвращает `eventId`.
-    @discardableResult
-    public func recordPlay(_ track: SyncTrackRecord, playTimeMs: Int64, playedAt: Int64 = EpochMs.now()) async throws -> String {
-        let eventId = UUID().uuidString.lowercased()
-        try await write { tx in
-            try tx.upsertTrack(track)
-            try tx.db.execute(
-                sql: "INSERT INTO play_events (event_id, video_id, played_at, play_time_ms, synced, device_id) VALUES (?, ?, ?, ?, 0, NULL)",
-                arguments: [eventId, track.videoId, playedAt, playTimeMs]
-            )
-            try tx.db.execute(sql: "UPDATE tracks SET total_play_ms = total_play_ms + ? WHERE video_id = ?", arguments: [playTimeMs, track.videoId])
-        }
-        return eventId
-    }
-
-    /// «Убрать из истории» на всех устройствах: события трека удаляются здесь и уходят `history.forget`. Общее время
-    /// трека остаётся (`resetTotal: false`, как на Android).
-    public func forgetFromHistory(videoId: String, at now: Int64 = EpochMs.now()) async throws {
-        try await write { tx in
-            try tx.db.execute(sql: "DELETE FROM play_events WHERE video_id = ? AND played_at <= ?", arguments: [videoId, now])
-            try tx.enqueueHistoryOp(kind: "history.forget", videoId: videoId, eventsBefore: now)
-        }
-    }
-
-    /// «Очистить историю» на всех устройствах: все события до этого момента удаляются и уходят `history.clear`.
-    public func clearHistory(at now: Int64 = EpochMs.now()) async throws {
-        try await write { tx in
-            try tx.db.execute(sql: "DELETE FROM play_events WHERE played_at <= ?", arguments: [now])
-            try tx.enqueueHistoryOp(kind: "history.clear", videoId: nil, eventsBefore: now)
+    /// «Убрать из истории» и «Очистить историю» этой библиотеки ставят `history.forget` и `history.clear` в очередь
+    /// `history_ops` той же транзакцией, что удаляет события (задание 0002 §3.4). Зовёт `LibrarySync`: его цикл их и
+    /// отправляет. Очередь пишется и без аккаунта, как на Android и Windows: после выхода и входа в тот же аккаунт действие
+    /// уходит. Первый вход или другой аккаунт (сервер) очередь сбрасывают (`SyncTx.forgetBinding`) — действие, сделанное
+    /// до входа, историю нового аккаунта на других устройствах не трогает.
+    public func queueHistoryOps(of library: Library) {
+        assert(library.database === database, "Библиотека и синк — на одной базе")
+        library.setHistoryOpRecorder { db, op in
+            try SyncTx(db: db).enqueueHistoryOp(kind: op.kind, videoId: op.videoId, eventsBefore: op.eventsBefore)
         }
     }
 
@@ -259,8 +239,9 @@ public struct SyncTx {
         }
     }
 
-    /// Другой аккаунт или сервер: снимок, `sync_id`, `sort_key` и состояние забываются. Свои прослушивания примет
-    /// новый аккаунт, чужие от прошлого удаляются (задание 0002 §3.7).
+    /// Другой аккаунт или сервер (и первый вход): снимок, `sync_id`, `sort_key` и состояние забываются. Свои прослушивания
+    /// примет новый аккаунт, чужие от прошлого удаляются (задание 0002 §3.7); «Убрать из истории» и «Очистить историю»,
+    /// ещё не отправленные, — тоже: они про прошлый аккаунт или про историю до входа.
     public func forgetBinding() throws {
         try db.execute(sql: """
             DELETE FROM synced_likes;

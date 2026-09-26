@@ -15,7 +15,8 @@ final class AppModel {
     let search: SearchModel
     /// Аккаунт на сервере Melogold: вход, токены, устройства (срез 5).
     let account: Account
-    /// Синк библиотеки, истории и своих текстов с аккаунтом (срез 5).
+    /// Синк библиотеки, истории и своих текстов с аккаунтом (срез 5). «Убрать из истории» и «Очистить историю»
+    /// библиотеки уходят его очередью на все устройства аккаунта.
     let sync: LibrarySync
     @ObservationIgnored private var lifecycle: [any NSObjectProtocol] = []
     @ObservationIgnored private var wasOnline = true
@@ -90,7 +91,7 @@ final class AppModel {
         self.services = services
         self.search = SearchModel(catalog: services.catalog, history: services.searchHistory, settings: services.settings)
         self.account = Account(settings: services.settings)
-        self.sync = LibrarySync(account: account, database: services.database)
+        self.sync = LibrarySync(account: account, library: services.library?.library)
         self.section = services.settings.lastTab
         refreshCached()
         sync.start()

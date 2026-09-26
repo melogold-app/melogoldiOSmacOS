@@ -132,6 +132,7 @@ struct WatchLibraryPageView: View {
             tracks = (model.services.downloads?.store.entries() ?? []).filter { $0.state == .completed }.compactMap(\.track)
         case .history:
             title = String(localized: "library.history")
+            // Только «Недавние», без периода и фильтра: прослушивания всех устройств аккаунта (задание 0002 §3.6)
             tracks = library.recentHistory(limit: 100).map(\.track)
         case .playlist(let id):
             title = library.playlist(id)?.name ?? ""

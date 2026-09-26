@@ -89,7 +89,8 @@ final class Services {
         guard let library else { return }
         let settings = settings
         player.onPlayed = { track, playTimeMs in
-            // «Не сохранять историю» — прослушивания не пишутся (REWRITE §3.2.4).
+            // «Не сохранять историю» — прослушивания не пишутся (REWRITE §3.2.4). Событие пишет только
+            // `Library.recordPlay`; синк замечает его и отправляет сам (задание 0002 §3.1).
             guard !settings.historyPaused else { return }
             library.library.recordPlay(track, playTimeMs: playTimeMs)
         }

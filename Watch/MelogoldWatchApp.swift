@@ -114,6 +114,7 @@ final class WatchModel {
     /// Свой вход: часы в аккаунте — отдельное устройство (§5.6).
     let account: Account
     /// Синк библиотеки, истории и текстов — сам, без iPhone (§5.6): при открытии и пока приложение открыто или играет.
+    /// Свои прослушивания часы отправляют сами; История часов показывает прослушивания всех устройств (задание 0002 §3.6).
     let sync: LibrarySync
     @ObservationIgnored private var lifecycle: [any NSObjectProtocol] = []
     var path: [WatchRoute] = []
@@ -125,7 +126,7 @@ final class WatchModel {
     init(services: Services) {
         self.services = services
         self.account = Account(settings: services.settings)
-        self.sync = LibrarySync(account: account, database: services.database)
+        self.sync = LibrarySync(account: account, library: services.library?.library)
         sync.start()
         let lyricsSync = sync
         services.lyricsFetcher.community = { videoId in try await lyricsSync.serverLyrics(videoId) }

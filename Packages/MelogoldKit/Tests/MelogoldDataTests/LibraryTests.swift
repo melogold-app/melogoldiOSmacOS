@@ -98,6 +98,52 @@ struct LibraryTests {
         #expect(library.playCount() == 0)
     }
 
+    /// Фильтр Истории по устройствам (задание 0002 §3.5): «Это устройство» — свои события и свои, вернувшиеся с сервера;
+    /// другое устройство — только его; «Чаще всего» за период — сумма событий устройства, за всё время у «Все устройства» —
+    /// общее время трека с сервера.
+    @Test func historyDeviceFilter() throws {
+        let now = EpochMs.now()
+        let day: Int64 = 24 * 3600 * 1000
+        let a = track("a1aaaaaaaaa", "A"), b = track("b2bbbbbbbbb", "B"), c = track("c3ccccccccc", "C")
+        library.recordPlay(a, playTimeMs: 60_000, endedAt: now - 5 * 60_000)
+        try database.writer.write { db in
+            for (event, video, at, ms, device) in [
+                ("e-back", "c3ccccccccc", now - 4 * 60_000, 20_000, "me"),
+                ("e-phone1", "b2bbbbbbbbb", now - 3 * 60_000, 90_000, "phone"),
+                ("e-phone2", "a1aaaaaaaaa", now - 2 * 60_000, 10_000, "phone"),
+                ("e-watch", "b2bbbbbbbbb", now - 40 * day, 30_000, "watch"),
+            ] as [(String, String, Int64, Int64, String)] {
+                try db.execute(sql: "INSERT INTO play_events (event_id, video_id, played_at, play_time_ms, synced, device_id) VALUES (?, ?, ?, ?, 1, ?)",
+                               arguments: [event, video, at, ms, device])
+            }
+            try Library.upsert(db, b)
+            try Library.upsert(db, c)
+            // playStats сервера: общее время по всем устройствам, больше суммы событий здесь
+            try db.execute(sql: "UPDATE tracks SET total_play_ms = CASE video_id WHEN 'a1aaaaaaaaa' THEN 500000 WHEN 'b2bbbbbbbbb' THEN 400000 ELSE 20000 END")
+        }
+        let here = HistoryDeviceFilter.thisDevice(currentDeviceId: "me")
+
+        #expect(library.recentHistory().map(\.track.title) == ["A", "B", "C"])
+        #expect(library.recentHistory(device: here).map(\.track.title) == ["C", "A"])
+        #expect(library.recentHistory(device: .thisDevice(currentDeviceId: nil)).map(\.track.title) == ["A"])
+        #expect(library.recentHistory(device: .device("phone")).map(\.track.title) == ["A", "B"])
+        // «Недавние» устройства — по его последнему прослушиванию трека
+        #expect(library.recentHistory(device: .device("phone")).first?.playedAt == now - 2 * 60_000)
+        #expect(library.recentHistory(device: .device("gone")).isEmpty)
+
+        let week = now - 7 * day
+        #expect(library.mostPlayed(since: week).map(\.playTimeMs) == [90_000, 70_000, 20_000])
+        #expect(library.mostPlayed(since: week, device: here).map { "\($0.track.title) \($0.playTimeMs)" } == ["A 60000", "C 20000"])
+        #expect(library.mostPlayed(since: week, device: .device("watch")).isEmpty)
+        #expect(library.mostPlayed(since: nil).map { "\($0.track.title) \($0.playTimeMs)" } == ["A 500000", "B 400000", "C 20000"])
+        #expect(library.mostPlayed(since: nil, device: .device("watch")).map { "\($0.track.title) \($0.playTimeMs)" } == ["B 30000"])
+        #expect(library.mostPlayed(since: nil, device: .device("phone")).map { "\($0.track.title) \($0.playTimeMs)" } == ["B 90000", "A 10000"])
+
+        #expect(library.playCount() == 5)
+        #expect(library.playCount(device: here) == 2)
+        #expect(library.playCount(device: .device("phone")) == 2)
+    }
+
     @Test func historyOpsGoToRecorder() throws {
         final class Box: @unchecked Sendable { var kinds: [String] = [] }
         let box = Box()

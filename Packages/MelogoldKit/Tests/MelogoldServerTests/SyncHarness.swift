@@ -15,6 +15,8 @@ final class SyncHarness {
     let server = StubServer()
     let database: AppDatabase
     let store: SyncStore
+    /// Библиотека устройства: прослушивания и действия с историей — только через неё, как в приложении.
+    let library: Library
     let account: Account
     let engine: LibrarySync
 
@@ -22,6 +24,7 @@ final class SyncHarness {
     init(lyrics: Bool = true, bound: Bool = true) throws {
         database = try AppDatabase.inMemory()
         store = SyncStore(database: database)
+        library = Library(database: database)
         let settings = AppSettings(defaults: UserDefaults(suiteName: "sync-\(UUID())")!)
         settings.serverURL = server.baseURL
         let secrets = MemorySecretStore()
@@ -31,7 +34,7 @@ final class SyncHarness {
         )
         secrets.set(try JSONEncoder().encode(session), for: Account.sessionAccount)
         account = Account(settings: settings, secrets: secrets, identity: AccountTests.identity, urlSession: StubServer.session())
-        engine = LibrarySync(account: account, database: database, timing: Self.timing, liveEvents: false)
+        engine = LibrarySync(account: account, library: library, timing: Self.timing, liveEvents: false)
         server.on("GET", "/server/info") { _ in (200, SyncFixtures.serverInfo(lyrics: lyrics)) }
         server.on("POST", "/auth/me/lyrics/changes") { _ in (200, #"{"items":[],"rev":0,"more":false}"#) }
         if bound {
