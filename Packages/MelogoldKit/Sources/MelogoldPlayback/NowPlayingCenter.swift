@@ -95,9 +95,10 @@ final class NowPlayingCenter {
         let videoId = track.videoId
         guard let raw = track.thumbnailUrl ?? Optional(Thumbnails.forVideo(videoId)),
               let url = URL(string: Thumbnails.sized(raw, px: 544) ?? raw) else { return }
+        let isFrame = Thumbnails.isWide(url.absoluteString)
         artworkTask = Task { [weak self] in
             guard let (data, _) = try? await ArtworkSession.shared.data(from: url), !Task.isCancelled,
-                  let image = Self.squareImage(from: data) else { return }
+                  let image = Self.squareImage(from: data, stripBars: isFrame) else { return }
             guard let self, self.shownVideoId == videoId else { return }
             self.artwork = Self.makeArtwork(image)
             var info = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
@@ -111,17 +112,16 @@ final class NowPlayingCenter {
         MPMediaItemArtwork(boundsSize: image.size) { _ in image }
     }
 
-    /// Квадрат из центра картинки: у видео превью 16:9, а «Сейчас играет» системы ждёт квадрат (REWRITE §4.8.2).
-    static func squareImage(from data: Data) -> PlatformImage? {
+    /// Квадрат из центра картинки: система сама режет обложку квадратом, и не всегда по центру (задание 0008).
+    /// У кадра видео сначала срезаются чёрные поля (`FrameBars`), потом берётся середина.
+    static func squareImage(from data: Data, stripBars: Bool) -> PlatformImage? {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil),
-              let cgImage = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
-        let side = min(cgImage.width, cgImage.height)
-        let rect = CGRect(x: (cgImage.width - side) / 2, y: (cgImage.height - side) / 2, width: side, height: side)
-        guard let square = cgImage.cropping(to: rect) else { return nil }
+              let decoded = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
+        let square = FrameCrop.centerSquare(stripBars ? FrameCrop.withoutBars(decoded) : decoded)
         #if canImport(UIKit)
         return UIImage(cgImage: square)
         #else
-        return NSImage(cgImage: square, size: NSSize(width: side, height: side))
+        return NSImage(cgImage: square, size: NSSize(width: square.width, height: square.height))
         #endif
     }
 }

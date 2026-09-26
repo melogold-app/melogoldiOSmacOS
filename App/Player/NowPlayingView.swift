@@ -51,7 +51,7 @@ struct NowPlayingView: View {
     }
 
     private func artwork(_ track: Track, side: CGFloat) -> some View {
-        ArtworkView(url: track.artworkURL, size: max(120, side))
+        NowPlayingArtwork(url: track.artworkURL, side: max(120, side))
             .shadow(color: .black.opacity(0.2), radius: 16, y: 8)
             .accessibilityHidden(true)
     }
@@ -80,5 +80,28 @@ struct NowPlayingView: View {
                 Spacer()
             }
         }
+    }
+}
+
+/// Большая обложка «Сейчас играет» (задание 0008): кадр видео — целиком, прямоугольником 16:9 той же ширины;
+/// песня и обложка сингла из видео-«статики» (после срезки полей она квадратная) — квадрат. Форма — по картинке
+/// после срезки полей: шире 1,2:1 — прямоугольник.
+struct NowPlayingArtwork: View {
+    let url: String?
+    let side: CGFloat
+    @Environment(\.displayScale) private var displayScale
+    @State private var wide = false
+
+    var body: some View {
+        ArtworkView(url: url, size: side, shape: wide ? .wide : .rounded)
+            .animation(.snappy, value: wide)
+            .task(id: url) {
+                wide = false
+                guard Thumbnails.isWide(url) else { return }
+                let sized = Thumbnails.sized(url, px: Int((side * displayScale).rounded(.up)))
+                if let image = await ArtworkLoader.shared.image(sized) {
+                    wide = Double(image.width) > Double(image.height) * 1.2
+                }
+            }
     }
 }

@@ -2,9 +2,10 @@ import ImageIO
 import SwiftUI
 import MelogoldCore
 
-/// Обложка по месту (REWRITE §4.8.2): размер картинки подбирается по пикселям места, превью видео 16:9 в квадрате
-/// обрезается по центру. Пока грузится — нейтральная подложка со значком ноты. Грузит `ArtworkSession`
-/// (свой дисковый кэш в `Caches`), в памяти держится последняя сотня картинок.
+/// Обложка по месту (REWRITE §4.8.2): размер картинки подбирается по пикселям места, кадр видео 16:9 в квадрате
+/// обрезается по центру и выбирается по короткой стороне — по высоте (задание 0008). Пока грузится — нейтральная
+/// подложка со значком ноты. Грузит `ArtworkSession` (свой дисковый кэш в `Caches`), в памяти держится последняя
+/// сотня картинок.
 struct ArtworkView: View {
     enum Shape { case rounded, circle, wide }
 
@@ -17,8 +18,9 @@ struct ArtworkView: View {
     private var height: CGFloat { shape == .wide ? size * 9 / 16 : size }
 
     var body: some View {
-        let pixels = Int((max(size, height) * displayScale).rounded(.up))
-        let sized = Thumbnails.sized(url, px: pixels)
+        // Кадр видео в квадрате показывается серединой: нужная высота кадра — сторона квадрата, ширина — в 16/9 больше.
+        let side = max(size, height) * (shape != .wide && Thumbnails.isWide(url) ? 16.0 / 9.0 : 1)
+        let sized = Thumbnails.sized(url, px: Int((side * displayScale).rounded(.up)))
         ZStack {
             if let image {
                 Image(decorative: image, scale: displayScale)
@@ -54,7 +56,8 @@ struct ArtworkView: View {
     }
 }
 
-/// Загрузка и разбор обложек вне главного потока; готовые картинки — в памяти.
+/// Загрузка и разбор обложек вне главного потока; готовые картинки — в памяти. У кадра видео (`i.ytimg.com/vi/`)
+/// чёрные поля срезаются до того, как картинка попадёт в память (задание 0008, `FrameBars`).
 actor ArtworkLoader {
     static let shared = ArtworkLoader()
     private let memory = NSCache<NSString, CGImageBox>()
@@ -68,10 +71,12 @@ actor ArtworkLoader {
         guard let url, let address = URL(string: url) else { return nil }
         if let hit = memory.object(forKey: url as NSString) { return hit.image }
         if let task = running[url] { return await task.value }
+        let isFrame = Thumbnails.isWide(url)
         let task = Task<CGImage?, Never> {
             guard let (data, _) = try? await ArtworkSession.shared.data(from: address),
-                  let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
-            return CGImageSourceCreateImageAtIndex(source, 0, nil)
+                  let source = CGImageSourceCreateWithData(data as CFData, nil),
+                  let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
+            return isFrame ? FrameCrop.withoutBars(image) : image
         }
         running[url] = task
         let result = await task.value

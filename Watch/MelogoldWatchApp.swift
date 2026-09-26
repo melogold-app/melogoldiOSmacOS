@@ -41,6 +41,10 @@ struct MelogoldWatchApp: App {
                         model.pendingQuery = query
                         model.path = [.section(.search)]
                     }
+                    // -MelogoldPlayVideo <id> — видео по id (кадр видео в корне и «Сейчас играет», задание 0008).
+                    if let videoId = defaults.string(forKey: "MelogoldPlayVideo") {
+                        model.services.player.playSingle(Track(videoId: videoId, title: videoId, videoType: VideoType.video))
+                    }
                     // -MelogoldOpen trends|new|album:<id>|artist:<id>|playlist:<id> — экран для снимка.
                     if let target = defaults.string(forKey: "MelogoldOpen") {
                         let parts = target.split(separator: ":", maxSplits: 1).map(String.init)
