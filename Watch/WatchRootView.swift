@@ -41,6 +41,7 @@ struct WatchRootView: View {
                 case .library(let page): WatchLibraryPageView(page: page)
                 case .queue: WatchQueueView()
                 case .lyrics: WatchLyricsView()
+                case .sleepTimer: WatchSleepTimerView()
                 }
             }
         }

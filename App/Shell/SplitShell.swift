@@ -28,6 +28,13 @@ struct SplitShell: View {
                 SectionRoot(section: model.section, miniPlayerBar: true)
             }
             .id(model.section)
+            #if !os(visionOS)
+            // Очередь — колонка справа (docs/PROMPT.md §5.4, iPad — §5.3).
+            .inspector(isPresented: $model.queueVisible) {
+                QueueView()
+                    .inspectorColumnWidth(min: 300, ideal: 340, max: 460)
+            }
+            #endif
             #if os(macOS)
             .onExitCommand { model.goBack() }
             #endif

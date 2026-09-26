@@ -8,6 +8,9 @@ import MelogoldServer
 @MainActor
 @Observable
 final class AppModel {
+    /// Модель окна для Dock, CarPlay и Siri (одно приложение — одна модель).
+    @ObservationIgnored static weak var current: AppModel?
+
     let services: Services
     let search: SearchModel
     /// Аккаунт на сервере Melogold: вход, токены, устройства (срез 5).
@@ -70,6 +73,9 @@ final class AppModel {
     var lyricsVisible = false
     var lyricsSearch = false
     var lyricsEditor = false
+
+    /// Очередь: на iPhone — лист, на iPad и Mac — колонка справа (срез 7).
+    var queueVisible = false
 
     /// Курсор в поле ввода: пробел вводит пробел, а не ставит паузу (Mac, docs/PROMPT.md §5.4).
     var textInputActive = false

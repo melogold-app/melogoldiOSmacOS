@@ -24,6 +24,12 @@ struct WatchNowPlayingView: View {
         } else {
             NowPlayingView()
                 .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        NavigationLink(value: WatchRoute.sleepTimer) {
+                            Image(systemName: player.sleepTimerEnd != nil || player.sleepAtTrackEnd ? "moon.fill" : "moon.zzz")
+                        }
+                        .accessibilityLabel(Text("sleep.title"))
+                    }
                     ToolbarItemGroup(placement: .bottomBar) {
                         if let track = player.currentTrack, let library = model.services.library {
                             let liked = library.isLiked(track.videoId)
@@ -61,5 +67,45 @@ extension PlaybackFailure {
         case .extractor: "player.error.extractor"
         case .manySkips: "player.error.manySkips"
         }
+    }
+}
+
+/// Таймер сна на часах: 15 · 30 · 45 · 60 мин, «До конца трека», «Выключить таймер».
+struct WatchSleepTimerView: View {
+    @Environment(WatchModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        let player = model.services.player
+        List {
+            // Включённый таймер — сверху: сколько осталось и «Выключить таймер».
+            if player.sleepTimerEnd != nil || player.sleepAtTrackEnd {
+                Section {
+                    Button("sleep.off", role: .destructive) {
+                        player.cancelSleepTimer()
+                        dismiss()
+                    }
+                } header: {
+                    if let end = player.sleepTimerEnd {
+                        Text(verbatim: SleepFormat.remaining(end))
+                    } else {
+                        Text("sleep.chip.endOfTrack")
+                    }
+                }
+            }
+            Section {
+                ForEach([15, 30, 45, 60], id: \.self) { minutes in
+                    Button("sleep.minutes \(minutes)") {
+                        player.setSleepTimer(minutes: minutes)
+                        dismiss()
+                    }
+                }
+                Button("sleep.endOfTrack") {
+                    player.setSleepAtTrackEnd()
+                    dismiss()
+                }
+            }
+        }
+        .navigationTitle(Text("sleep.title"))
     }
 }

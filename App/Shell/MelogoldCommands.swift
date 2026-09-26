@@ -1,11 +1,13 @@
 #if os(macOS)
 import SwiftUI
 import MelogoldCore
+import MelogoldPlayback
 
 /// Меню Mac (docs/PROMPT.md §5.4): разделы по ⌘1…⌘5, ⌘F — Поиск с курсором в поле, «Настройки…» (⌘,) открывает
 /// раздел «Настройки», ⌘[ — шаг назад в стеке раздела. Меню «Управление» появляется вместе с плеером (срез 2).
 struct MelogoldCommands: Commands {
     let model: AppModel
+    @Environment(\.openWindow) private var openWindow
 
     private static let keys: [KeyEquivalent] = ["1", "2", "3", "4", "5"]
 
@@ -48,6 +50,30 @@ struct MelogoldCommands: Commands {
                 .keyboardShortcut(.upArrow, modifiers: .command)
             Button("menu.volumeDown") { player.volume = max(0, player.volume - 0.1) }
                 .keyboardShortcut(.downArrow, modifiers: .command)
+            Divider()
+            Toggle("player.shuffle", isOn: Binding(get: { player.shuffled }, set: { player.setShuffled($0) }))
+                .keyboardShortcut("s", modifiers: [.command, .control])
+            Picker(selection: Binding(get: { player.repeatMode }, set: { player.repeatMode = $0 })) {
+                Text("player.repeat.off").tag(RepeatMode.off)
+                Text("player.repeat.all").tag(RepeatMode.all)
+                Text("player.repeat.one").tag(RepeatMode.one)
+            } label: {
+                Text("player.repeat")
+            }
+            SleepTimerMenu().environment(model)
+            Divider()
+            Button("player.queue") { model.queueVisible.toggle() }
+                .keyboardShortcut("u", modifiers: [.command, .option])
+            Button("player.lyrics") {
+                model.lyricsVisible = true
+                model.showNowPlaying = true
+            }
+            .keyboardShortcut("l", modifiers: [.command, .option])
+        }
+
+        CommandGroup(after: .windowList) {
+            Button("window.miniPlayer") { openWindow(id: "mini") }
+                .keyboardShortcut("m", modifiers: [.command, .option])
         }
     }
 }

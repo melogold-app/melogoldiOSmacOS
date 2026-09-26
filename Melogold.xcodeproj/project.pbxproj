@@ -11,17 +11,21 @@
 		03CD15A17929BB9E19BC5994 /* StateViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 617A52A872CF4D7D7724B937 /* StateViews.swift */; };
 		0625DD652177818F5351F5E3 /* ExploreStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 261AC95AEB0213020ABB2C1E /* ExploreStore.swift */; };
 		066325A2E0A9B9E988EEF947 /* MiniPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D6C4E54E29C8CF7F8B0D862 /* MiniPlayer.swift */; };
+		07A8A65CEC0749174CD5E9E5 /* CarPlaySceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = E968415E6F0B73C9B137C4A2 /* CarPlaySceneDelegate.swift */; };
 		0AB30F97DC1B704FA12F1A64 /* ArtistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87A6916777459732260903DC /* ArtistView.swift */; };
 		0D6FC5C08893F894FD342330 /* WatchAccountViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D57728F1C4495976700637A3 /* WatchAccountViews.swift */; };
 		0E84339350F8EEB82DDE49BA /* LyricsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8283257DCBDBDAFFA51CE3F2 /* LyricsUITests.swift */; };
 		0F943CFE0F06498E564634C0 /* MelogoldApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A071D3B7B2103C906F45A4F9 /* MelogoldApp.swift */; };
 		10EA20DE84359721EA31CE23 /* TabShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74D5802F9DB93D4977628101 /* TabShell.swift */; };
+		137DA5566FD1F88AD3A11CED /* SystemIntegration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FFA6E1800667B694083CA84 /* SystemIntegration.swift */; };
 		181309BE19354DF37DFAAE97 /* MelogoldServer in Frameworks */ = {isa = PBXBuildFile; productRef = 2973D1F8B1EADECCA8A6B50E /* MelogoldServer */; };
+		1813387E02F116DA5080EABA /* PlayerUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 682BBF8C408EDA9E19B8D661 /* PlayerUITests.swift */; };
 		1A83A03BA63362F319089F9E /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD0F2577B6C283234174F5C /* SignInView.swift */; };
 		1AEBC8A022AEBC0AC34CD9E5 /* TrendsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C224EDA06CCB6048D3EE231 /* TrendsView.swift */; };
 		1B1F41525428EEB1C939DEDF /* SplitShell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68CE44484027E235BABE4E9B /* SplitShell.swift */; };
 		1FA4F7F8356615AE62FC0DD4 /* SectionStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ED1959497A998519DFBAEC6 /* SectionStyle.swift */; };
 		202AB5FF65B21800A3C42AEC /* ShellUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C2E03261E4E5FEE84A79BE3 /* ShellUITests.swift */; };
+		215CFC95E58BCEEA3194F429 /* SleepFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 713C3A392A064D16A0998F09 /* SleepFormat.swift */; };
 		238ABA984DA91ED32A2D0F22 /* MelogoldCore in Frameworks */ = {isa = PBXBuildFile; productRef = 00E31265CD9323121FDDEB60 /* MelogoldCore */; };
 		37386CC75DEE3EBD4A5BBEA7 /* Shelves.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05CB98AC0A4C230383AE4920 /* Shelves.swift */; };
 		373ABF28FB0AE1BC2575DFF3 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05609036F2EA8B7D37C79D06 /* RootView.swift */; };
@@ -34,6 +38,7 @@
 		4CB6CB531388EC4C9CEAF2B2 /* MelogoldPlayback in Frameworks */ = {isa = PBXBuildFile; productRef = 74C7DB990AB009185B29E337 /* MelogoldPlayback */; };
 		4DCAAA27EC8F64EC07C26110 /* WatchNowPlayingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9A09BA336EAC3188322DF40 /* WatchNowPlayingView.swift */; };
 		5125520C51D3281CB5DBBA66 /* WatchRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91B39EDD1852C5750CFF9520 /* WatchRootView.swift */; };
+		541782B9FFF7E37EAC7D901A /* PlayerMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7704BEE3DFEDE997F23D5CC /* PlayerMenu.swift */; };
 		54E552D63E3171488285F922 /* DebugSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60D5E73AB6179004AA6A76AA /* DebugSnapshot.swift */; };
 		55C88BDF8593BFE632936A56 /* Melogold.icon in Resources */ = {isa = PBXBuildFile; fileRef = B37968274E19904FD5DE23BE /* Melogold.icon */; platformFilters = (ios, macos, ); };
 		5711F2CB6529289E2C69FA82 /* BrowseViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF26F96C87B32EA1FC1B5889 /* BrowseViews.swift */; };
@@ -54,6 +59,8 @@
 		771134A71C28716CD3A30DBA /* MelogoldInnerTube in Frameworks */ = {isa = PBXBuildFile; productRef = DC9CC894B07B9896638342CD /* MelogoldInnerTube */; };
 		782A43EE9CA71A84716D1787 /* ArtworkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83FA08593BA80C10D1786A94 /* ArtworkView.swift */; };
 		7886385E3E5B8992E0901556 /* Rows.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE193EFD78D96A082588A882 /* Rows.swift */; };
+		7A48C339E90DDEB9F20D3B7C /* SleepFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 713C3A392A064D16A0998F09 /* SleepFormat.swift */; };
+		7AACA42B80940B15B34CF3DF /* QueueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE53BF230CBCA5A02C4E3D84 /* QueueView.swift */; };
 		7B7F06BEA52600084975FA9C /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = C305A7FFD78AB75764C9F3D0 /* PrivacyInfo.xcprivacy */; };
 		7EA3249E428FB6CF17568CE9 /* MelogoldCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93441BF35DA128B8AAFCDF1C /* MelogoldCommands.swift */; };
 		7FAA9163A0D77D5A2D6DB610 /* SectionPlaceholder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C31A6FD2D13A78CE31432CC /* SectionPlaceholder.swift */; };
@@ -157,6 +164,7 @@
 		24F1F7B1F153ABCE7ABE1A14 /* FileExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileExport.swift; sourceTree = "<group>"; };
 		261AC95AEB0213020ABB2C1E /* ExploreStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExploreStore.swift; sourceTree = "<group>"; };
 		2881FC55A08451C2F452BB75 /* MelogoldWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MelogoldWatchApp.swift; sourceTree = "<group>"; };
+		2FFA6E1800667B694083CA84 /* SystemIntegration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemIntegration.swift; sourceTree = "<group>"; };
 		34213AD788C67BDC3B6AF8E3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		39AD56A4AE2A9E51E2F5D5D1 /* PlaybackStorageSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackStorageSettings.swift; sourceTree = "<group>"; };
 		3C19A57BEACA04E17E6F71AD /* Loadable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Loadable.swift; sourceTree = "<group>"; };
@@ -171,11 +179,13 @@
 		60D5E73AB6179004AA6A76AA /* DebugSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugSnapshot.swift; sourceTree = "<group>"; };
 		617A52A872CF4D7D7724B937 /* StateViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StateViews.swift; sourceTree = "<group>"; };
 		62072A5FC2C2D17D85550480 /* WatchLyricsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchLyricsView.swift; sourceTree = "<group>"; };
+		682BBF8C408EDA9E19B8D661 /* PlayerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerUITests.swift; sourceTree = "<group>"; };
 		68CE44484027E235BABE4E9B /* SplitShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitShell.swift; sourceTree = "<group>"; };
 		6A408396BE12A73C84983051 /* MacPlayerBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacPlayerBar.swift; sourceTree = "<group>"; };
 		6B038D3D5905F9D28B22C84A /* ForYouStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForYouStore.swift; sourceTree = "<group>"; };
 		6B07519490EFF013E29A5996 /* PlaylistView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistView.swift; sourceTree = "<group>"; };
 		6C31A6FD2D13A78CE31432CC /* SectionPlaceholder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionPlaceholder.swift; sourceTree = "<group>"; };
+		713C3A392A064D16A0998F09 /* SleepFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepFormat.swift; sourceTree = "<group>"; };
 		71E0614E21C5CA15E4B6BFF3 /* NowPlayingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingView.swift; sourceTree = "<group>"; };
 		73A40E76B3280821EE501843 /* Melogold Watch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Melogold Watch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		74D5802F9DB93D4977628101 /* TabShell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabShell.swift; sourceTree = "<group>"; };
@@ -198,6 +208,7 @@
 		A5CCDBAD0C5BE71085F14626 /* DebugBenchmark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugBenchmark.swift; sourceTree = "<group>"; };
 		A9A09BA336EAC3188322DF40 /* WatchNowPlayingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchNowPlayingView.swift; sourceTree = "<group>"; };
 		AE1EC0EADA85A588A69F641B /* AppModel+Actions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Actions.swift"; sourceTree = "<group>"; };
+		AE53BF230CBCA5A02C4E3D84 /* QueueView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueView.swift; sourceTree = "<group>"; };
 		AF26F96C87B32EA1FC1B5889 /* BrowseViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowseViews.swift; sourceTree = "<group>"; };
 		B041EBEA60A6B89FA365385A /* AlbumView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumView.swift; sourceTree = "<group>"; };
 		B37968274E19904FD5DE23BE /* Melogold.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Melogold.icon; sourceTree = "<group>"; };
@@ -218,11 +229,13 @@
 		E523A3EDBF9604F373F12513 /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
 		E59F5F588452F498D6413117 /* Melogold.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Melogold.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E7276233A1B85EC99AD83FB4 /* AccountSettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSettingsSection.swift; sourceTree = "<group>"; };
+		E968415E6F0B73C9B137C4A2 /* CarPlaySceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarPlaySceneDelegate.swift; sourceTree = "<group>"; };
 		EA63165E83727DB40E4E2B0A /* LyricsSearchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsSearchSheet.swift; sourceTree = "<group>"; };
 		F1B51C8ABF1BCB381E829D6C /* LibraryScreens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryScreens.swift; sourceTree = "<group>"; };
 		F1D156A776E7F72E0757C991 /* AccountOverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountOverviewView.swift; sourceTree = "<group>"; };
 		F35CC0B73BA7B96B4B82E927 /* MelogoldUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MelogoldUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F5BC4994B458B516BAF06933 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		F7704BEE3DFEDE997F23D5CC /* PlayerMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerMenu.swift; sourceTree = "<group>"; };
 		FA48D712A509C667E74613AE /* WatchCatalogViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchCatalogViews.swift; sourceTree = "<group>"; };
 		FCB0C6153B9A06B75A9C18E7 /* LyricsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsView.swift; sourceTree = "<group>"; };
 		FDD0F2577B6C283234174F5C /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
@@ -314,6 +327,8 @@
 				7D6C4E54E29C8CF7F8B0D862 /* MiniPlayer.swift */,
 				71E0614E21C5CA15E4B6BFF3 /* NowPlayingView.swift */,
 				44E7488F82A5E9E689DE17B0 /* PlayerControls.swift */,
+				F7704BEE3DFEDE997F23D5CC /* PlayerMenu.swift */,
+				AE53BF230CBCA5A02C4E3D84 /* QueueView.swift */,
 				229BA01721F5407D1B919204 /* RoutePickerButton.swift */,
 			);
 			path = Player;
@@ -327,6 +342,7 @@
 				88A1BA2E6F1DE9B1CB7537AA /* LibraryUITests.swift */,
 				8283257DCBDBDAFFA51CE3F2 /* LyricsUITests.swift */,
 				5D36BEB67142D8EF879DBCC5 /* PlaybackUITests.swift */,
+				682BBF8C408EDA9E19B8D661 /* PlayerUITests.swift */,
 				5C2E03261E4E5FEE84A79BE3 /* ShellUITests.swift */,
 				4134F65B1F3D3F4517BE4E71 /* UITestSupport.swift */,
 			);
@@ -449,12 +465,14 @@
 		BF857F65D7ED590FE0DC02FA /* Shell */ = {
 			isa = PBXGroup;
 			children = (
+				E968415E6F0B73C9B137C4A2 /* CarPlaySceneDelegate.swift */,
 				A5CCDBAD0C5BE71085F14626 /* DebugBenchmark.swift */,
 				4A6EB7CA2C9AC85995734B19 /* DebugLaunch.swift */,
 				60D5E73AB6179004AA6A76AA /* DebugSnapshot.swift */,
 				93441BF35DA128B8AAFCDF1C /* MelogoldCommands.swift */,
 				05609036F2EA8B7D37C79D06 /* RootView.swift */,
 				68CE44484027E235BABE4E9B /* SplitShell.swift */,
+				2FFA6E1800667B694083CA84 /* SystemIntegration.swift */,
 				74D5802F9DB93D4977628101 /* TabShell.swift */,
 			);
 			path = Shell;
@@ -486,6 +504,7 @@
 			isa = PBXGroup;
 			children = (
 				83FA08593BA80C10D1786A94 /* ArtworkView.swift */,
+				713C3A392A064D16A0998F09 /* SleepFormat.swift */,
 			);
 			path = UI;
 			sourceTree = "<group>";
@@ -698,6 +717,7 @@
 				93A6977A8AC785AAC66B41FC /* LibraryUITests.swift in Sources */,
 				0E84339350F8EEB82DDE49BA /* LyricsUITests.swift in Sources */,
 				E1F098D49490EF6BC4A3B7BE /* PlaybackUITests.swift in Sources */,
+				1813387E02F116DA5080EABA /* PlayerUITests.swift in Sources */,
 				202AB5FF65B21800A3C42AEC /* ShellUITests.swift in Sources */,
 				8ACCEDC6EB23CFFA6B08E705 /* UITestSupport.swift in Sources */,
 			);
@@ -718,6 +738,7 @@
 				0AB30F97DC1B704FA12F1A64 /* ArtistView.swift in Sources */,
 				C4069967884AAA4A579F0ADF /* ArtworkView.swift in Sources */,
 				5711F2CB6529289E2C69FA82 /* BrowseViews.swift in Sources */,
+				07A8A65CEC0749174CD5E9E5 /* CarPlaySceneDelegate.swift in Sources */,
 				F65F688275F404FC37157ED2 /* DebugBenchmark.swift in Sources */,
 				6C4AC9EDF614DE121A6F16FD /* DebugLaunch.swift in Sources */,
 				54E552D63E3171488285F922 /* DebugSnapshot.swift in Sources */,
@@ -745,7 +766,9 @@
 				67B5305E5D263A1E61CE33D2 /* NowPlayingView.swift in Sources */,
 				A80173124DB9EE5F48306046 /* PlaybackStorageSettings.swift in Sources */,
 				C2ECEAB367E75307F765505B /* PlayerControls.swift in Sources */,
+				541782B9FFF7E37EAC7D901A /* PlayerMenu.swift in Sources */,
 				3C22FA3123C7D699E86A37BD /* PlaylistView.swift in Sources */,
+				7AACA42B80940B15B34CF3DF /* QueueView.swift in Sources */,
 				373ABF28FB0AE1BC2575DFF3 /* RootView.swift in Sources */,
 				E5D9FF739B2B0C2ED1C01161 /* RoutePickerButton.swift in Sources */,
 				A2132CB8024C6D31A1323B1A /* Routes.swift in Sources */,
@@ -759,8 +782,10 @@
 				F42A7A749C360FA3E6E10534 /* SettingsView.swift in Sources */,
 				37386CC75DEE3EBD4A5BBEA7 /* Shelves.swift in Sources */,
 				1A83A03BA63362F319089F9E /* SignInView.swift in Sources */,
+				7A48C339E90DDEB9F20D3B7C /* SleepFormat.swift in Sources */,
 				1B1F41525428EEB1C939DEDF /* SplitShell.swift in Sources */,
 				03CD15A17929BB9E19BC5994 /* StateViews.swift in Sources */,
+				137DA5566FD1F88AD3A11CED /* SystemIntegration.swift in Sources */,
 				10EA20DE84359721EA31CE23 /* TabShell.swift in Sources */,
 				DBE881B9FE4690869C3CB0F6 /* TrackMenu.swift in Sources */,
 				1AEBC8A022AEBC0AC34CD9E5 /* TrendsView.swift in Sources */,
@@ -781,6 +806,7 @@
 				9F371FCD19E75A2E60428E9A /* MelogoldWatchApp.swift in Sources */,
 				1FA4F7F8356615AE62FC0DD4 /* SectionStyle.swift in Sources */,
 				008ADFA16EFF781E50B386AA /* Services.swift in Sources */,
+				215CFC95E58BCEEA3194F429 /* SleepFormat.swift in Sources */,
 				0D6FC5C08893F894FD342330 /* WatchAccountViews.swift in Sources */,
 				BACE53CDC9A1DE54D44800B7 /* WatchCatalogViews.swift in Sources */,
 				F7625B181D9A6185784449C1 /* WatchLibraryViews.swift in Sources */,

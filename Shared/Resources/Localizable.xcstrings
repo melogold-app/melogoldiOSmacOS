@@ -1803,6 +1803,23 @@
         }
       }
     },
+    "carplay.recent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recent"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Недавние"
+          }
+        }
+      }
+    },
     "catalog.dataFrom %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6602,6 +6619,74 @@
         }
       }
     },
+    "queue.autoplay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Up next — autoplay"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Далее — автовоспроизведение"
+          }
+        }
+      }
+    },
+    "queue.clear" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Очистить"
+          }
+        }
+      }
+    },
+    "queue.cleared" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Queue cleared"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Очередь очищена"
+          }
+        }
+      }
+    },
+    "queue.nowPlaying" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Now playing"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сейчас играет"
+          }
+        }
+      }
+    },
     "queue.playingNext %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6619,6 +6704,23 @@
         }
       }
     },
+    "queue.removed %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Removed from queue: %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Убрано из очереди: %@"
+          }
+        }
+      }
+    },
     "queue.replaced" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6632,6 +6734,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Очередь заменена"
+          }
+        }
+      }
+    },
+    "queue.saveAsPlaylist" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save as playlist"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сохранить как плейлист"
           }
         }
       }
@@ -6685,6 +6804,23 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "queue.upNext %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Up next · %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Далее · %@"
           }
         }
       }
@@ -7879,6 +8015,125 @@
         }
       }
     },
+    "sleep.chip.endOfTrack" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "End of track"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Конец трека"
+          }
+        }
+      }
+    },
+    "sleep.endOfTrack" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Until end of track"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "До конца трека"
+          }
+        }
+      }
+    },
+    "sleep.minutes %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld min"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld мин"
+          }
+        }
+      }
+    },
+    "sleep.off" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn off timer"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выключить таймер"
+          }
+        }
+      }
+    },
+    "sleep.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sleep timer"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Таймер сна"
+          }
+        }
+      }
+    },
+    "sleep.title.endOfTrack" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sleep timer · end of track"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Таймер сна · конец трека"
+          }
+        }
+      }
+    },
+    "sleep.title.remaining %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sleep timer · %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Таймер сна · %@"
+          }
+        }
+      }
+    },
     "sort.artist" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8334,6 +8589,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "В тренде"
+          }
+        }
+      }
+    },
+    "window.miniPlayer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mini player"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Мини-плеер"
           }
         }
       }

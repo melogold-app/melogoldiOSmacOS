@@ -36,7 +36,18 @@ public final class PlayerEngine {
     /// Время от нажатия до звука у последнего старта, секунды (приёмка среза 2).
     public private(set) var lastStartLatency: TimeInterval?
     public var repeatMode: RepeatMode = .off
-    public var autoplayEnabled = true
+    public var autoplayEnabled = true {
+        didSet {
+            guard oldValue != autoplayEnabled, let index else { return }
+            if !autoplayEnabled {
+                radioTask?.cancel()
+                items = Array(items[...index]) + items.dropFirst(index + 1).filter { !$0.fromAutoplay }
+                upcomingChanged()
+            } else {
+                maybeExtendRadio()
+            }
+        }
+    }
     /// Скорость 0,5–2×, тон не меняется (`AppSettings.speed`).
     public var speed: Float = 1 {
         didSet {
@@ -116,6 +127,10 @@ public final class PlayerEngine {
     private var sessionTickAt: Date?
     /// Исходный порядок после перемешивания.
     private var unshuffledOrder: [UUID] = []
+    /// Уровни звука на шкале синхронизатора (столбики) и недавние пики каждой полосы.
+    @ObservationIgnored private var levelTimeline: [LevelFrame] = []
+    @ObservationIgnored private var levelPeaks: (Float, Float, Float) = (0.02, 0.02, 0.02)
+    private var sleepTask: Task<Void, Never>?
     /// Читать вперёд не больше стольких секунд — память и трафик.
     private static let readAhead: Double = 40
     /// Сколько звука нужно в запасе, чтобы начать или продолжить после паузы на загрузку.
@@ -327,6 +342,7 @@ public final class PlayerEngine {
         segment.end = nil
         let time = CMTimeAdd(segment.start, CMTime(seconds: target, preferredTimescale: 44_100))
         generation = pipeline.reset(to: time)
+        levelTimeline.removeAll()
         position = target
         if wantsToPlay {
             phase = .loading
@@ -347,6 +363,107 @@ public final class PlayerEngine {
         attempts[current.id] = 0
         Task { await resolver.invalidate(current.track.videoId) }
         startCurrent(tapped: true)
+    }
+
+    // MARK: - Столбики
+
+    private func appendLevels(_ frames: [LevelFrame]) {
+        guard !frames.isEmpty else { return }
+        if levelTimeline.isEmpty {
+            let peak = frames.map { max($0.low, $0.mid, $0.high) }.max() ?? 0
+            Log.debug("player", "Уровни звука: \(frames.count) кадров, пик \(String(format: "%.3f", peak))")
+        }
+        let now = pipeline.currentTime.seconds
+        levelTimeline.removeAll { $0.time < now - 1 }
+        levelTimeline.append(contentsOf: frames)
+        if levelTimeline.count > 4000 { levelTimeline.removeFirst(levelTimeline.count - 4000) }
+    }
+
+    /// Низ, середина и верх того, что звучит сейчас, 0…1: каждая полоса — по своему недавнему пику (Android
+    /// `AudioLevels`). На паузе и без данных — нули.
+    public func currentLevels() -> (low: Float, mid: Float, high: Float) {
+        guard phase == .playing, !levelTimeline.isEmpty else { return (0, 0, 0) }
+        let now = pipeline.currentTime.seconds
+        var lowIndex = 0, highIndex = levelTimeline.count - 1
+        while lowIndex < highIndex {
+            let middle = (lowIndex + highIndex + 1) / 2
+            if levelTimeline[middle].time <= now { lowIndex = middle } else { highIndex = middle - 1 }
+        }
+        let frame = levelTimeline[lowIndex]
+        guard abs(frame.time - now) < 0.5 else { return (0, 0, 0) }
+        levelPeaks = (max(frame.low, levelPeaks.0 * 0.995), max(frame.mid, levelPeaks.1 * 0.995), max(frame.high, levelPeaks.2 * 0.995))
+        let result = (min(1, frame.low / max(levelPeaks.0, 0.01)), min(1, frame.mid / max(levelPeaks.1, 0.01)),
+                      min(1, frame.high / max(levelPeaks.2, 0.01)))
+        return result
+    }
+
+    // MARK: - Таймер сна (REWRITE §3.10.7)
+
+    /// Когда сработает таймер сна; `nil` — не заведён или «до конца трека».
+    public private(set) var sleepTimerEnd: Date?
+    /// «До конца трека»: пауза на переходе к следующему.
+    public private(set) var sleepAtTrackEnd = false
+
+    public func setSleepTimer(minutes: Int) {
+        cancelSleepTimer()
+        let end = Date().addingTimeInterval(TimeInterval(minutes * 60))
+        sleepTimerEnd = end
+        sleepTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(end.timeIntervalSinceNow))
+            guard !Task.isCancelled, let self else { return }
+            Log.info("player", "Таймер сна: пауза")
+            self.pause()
+            self.sleepTimerEnd = nil
+        }
+    }
+
+    public func setSleepAtTrackEnd() {
+        cancelSleepTimer()
+        sleepAtTrackEnd = true
+        // Следующий трек уже мог встать на шкалу — снять его: пауза точно на конце этого.
+        dropFedUpcoming()
+    }
+
+    /// Снять со шкалы уже поданные следующие треки (рендерер отбрасывает их отсчёты).
+    private func dropFedUpcoming() {
+        guard let segment = currentSegment else { return }
+        let stale = segments.filter { $0 !== segment }
+        guard !stale.isEmpty else { return }
+        for old in stale { old.producer?.cancel() }
+        segments = [segment]
+        guard let end = segment.end else { return }
+        Task { _ = await pipeline.truncate(from: end) }
+    }
+
+    public func cancelSleepTimer() {
+        sleepTask?.cancel()
+        sleepTask = nil
+        sleepTimerEnd = nil
+        sleepAtTrackEnd = false
+    }
+
+    // MARK: - Очередь целиком
+
+    /// Треки после текущего — для «Очистить» и его отмены.
+    public var upcoming: [QueueItem] {
+        guard let index else { return [] }
+        return Array(items.dropFirst(index + 1))
+    }
+
+    /// «Очистить»: всё, кроме текущего трека.
+    public func clearUpcoming() {
+        guard let index else { return }
+        radioTask?.cancel()
+        radio = nil
+        items = Array(items[...index])
+        upcomingChanged()
+    }
+
+    /// Отмена «Очистить»: вернуть треки после текущего.
+    public func restoreUpcoming(_ saved: [QueueItem]) {
+        guard let index else { return }
+        items = Array(items[...index]) + saved
+        upcomingChanged()
     }
 
     /// Позиция прямо сейчас, по часам рендерера (для заливки слов текста; `position` обновляется раз в 100 мс).
@@ -503,6 +620,7 @@ public final class PlayerEngine {
         cancelProducers()
         let startTime = CMTime(seconds: max(0, offset), preferredTimescale: 44_100)
         generation = pipeline.reset(to: startTime)
+        levelTimeline.removeAll()
         let segment = makeSegment(for: current, start: .zero)
         segment.startOffset = max(0, offset)
         segments = [segment]
@@ -565,6 +683,7 @@ public final class PlayerEngine {
                     try Task.checkCancellation()
                     guard generation == self.generation else { return }
                     self.pipeline.append(batch, generation: generation)
+                    self.appendLevels(batch.levels)
                     if number == timing.fragmentCount - 1 { segment.end = batch.end }
                 }
                 guard generation == self.generation else { return }
@@ -582,7 +701,7 @@ public final class PlayerEngine {
 
     /// Трек подан целиком: подать следующий сразу за ним (не при повторе трека).
     private func segmentFinished(_ segment: Segment) {
-        guard repeatMode != .one, let end = segment.end,
+        guard repeatMode != .one, !sleepAtTrackEnd, let end = segment.end,
               let position = items.firstIndex(where: { $0.id == segment.item.id }),
               let following = nextPlayable(after: position),
               !segments.contains(where: { $0.item.id == items[following].id }) else { return }
@@ -703,6 +822,11 @@ public final class PlayerEngine {
 
     private func trackChanged(to segment: Segment) {
         flushSession()
+        if sleepAtTrackEnd {
+            Log.info("player", "Таймер сна: конец трека")
+            sleepAtTrackEnd = false
+            pause()
+        }
         duration = segment.duration > 0 ? segment.duration : Double(segment.item.track.durationMs ?? 0) / 1000
         position = 0
         playingFromCache = segment.fromCache
@@ -719,6 +843,14 @@ public final class PlayerEngine {
 
     /// Последний отрезок доиграл.
     private func finishedLast(_ segment: Segment) {
+        if sleepAtTrackEnd {
+            sleepAtTrackEnd = false
+            wantsToPlay = false
+            pipeline.setRate(0)
+            phase = .paused
+            syncNowPlaying()
+            return
+        }
         if repeatMode == .one {
             seek(to: 0)
             return

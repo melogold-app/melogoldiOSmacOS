@@ -72,6 +72,17 @@ struct NowPlayingView: View {
             .keyboardShortcut(.cancelAction)
         }
         .sheet(isPresented: $model.lyricsSearch) { LyricsSearchSheet() }
+        #if os(iOS)
+        // iPhone: очередь — лист; iPad с боковой панелью — колонка справа в окне (`SplitShell`).
+        .sheet(isPresented: $model.queueVisible) {
+            NavigationStack { QueueView(inSheet: true) }
+                .presentationDetents([.medium, .large])
+        }
+        #elseif os(visionOS)
+        .sheet(isPresented: $model.queueVisible) {
+            NavigationStack { QueueView(inSheet: true) }.frame(minWidth: 480, minHeight: 560)
+        }
+        #endif
         #if os(macOS)
         .sheet(isPresented: $model.lyricsEditor) { LyricsEditorView() }
         #elseif os(iOS)
@@ -138,6 +149,7 @@ struct NowPlayingView: View {
                 NextButton(size: .title)
                 RepeatToggle(size: .title3)
             }
+            PlayerChips()
             HStack(spacing: 32) {
                 Button {
                     withAnimation(.snappy) { model.lyricsVisible.toggle() }
@@ -149,9 +161,20 @@ struct NowPlayingView: View {
                 .buttonStyle(.plain)
                 .foregroundStyle(model.lyricsVisible ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
                 .accessibilityLabel(Text("player.lyrics"))
+                Button {
+                    model.queueVisible.toggle()
+                } label: {
+                    Image(systemName: "list.bullet")
+                        .font(.title3)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(model.queueVisible ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                .accessibilityLabel(Text("player.queue"))
                 RoutePickerButton()
                     .frame(width: 44, height: 44)
                     .accessibilityLabel(Text("player.airplay"))
+                PlayerMoreMenu()
             }
         }
     }

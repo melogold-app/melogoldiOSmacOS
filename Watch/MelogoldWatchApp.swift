@@ -58,7 +58,11 @@ struct MelogoldWatchApp: App {
                                     videoType: VideoType.song)
                             : Track(videoId: videoId, title: videoId, videoType: VideoType.video))
                     }
-                    // -MelogoldOpen trends|new|album:<id>|artist:<id>|playlist:<id> — экран для снимка.
+                    // -MelogoldSleep <мин> — таймер сна.
+                    let sleepMinutes = defaults.integer(forKey: "MelogoldSleep")
+                    if sleepMinutes > 0 { model.services.player.setSleepTimer(minutes: sleepMinutes) }
+                    // -MelogoldOpen trends|new|album:<id>|artist:<id>|playlist:<id>|library|allTracks|settings|lyrics|queue|sleep
+                    // — экран для снимка.
                     if let target = defaults.string(forKey: "MelogoldOpen") {
                         let parts = target.split(separator: ":", maxSplits: 1).map(String.init)
                         switch (parts.first, parts.count > 1 ? parts[1] : nil) {
@@ -71,6 +75,8 @@ struct MelogoldWatchApp: App {
                         case ("allTracks", _): model.path = [.section(.library), .library(.allTracks)]
                         case ("settings", _): model.path = [.section(.settings)]
                         case ("lyrics", _): model.path = [.nowPlaying, .lyrics]
+                        case ("queue", _): model.path = [.nowPlaying, .queue]
+                        case ("sleep", _): model.path = [.nowPlaying, .sleepTimer]
                         default: break
                         }
                     }
@@ -97,6 +103,7 @@ enum WatchRoute: Hashable {
     case library(WatchLibraryPage)
     case queue
     case lyrics
+    case sleepTimer
 }
 
 /// Состояние приложения часов.

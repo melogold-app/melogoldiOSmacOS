@@ -75,7 +75,14 @@ targets:
         UIBackgroundModes: [audio]
         UILaunchScreen: {}
         UIApplicationSceneManifest:
-          UIApplicationSupportsMultipleScenes: false
+          # visionOS: «Сейчас играет» — второе окно; CarPlay — своя сцена (срез 7).
+          UIApplicationSupportsMultipleScenes: true
+          UISceneConfigurations:
+            CPTemplateApplicationSceneSessionRoleApplication:
+              - UISceneConfigurationName: CarPlay
+                UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).CarPlaySceneDelegate
+        INIntentsSupported: [INPlayMediaIntent]
+        INSupportedMediaCategories: [INMediaCategoryMusic]
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft

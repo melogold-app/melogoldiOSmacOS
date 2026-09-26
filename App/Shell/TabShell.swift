@@ -6,6 +6,9 @@ import MelogoldCore
 /// на visionOS разделы — вертикальный орнамент у левого края окна.
 struct TabShell: View {
     @Environment(AppModel.self) private var model
+    #if os(visionOS)
+    @Environment(\.openWindow) private var openWindow
+    #endif
     @Namespace private var playerNamespace
 
     var body: some View {
@@ -55,8 +58,11 @@ struct TabShell: View {
                 .padding(.vertical, 10)
                 .glassBackgroundEffect()
         }
-        .sheet(isPresented: $model.showNowPlaying) {
-            NowPlayingView().frame(minWidth: 640, minHeight: 480)
+        // «Сейчас играет» с текстом — отдельное окно, его можно поставить рядом (docs/PROMPT.md §5.5).
+        .onChange(of: model.showNowPlaying) { _, show in
+            guard show else { return }
+            openWindow(id: "nowPlaying")
+            model.showNowPlaying = false
         }
         #endif
         .overlay(alignment: .bottom) {

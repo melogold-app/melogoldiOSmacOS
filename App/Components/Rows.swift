@@ -33,10 +33,8 @@ struct TrackRow: View {
                         RoundedRectangle(cornerRadius: 6, style: .continuous)
                             .fill(.black.opacity(0.45))
                             .frame(width: 48, height: 48)
-                        // Столбики под реальный звук — срез 7 (docs/PROMPT.md §4); до тех пор значок стоит.
-                        Image(systemName: "waveform")
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(.white)
+                        // Столбики под реальный звук (docs/PROMPT.md §4).
+                        MusicBars(color: .white).frame(width: 22, height: 18)
                     }
                 }
             }

@@ -1,5 +1,5 @@
 #if DEBUG
-import Foundation
+import SwiftUI
 import MelogoldCore
 
 /// Только отладочная сборка: параметры запуска для проверки на симуляторе без нажатий.
@@ -11,7 +11,9 @@ import MelogoldCore
 ///     -MelogoldOpen album:<id>|artist:<id>|playlist:<id>|moods|releases   детальный экран в текущем разделе
 ///     -MelogoldShowNowPlaying YES                      открыть «Сейчас играет», как только появится трек
 ///     -MelogoldShowLyrics YES, -MelogoldLyricsEditor YES   вместе с ним — текст и редактор текста
+///     -MelogoldShowQueue YES, -MelogoldSleep <мин>       очередь и таймер сна
 ///     -MelogoldSeedLibrary YES                          пример библиотеки для снимков: лайки, плейлист, история, альбом
+///     -MelogoldMiniPlayer YES                            Mac: открыть и окно мини-плеера
 enum DebugLaunch {
     /// Пример библиотеки из живого альбома «Группа крови»: лайки, плейлист, прослушивания, сохранённые альбом и
     /// исполнитель. Повторный запуск ничего не дублирует.
@@ -45,13 +47,19 @@ enum DebugLaunch {
         if defaults.bool(forKey: "MelogoldSeedLibrary") {
             Task { await seedLibrary(model) }
         }
-        if defaults.bool(forKey: "MelogoldShowNowPlaying") {
+        if defaults.bool(forKey: "MelogoldShowNowPlaying") || defaults.bool(forKey: "MelogoldShowQueue") {
             Task {
                 for _ in 0..<300 where model.services.player.currentTrack == nil {
                     try? await Task.sleep(for: .milliseconds(100))
                 }
                 model.lyricsVisible = defaults.bool(forKey: "MelogoldShowLyrics")
-                model.showNowPlaying = model.services.player.currentTrack != nil
+                model.showNowPlaying = defaults.bool(forKey: "MelogoldShowNowPlaying") && model.services.player.currentTrack != nil
+                let minutes = defaults.integer(forKey: "MelogoldSleep")
+                if minutes > 0 { model.services.player.setSleepTimer(minutes: minutes) }
+                if defaults.bool(forKey: "MelogoldShowQueue") {
+                    try? await Task.sleep(for: .seconds(3))
+                    model.queueVisible = true
+                }
                 if defaults.bool(forKey: "MelogoldLyricsEditor") {
                     try? await Task.sleep(for: .seconds(4))
                     model.lyricsEditor = true
@@ -98,4 +106,19 @@ enum DebugLaunch {
         }
     }
 }
+
+#if os(macOS)
+/// `-MelogoldMiniPlayer YES`: окно мини-плеера вместе с главным — для снимка.
+struct DebugWindowOpener: ViewModifier {
+    @Environment(\.openWindow) private var openWindow
+
+    func body(content: Content) -> some View {
+        content.task {
+            guard UserDefaults.standard.bool(forKey: "MelogoldMiniPlayer") else { return }
+            try? await Task.sleep(for: .seconds(2))
+            openWindow(id: "mini")
+        }
+    }
+}
+#endif
 #endif

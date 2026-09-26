@@ -5,6 +5,11 @@ import MelogoldData
 @main
 struct MelogoldApp: App {
     @State private var model: AppModel
+    #if os(macOS)
+    @NSApplicationDelegateAdaptor(MacAppDelegate.self) private var appDelegate
+    #elseif os(iOS)
+    @UIApplicationDelegateAdaptor(PhoneAppDelegate.self) private var appDelegate
+    #endif
 
     init() {
         let paths: AppPaths?
@@ -28,7 +33,10 @@ struct MelogoldApp: App {
             ArtworkSession.configure(directory: paths.artwork)
         }
         let services = Services(settings: AppSettings(), paths: paths)
-        _model = State(initialValue: AppModel(services: services))
+        let model = AppModel(services: services)
+        _model = State(initialValue: model)
+        // Dock, CarPlay и Siri находят модель окна здесь.
+        AppModel.current = model
     }
 
     var body: some Scene {
@@ -45,15 +53,37 @@ struct MelogoldApp: App {
                     #endif
                 }
                 .onChange(of: model.settings.theme) { applyMacAppearance() }
+                #if DEBUG
+                .modifier(DebugWindowOpener())
+                #endif
         }
         .defaultSize(width: 1100, height: 720)
         .commands { MelogoldCommands(model: model) }
+
+        // Мини-плеер — маленькое окно поверх остальных (docs/PROMPT.md §5.4), из меню «Окно».
+        Window(Text("window.miniPlayer"), id: "mini") {
+            MacMiniPlayer()
+                .environment(model)
+        }
+        .windowResizability(.contentSize)
+        .windowLevel(.floating)
+        .windowStyle(.hiddenTitleBar)
+        .defaultPosition(.topTrailing)
         #else
         WindowGroup {
             RootView()
                 .environment(model)
                 .preferredColorScheme(model.settings.theme.colorScheme)
         }
+        #if os(visionOS)
+        // «Сейчас играет» с текстом — отдельное окно, его можно поставить рядом (docs/PROMPT.md §5.5).
+        WindowGroup(id: "nowPlaying") {
+            NowPlayingView()
+                .environment(model)
+                .onAppear { model.lyricsVisible = true }
+        }
+        .defaultSize(width: 1100, height: 700)
+        #endif
         #endif
     }
 

@@ -6,6 +6,8 @@ import MelogoldCore
 public struct SampleBatch: @unchecked Sendable {
     public let buffers: [CMSampleBuffer]
     public let end: CMTime
+    /// Уровни звука фрагмента для столбиков «играет».
+    public var levels: [LevelFrame] = []
 }
 
 /// Что известно о треке после чтения начала файла.
@@ -29,6 +31,8 @@ public actor TrackReader {
     private var prefix = Data()
     private var totalLength: Int64 = 0
     private var fragments: [Range<Int>] = []
+    private var analyzer: LevelAnalyzer?
+    private var lastAnalyzed: Int?
 
     public init(source: StreamSource) {
         self.source = source
@@ -50,7 +54,9 @@ public actor TrackReader {
                 let (initSegment, segmentIndex, firstFragment) = parsed
                 header = initSegment
                 index = segmentIndex
-                format = try AudioSamples.formatDescription(sampleEntry: initSegment.sampleEntry)
+                let description = try AudioSamples.formatDescription(sampleEntry: initSegment.sampleEntry)
+                format = description
+                analyzer = LevelAnalyzer(format: description)
                 if let segmentIndex {
                     fragments = segmentIndex.segments.map { $0.offset..<$0.end }
                 } else {
@@ -102,7 +108,14 @@ public actor TrackReader {
         let buffers = try AudioSamples.sampleBuffers(fragmentData: data, fragment: fragment, format: format,
                                                      timescale: header.timescale, pts: pts, trimBefore: trimBefore)
         let ticks = fragment.durations.reduce(Int64(0)) { $0 + Int64($1) }
-        return SampleBatch(buffers: buffers, end: CMTimeAdd(pts, CMTime(value: ticks, timescale: scale)))
+        var batch = SampleBatch(buffers: buffers, end: CMTimeAdd(pts, CMTime(value: ticks, timescale: scale)))
+        // Декодер уровней помнит соседний фрагмент; не по порядку (перемотка) — начать заново.
+        if let analyzer {
+            if lastAnalyzed != number - 1 || trimBefore != nil { analyzer.reset() }
+            batch.levels = analyzer.analyze(buffers)
+            lastAnalyzed = number
+        }
+        return batch
     }
 
     private func timing(_ header: FragmentedMP4.InitSegment) -> TrackTiming {

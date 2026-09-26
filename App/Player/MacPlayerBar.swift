@@ -37,6 +37,7 @@ struct MacPlayerBar: View {
                     }
                     SeekBar()
                         .frame(maxWidth: 520)
+                    PlayerChips()
                 }
                 .frame(maxWidth: .infinity)
 
@@ -54,15 +55,23 @@ struct MacPlayerBar: View {
                     .buttonStyle(.borderless)
                     .help(Text("player.lyrics"))
                     .accessibilityLabel(Text("player.lyrics"))
+                    Button { model.queueVisible.toggle() } label: {
+                        Image(systemName: "list.bullet")
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(model.queueVisible ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
+                    .help(Text("player.queue"))
+                    .accessibilityLabel(Text("player.queue"))
                     RoutePickerButton()
                         .frame(width: 28, height: 28)
                         .accessibilityLabel(Text("player.airplay"))
                     Image(systemName: "speaker.fill").foregroundStyle(.secondary)
                     Slider(value: Binding(get: { Double(player.volume) }, set: { player.volume = Float($0) }), in: 0...1)
-                        .frame(width: 100)
+                        .frame(width: 90)
                         .accessibilityLabel(Text("player.volume"))
+                    PlayerMoreMenu(size: .body)
                 }
-                .frame(width: 230, alignment: .trailing)
+                .frame(width: 300, alignment: .trailing)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
