@@ -125,15 +125,17 @@ struct HistoryView: View {
                     Label("menu.more", systemImage: "ellipsis")
                 }
                 .accessibilityIdentifier("history.more")
+                // На кнопке «…», а не на списке: подтверждение выходит из элемента, который его вызвал (HIG, action sheet)
+                .confirmationDialog(clearTitle, isPresented: $confirmClear, titleVisibility: .visible) {
+                    Button("history.clear.action", role: .destructive) { model.clearHistory() }
+                } message: {
+                    Text("history.clear.message")
+                }
             }
         }
-        .confirmationDialog(clearTitle, isPresented: $confirmClear, titleVisibility: .visible) {
-            Button("history.clear.action", role: .destructive) { model.clearHistory() }
-        } message: {
-            Text("history.clear.message")
-        }
         .task(id: TaskKey(revision: model.library?.revision ?? 0, mode: mode, period: settings.historyPeriod, filter: filter)) { reload() }
-        // Список устройств: имена перечитываются на `devices.updated` (SSE), события — с каждой правкой истории
+        // Список устройств: имена перечитываются на `devices.updated` и переподключении потока событий (SSE), события —
+        // с каждой правкой истории
         .task(id: DevicesKey(revision: model.library?.revision ?? 0, devicesRevision: model.sync.devicesRevision,
                              signedIn: model.account.isSignedIn)) { await reloadDevices() }
     }
@@ -218,9 +220,11 @@ struct HistoryView: View {
         }
     }
 
-    /// С аккаунтом история общая: очищается на всех устройствах аккаунта.
+    /// С аккаунтом история общая: очищается на всех устройствах аккаунта — и после выхода, пока очистка ещё уйдёт в
+    /// аккаунт при входе (`LibrarySync.historyReachesAccount`).
     private var clearTitle: Text {
-        model.account.isSignedIn ? Text("history.clear.confirmEverywhere \(playCount)") : Text("history.clear.confirm \(playCount)")
+        model.sync.historyReachesAccount
+            ? Text("history.clear.confirmEverywhere \(playCount)") : Text("history.clear.confirm \(playCount)")
     }
 
     private func reload() {

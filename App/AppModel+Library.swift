@@ -140,21 +140,28 @@ extension AppModel {
     // MARK: - История
 
     /// «Убрать из истории» — с «Отменить», как «Убрать из плейлиста». С аккаунтом история общая: трек уходит из Истории
-    /// на всех устройствах (задание 0002 §3.4) — плашка так и говорит.
+    /// на всех устройствах (задание 0002 §3.4) — плашка так и говорит, и после выхода, пока действие ещё дойдёт до
+    /// аккаунта (`LibrarySync.historyReachesAccount`). Граница — момент нажатия, а не выполнения через 5 с: прослушивание,
+    /// закончившееся за время «Отменить», остаётся (как на Android).
     func removeFromHistory(_ track: Track) {
         guard let library else { return }
-        let text = account.isSignedIn ? String(localized: "library.removedFromHistoryEverywhere") : String(localized: "library.removedFromHistory")
+        let text = sync.historyReachesAccount
+            ? String(localized: "library.removedFromHistoryEverywhere") : String(localized: "library.removedFromHistory")
+        let now = EpochMs.now()
         deferChange(text, hides: [PendingKey.history(track.videoId)]) {
-            library.library.removeFromHistory(track.videoId)
+            library.library.removeFromHistory(track.videoId, at: now)
         }
     }
 
     /// «Очистить историю» после подтверждения на экране Истории — с «Отменить»; с аккаунтом — на всех устройствах.
+    /// Граница — момент подтверждения.
     func clearHistory() {
         guard let library else { return }
-        let text = account.isSignedIn ? String(localized: "library.historyClearedEverywhere") : String(localized: "library.historyCleared")
+        let text = sync.historyReachesAccount
+            ? String(localized: "library.historyClearedEverywhere") : String(localized: "library.historyCleared")
+        let now = EpochMs.now()
         deferChange(text, hides: [PendingKey.allHistory]) {
-            library.library.clearHistory()
+            library.library.clearHistory(at: now)
         }
     }
 
