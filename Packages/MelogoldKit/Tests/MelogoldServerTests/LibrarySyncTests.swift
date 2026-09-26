@@ -415,6 +415,67 @@ struct LibrarySyncTests {
         #expect(try h.strings("SELECT video_id FROM synced_likes ORDER BY video_id") == ["t1", "t2", "t4"])
     }
 
+    /// Op, которую сервер отверг или отложил не по лимиту (DESIGN §3.9), не уходит в каждом проходе, пока здесь ничего
+    /// не изменится; прослушивание, отложенное не по лимиту, не задерживает остальные на час.
+    @Test func refusedOpsAreNotResentUntilChangedHere() async throws {
+        let h = try SyncHarness()
+        try h.track("t1", likedAt: 1_790_000_000_000)
+        try h.sql("INSERT INTO albums (browse_id, title, bookmarked_at) VALUES ('MPREb_1', 'Album', 1790000000000)")
+        try h.sql("INSERT INTO play_events (event_id, video_id, played_at, play_time_ms, synced, device_id) VALUES ('e1', 't1', 1790000000000, 60000, 0, NULL)")
+        try await h.store.forgetFromHistory(videoId: "t2", at: 1_790_000_001_000)
+        h.server.on("POST", "/sync") { request in
+            (200, SyncFixtures.response(request, result: { opId, kind in
+                switch kind {
+                case "like.set": SyncFixtures.result(opId, "rejected", code: "invalid_video_id")
+                case "history.forget": SyncFixtures.result(opId, "deferred", code: "unknown_kind")
+                default: SyncFixtures.result(opId, "deferred", code: "invalid_payload")
+                }
+            }))
+        }
+
+        await h.engine.sync()
+
+        #expect(h.ops(0).map { $0["kind"] as? String } == ["like.set", "bookmark.set", "play.add", "history.forget"])
+        #expect(try h.state("historyRetryAt") == nil)
+        #expect(try h.int("SELECT synced FROM play_events WHERE event_id = 'e1'") == 0)
+        #expect(try h.strings("SELECT kind FROM history_ops") == ["history.forget"])
+        guard case .idle = h.engine.status else {
+            Issue.record("status \(h.engine.status)")
+            return
+        }
+
+        // Следующий проход — только pull; правка здесь уходит снова
+        await h.engine.sync()
+        #expect(h.syncRequests.count == 2)
+        #expect(h.ops(1).isEmpty)
+        try h.sql("UPDATE tracks SET liked_at = 1790000005000")
+        await h.engine.sync()
+        #expect(h.ops(2).map { $0["kind"] as? String } == ["like.set"])
+    }
+
+    /// Время вне диапазона API (сбитые часы, API §1.5) не отправляется: сервер отверг бы весь запрос.
+    @Test func timesOutsideTheApiRangeAreNotSent() async throws {
+        let h = try SyncHarness()
+        try h.track("t1", likedAt: 1_000)
+        try h.sql("INSERT INTO albums (browse_id, title, bookmarked_at) VALUES ('MPREb_1', 'Album', 1000)")
+        try await h.store.clearHistory(at: 1_000)
+        try h.sql("INSERT INTO play_events (event_id, video_id, played_at, play_time_ms, synced, device_id) VALUES ('e1', 't1', 1000, 60000, 0, NULL)")
+        h.server.on("POST", "/sync") { request in (200, SyncFixtures.response(request)) }
+
+        let before = EpochMs.now()
+        await h.engine.sync()
+
+        let ops = h.ops(0)
+        #expect(ops.map { $0["kind"] as? String } == ["like.set", "bookmark.set"])
+        #expect(ops[0]["likedAt"] == nil && ops[1]["bookmarkedAt"] == nil)
+        for op in ops {
+            let at = try #require(IsoTime.epochMs(op["at"] as? String))
+            #expect(at >= before - 1000)
+        }
+        #expect(try h.int("SELECT synced FROM play_events WHERE event_id = 'e1'") == 1)
+        #expect(try h.strings("SELECT kind FROM history_ops").isEmpty)
+    }
+
     @Test func opOverTheWorkBudgetGoesWithoutTrackMetadata() {
         var op = SyncOp(opId: "x", kind: "playlist.create", at: "", base: nil)
         op.videoIds = (0 ..< 12_000).map { "v\($0)" }

@@ -38,35 +38,58 @@ struct HeldItems: Equatable {
     var snapshot: [String]
 }
 
+/// Что сказали результаты ops пакета.
+struct SyncResults: Sendable {
+    /// Пауза в секундах: сервер отложил прослушивания по лимиту в час (`deferred op_rate_limited`).
+    var retryAfter: Int?
+    /// Ops, которые сервер не принял и не примет, пока здесь ничего не изменится: `rejected` (`invalid_video_id`,
+    /// `playlist_deleted`; прослушивания и действия с историей при этом считаются отправленными) и `deferred` не по
+    /// лимиту (`invalid_payload`, `unknown_kind`, `quota_exceeded`, `playlist_not_found`). Иначе они уходили бы в каждом
+    /// проходе (DESIGN §3.9: такая op откладывается на устройстве).
+    var refused: [PendingOp] = []
+}
+
 /// Ответ `POST /sync` → библиотека и снимок (API §4.8). Всё внутри одной транзакции записи.
 enum SyncApply {
     /// Результаты ops: плейлист, который сервер перенёс в плейлист восстановления (`redirected`), переходит туда и здесь;
     /// прослушивания и действия с историей, которые сервер принял или отверг, больше не отправляются (задание 0002
-    /// §3.2). Возвращает паузу в секундах, если сервер отложил прослушивания (`deferred`, лимит в час).
-    static func results(_ tx: SyncTx, batch: [PendingOp], results: [OpResult], now: Int64) throws -> Int? {
+    /// §3.2); прослушивания, отложенные лимитом в час, ждут паузы, которую назвал сервер.
+    static func results(_ tx: SyncTx, batch: [PendingOp], results: [OpResult], now: Int64) throws -> SyncResults {
         let byId = Dictionary(results.map { ($0.opId, $0) }, uniquingKeysWith: { first, _ in first })
-        var retry: Int?
+        var outcome = SyncResults()
         var baselineDone: Bool?
         for pending in batch {
             guard let result = byId[pending.op.opId] else { continue }
             let deferred = result.status == "deferred"
+            let rateLimited = deferred && (result.code == "op_rate_limited" || result.retryAfterSeconds != nil)
             switch pending.kind {
             case "play.add":
-                // applied (и replayed), superseded, rejected — больше не слать; deferred — после паузы
-                if deferred {
-                    retry = retry ?? max(1, result.retryAfterSeconds ?? 3600)
+                // applied (и replayed), superseded, rejected — больше не слать; deferred по лимиту — после паузы
+                if rateLimited {
+                    outcome.retryAfter = outcome.retryAfter ?? max(1, result.retryAfterSeconds ?? 3600)
+                } else if deferred {
+                    outcome.refused.append(pending)
                 } else {
                     try tx.markPlaySent(pending.op.opId)
                 }
                 continue
             case "history.forget", "history.clear":
-                if !deferred { try tx.deleteHistoryOp(pending.op.opId) }
+                if !deferred {
+                    try tx.deleteHistoryOp(pending.op.opId)
+                } else if !rateLimited {
+                    outcome.refused.append(pending)
+                }
                 continue
             case "play.baseline":
                 baselineDone = (baselineDone ?? true) && !deferred
+                if deferred && !rateLimited { outcome.refused.append(pending) }
                 continue
             default:
                 break
+            }
+            if result.status == "rejected" || (deferred && !rateLimited) {
+                outcome.refused.append(pending)
+                continue
             }
             guard result.status == "redirected", pending.key.hasPrefix("pl:"), let newId = result.playlistId else { continue }
             let old = String(pending.key.dropFirst(3))
@@ -81,8 +104,8 @@ enum SyncApply {
             try tx.setState(SyncStateKey.historyMerge, baselineDone ? "0" : "1")
             if baselineDone { try tx.setState(SyncStateKey.historyReplay, nil) }
         }
-        if let retry { try tx.setState(SyncStateKey.historyRetryAt, String(now + Int64(retry) * 1000)) }
-        return retry
+        if let retry = outcome.retryAfter { try tx.setState(SyncStateKey.historyRetryAt, String(now + Int64(retry) * 1000)) }
+        return outcome
     }
 
     /// Строки ответа в порядке API §4.8: треки → плейлисты (по `createdAt`) → их треки → лайки → закладки →

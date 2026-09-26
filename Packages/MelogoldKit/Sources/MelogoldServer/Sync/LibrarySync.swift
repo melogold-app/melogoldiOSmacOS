@@ -122,8 +122,9 @@ public final class LibrarySync {
     /// Поток событий ждёт паузы перед переподключением.
     @ObservationIgnored private var liveWaiting = false
     @ObservationIgnored private var observation: SyncObservation?
-    /// Ops, которые сервер не принимает даже по одной (`413`, `400 invalid_request`): не отправляются, пока здесь не
-    /// изменится то, о чём они (DESIGN §3.9 `client_bug`), — иначе каждый проход упирался бы в них.
+    /// Ops, которые сервер не принимает даже по одной (`413`, `400 invalid_request`) или отверг в результате
+    /// (`rejected`, `deferred` не по лимиту): не отправляются, пока здесь не изменится то, о чём они (DESIGN §3.9
+    /// `client_bug`), — иначе каждый проход упирался бы в них.
     @ObservationIgnored private var skipped: Set<PendingOp> = []
 
     nonisolated static let streams = ["library", "history"]
@@ -486,16 +487,21 @@ public final class LibrarySync {
             pending.removeFirst(batch.count)
             let now = EpochMs.now()
             let remaining = pending
-            let (retryAfter, applied) = try await store.write { [image] tx in
+            let (outcome, applied) = try await store.write { [image] tx in
                 var image = image
-                let retry = try SyncApply.results(tx, batch: batch, results: response.results, now: now)
+                let outcome = try SyncApply.results(tx, batch: batch, results: response.results, now: now)
                 try SyncApply.rows(tx, response, image: &image, pending: remaining, now: now)
                 try tx.setState(SyncStateKey.cursor, response.cursor)
-                return (retry, image)
+                return (outcome, image)
             }
             image = applied
             lastCursor = response.cursor
-            if let retryAfter {
+            for op in outcome.refused {
+                // Сервер её не примет, пока здесь ничего не изменится: не слать в каждом проходе
+                Log.warning("sync", "Сервер не принял op \(op.kind) (\(op.key)) — отложена")
+                skipped.insert(op.content)
+            }
+            if let retryAfter = outcome.retryAfter {
                 // Больше 2000 прослушиваний в час (op_rate_limited): остальные — после паузы, которую назвал сервер
                 pending.removeAll { $0.kind == "play.add" }
                 schedulePlays(after: retryAfter)

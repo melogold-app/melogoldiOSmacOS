@@ -55,6 +55,9 @@ struct SyncOpBuilder {
     static let maxPlayTimeMs: Int64 = 86_400_000
     static let baselineChunk = 500
     static let nameMax = 200
+    /// Время, которое принимает сервер (API §1.5): [2000-01-01, 2100-01-01). Время вне него (сбитые часы устройства,
+    /// чужие данные) не отправляется: `at` такой op — сейчас, а неверное `at` отвергло бы весь запрос.
+    static let timeRange: Range<Int64> = 946_684_800_000 ..< 4_102_444_800_000
 
     let now: Int64
     var mergeUploadMax = defaultMergeUploadMax
@@ -72,6 +75,7 @@ struct SyncOpBuilder {
         var image = LibraryImage()
 
         func make(_ kind: String, _ key: String, at: Int64, opId: String? = nil, _ fill: (inout SyncOp) throws -> Void) rethrows {
+            let at = Self.timeRange.contains(at) ? at : now
             var op = SyncOp(opId: opId ?? makeId(), kind: kind, at: IsoTime.string(epochMs: at), base: base)
             try fill(&op)
             ops.append(PendingOp(key: key, op: op))
@@ -86,7 +90,7 @@ struct SyncOpBuilder {
             make("like.set", "like:\(like.track.videoId)", at: like.likedAt) {
                 $0.videoId = like.track.videoId
                 $0.liked = true
-                $0.likedAt = IsoTime.string(epochMs: like.likedAt)
+                $0.likedAt = Self.time(like.likedAt)
                 $0.tracks = Self.tracks([like.track])
             }
         }
@@ -166,7 +170,7 @@ struct SyncOpBuilder {
                 $0.type = bookmark.key.type
                 $0.browseId = bookmark.key.browseId
                 $0.bookmarked = true
-                $0.bookmarkedAt = IsoTime.string(epochMs: bookmark.bookmarkedAt)
+                $0.bookmarkedAt = Self.time(bookmark.bookmarkedAt)
                 $0.title = bookmark.title
                 $0.subtitle = bookmark.subtitle
                 $0.thumbnailUrl = bookmark.thumbnailUrl
@@ -187,6 +191,9 @@ struct SyncOpBuilder {
         let replay = try merge && tx.state(SyncStateKey.historyReplay) == "1"
         let retryAt = try tx.state(SyncStateKey.historyRetryAt).flatMap { Int64($0) } ?? 0
         var plays = try tx.unsentPlays()
+        // Время прослушивания вне диапазона API сервер не примет никогда (`at` = `playedAt`): не отправлять
+        for play in plays where !Self.timeRange.contains(play.playedAt) { try tx.markPlaySent(play.eventId) }
+        plays.removeAll { !Self.timeRange.contains($0.playedAt) }
         if retryAt <= now {
             if merge && plays.count > mergeUploadMax {
                 // Старше последних mergeUploadMax — не отправляются: сервер их всё равно не примет
@@ -206,6 +213,11 @@ struct SyncOpBuilder {
             }
         }
         for record in try tx.historyOps() {
+            guard Self.timeRange.contains(record.eventsBefore) else {
+                // Сбитые часы: сервер такое действие не примет, а событий до 2000 года у него нет
+                try tx.deleteHistoryOp(record.opId)
+                continue
+            }
             make(record.kind, "hop:\(record.opId)", at: record.eventsBefore, opId: record.opId) {
                 if record.kind == "history.forget" {
                     $0.videoId = record.videoId
@@ -242,6 +254,11 @@ struct SyncOpBuilder {
         op.thumbnailUrl = playlist.thumbnailUrl
         op.videoIds = songs
         op.tracks = tracks(try songs.compactMap { try tx.track($0) })
+    }
+
+    /// Время для поля op; вне диапазона API — без него (сервер возьмёт время op).
+    static func time(_ epochMs: Int64) -> String? {
+        timeRange.contains(epochMs) ? IsoTime.string(epochMs: epochMs) : nil
     }
 
     /// Имя плейлиста для сервера: не длиннее 200 единиц UTF-16, пустое — «—».
