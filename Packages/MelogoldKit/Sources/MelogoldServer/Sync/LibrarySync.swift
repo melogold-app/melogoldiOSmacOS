@@ -87,7 +87,8 @@ public struct SyncTiming: Sendable {
 @Observable
 public final class LibrarySync {
     public private(set) var status: SyncStatus = .off
-    /// Растёт на `devices.updated`: экраны со списком устройств перечитывают его.
+    /// Растёт на `devices.updated` и на каждом (пере)подключении потока событий — `devices.updated`, пропущенные, пока
+    /// поток молчал, сервер не повторяет (API §6): экраны со списком устройств перечитывают его.
     public private(set) var devicesRevision = 0
     /// Последнее предупреждение `account.updated`; экран его показывает, пока его не закроют.
     public private(set) var accountWarning: AccountWarning?
@@ -95,6 +96,9 @@ public final class LibrarySync {
     public private(set) var liveConnected = false
     /// Свой текст, который сервер не принял как слишком большой (413): он остаётся только на этом устройстве.
     public private(set) var rejectedLyrics: String?
+    /// В базе есть привязка к аккаунту (`sync_state.binding`): устройство уже синхронизировалось с ним. После выхода
+    /// она остаётся — вместе с очередью действий истории, которая уйдёт после входа в тот же аккаунт.
+    private var hasStoredBinding = false
 
     @ObservationIgnored public let account: Account
     @ObservationIgnored let store: SyncStore?
@@ -126,8 +130,11 @@ public final class LibrarySync {
     /// (`rejected`, `deferred` не по лимиту): не отправляются, пока здесь не изменится то, о чём они (DESIGN §3.9
     /// `client_bug`), — иначе каждый проход упирался бы в них.
     @ObservationIgnored private var skipped: Set<PendingOp> = []
-    /// Устройства аккаунта для имён в фильтре Истории.
+    /// Устройства аккаунта для имён в фильтре Истории: последний список (после запуска — с диска), запрос, который его
+    /// прочитал, и последний неудавшийся запрос — повтор не раньше, чем что-то изменится (`DevicesLookup`).
     @ObservationIgnored private var accountDevices: AccountDeviceList?
+    @ObservationIgnored private var devicesLookup: DevicesLookup?
+    @ObservationIgnored private var failedDevicesLookup: DevicesLookup?
 
     nonisolated static let streams = ["library", "history"]
     nonisolated static let maxOps = 500
@@ -170,6 +177,12 @@ public final class LibrarySync {
         observation = store?.observeLocalChanges { [weak self] in
             Task { @MainActor in self?.localChanged() }
         }
+        if let store, !hasStoredBinding {
+            Task { [weak self] in
+                // Привязка только появляется: смена аккаунта сразу пишет новую
+                if (try? await store.state(SyncStateKey.binding)) != nil { self?.hasStoredBinding = true }
+            }
+        }
         observeAccount()
         accountChanged()
     }
@@ -191,6 +204,7 @@ public final class LibrarySync {
     /// Выход на передний план (iPhone, iPad, Mac, Vision) и открытие часов: синхронизация и живой поток, если он упал.
     public func appDidBecomeActive() {
         guard binding != nil else { return }
+        failedDevicesLookup = nil
         if followsLiveEvents && (live == nil || liveWaiting) { startLive() }
         if liveConnected, let lastFullSync, ContinuousClock.now - lastFullSync < timing.foregroundInterval { return }
         enqueue(.full)
@@ -203,6 +217,7 @@ public final class LibrarySync {
         retry?.cancel()
         retry = nil
         retryCount = 0
+        failedDevicesLookup = nil
         if followsLiveEvents && (live == nil || liveWaiting) { startLive() }
         enqueue(.full)
     }
@@ -405,6 +420,7 @@ public final class LibrarySync {
             try tx.setState(SyncStateKey.needsMerge, "1")
             try tx.setState(SyncStateKey.historyMerge, "1")
         }
+        hasStoredBinding = true
         if try await store.state(SyncStateKey.needsMerge) == "1" {
             beginNetwork()
             try await planMerge(store: store, binding: binding)
@@ -671,20 +687,48 @@ public final class LibrarySync {
     /// Текущее устройство в аккаунте: его события — «Это устройство» вместе с событиями без `deviceId`.
     public var currentDeviceId: String? { account.session?.deviceId }
 
+    /// «Убрать из истории» и «Очистить историю» дойдут до всех устройств аккаунта: он вошёл или привязка к нему осталась
+    /// с прошлого входа — очередь действий истории после выхода не сбрасывается и уходит после входа в тот же аккаунт
+    /// (задание 0002 §5). По нему выбираются подписи «…на всех устройствах».
+    public var historyReachesAccount: Bool { account.isSignedIn || hasStoredBinding }
+
     /// Другие устройства, чьи прослушивания лежат в Истории, с именами из списка устройств аккаунта. Пусто — фильтр
     /// Истории не показывается (задание 0002 §3.5). Список устройств запрашивается у сервера, только когда он изменился
-    /// (`devicesRevision`), сменился сеанс или появились прослушивания устройства, которого при прошлом запросе не было;
-    /// без связи — прошлый список. Устройство, которого нет в аккаунте, — без имени («Другое устройство»).
+    /// (`devicesRevision`: `devices.updated` и переподключение потока событий), сменился сеанс или появились прослушивания
+    /// устройства, которого при прошлом запросе не было. Без связи — прошлый список, и после запуска: он хранится в
+    /// `sync_state`; неудавшийся запрос повторяется при тех же поводах, при возврате сети и выходе на передний план, а не с
+    /// каждой правкой истории. Устройство, которого нет в аккаунте, — без имени («Другое устройство»).
     public func historyDevices() async -> [HistoryDevice] {
         guard let session = account.session, let store, let ids = try? await store.historyDeviceIds() else { return [] }
         let others = ids.subtracting([session.deviceId])
         guard !others.isEmpty else { return [] }
         let key = session.binding + "|" + session.deviceId
-        let revision = devicesRevision
-        let cached = accountDevices.flatMap { $0.session == key ? $0 : nil }
-        if cached == nil || cached?.revision != revision || !others.isSubset(of: cached?.lookedUp ?? []),
-           let fresh = try? await account.devices().devices, account.session.map({ $0.binding + "|" + $0.deviceId }) == key {
-            accountDevices = AccountDeviceList(session: key, revision: revision, devices: fresh, lookedUp: others)
+        if accountDevices?.session != key {
+            // После запуска или входа — прошлый список с диска
+            let stored = try? await store.state(SyncStateKey.accountDevices).flatMap {
+                try JSONDecoder().decode(AccountDeviceList.self, from: Data($0.utf8))
+            }
+            if accountDevices?.session != key {
+                accountDevices = stored?.session == key ? stored : AccountDeviceList(session: key, devices: [])
+            }
+        }
+        let lookup = DevicesLookup(session: key, revision: devicesRevision, deviceIds: others)
+        if devicesLookup?.covers(lookup) != true, failedDevicesLookup?.covers(lookup) != true {
+            do {
+                let fresh = try await account.devices().devices
+                if account.session.map({ $0.binding + "|" + $0.deviceId }) == key {
+                    let list = AccountDeviceList(session: key, devices: fresh.map { .init(id: $0.id, name: $0.name, platform: $0.platform) })
+                    accountDevices = list
+                    devicesLookup = lookup
+                    failedDevicesLookup = nil
+                    if let json = try? JSONEncoder().encode(list) {
+                        try? await store.write { try $0.setState(SyncStateKey.accountDevices, String(decoding: json, as: UTF8.self)) }
+                    }
+                }
+            } catch {
+                // Отменённый экраном запрос — не сбой связи
+                if !Task.isCancelled { failedDevicesLookup = lookup }
+            }
         }
         let known = accountDevices?.session == key ? accountDevices?.devices ?? [] : []
         let byId = Dictionary(known.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
@@ -769,8 +813,9 @@ public final class LibrarySync {
     func handle(_ event: LiveEvent) {
         switch event.kind {
         case .connected:
-            // Реплея нет: после (пере)подключения — синхронизация и тексты (API §6)
+            // Реплея нет: после (пере)подключения — синхронизация и тексты (API §6), списки устройств перечитываются
             liveConnected = true
+            devicesRevision += 1
             enqueue(.full)
         case .syncChanged(let cursor):
             if cursor == nil || cursor != lastCursor { enqueue(.full) }
@@ -792,14 +837,30 @@ public final class LibrarySync {
     }
 }
 
-/// Устройства аккаунта (`GET /auth/me/devices`) для имён в фильтре Истории: для какого сеанса (аккаунт и это устройство
-/// в нём), при каком `devicesRevision` и для каких устройств прослушиваний прочитаны. Устройство прослушиваний, которого
-/// тогда не было, — повод перечитать один раз: вдруг его добавили, пока поток событий молчал.
-private struct AccountDeviceList {
+/// Устройства аккаунта (`GET /auth/me/devices`) для имён в фильтре Истории — для какого сеанса (аккаунт и это устройство
+/// в нём). Хранится в `sync_state` (`SyncStateKey.accountDevices`).
+private struct AccountDeviceList: Codable {
+    struct Device: Codable {
+        let id: String
+        let name: String
+        let platform: String
+    }
+
+    let session: String
+    let devices: [Device]
+}
+
+/// Запрос списка устройств: для какого сеанса, при каком `devicesRevision` и для каких устройств прослушиваний.
+private struct DevicesLookup {
     let session: String
     let revision: Int
-    let devices: [DeviceDto]
-    let lookedUp: Set<String>
+    let deviceIds: Set<String>
+
+    /// Прочитанное (или не прочитанное) тогда годится и сейчас: тот же сеанс и `devicesRevision`, новых устройств
+    /// прослушиваний нет. Новое устройство — повод перечитать один раз: вдруг его добавили, пока поток событий молчал.
+    func covers(_ other: DevicesLookup) -> Bool {
+        session == other.session && revision == other.revision && other.deviceIds.isSubset(of: deviceIds)
+    }
 }
 
 /// Поток событий закрыт этим клиентом, чтобы открыть новый с новым токеном.

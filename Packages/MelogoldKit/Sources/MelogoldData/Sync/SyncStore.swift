@@ -166,8 +166,9 @@ public struct SyncStore: Sendable {
         }
     }
 
-    /// Устройства, чьи прослушивания лежат здесь (`play_events.device_id`); своих событий (`NULL`) среди них нет.
-    /// Фильтр Истории виден, только когда список не пуст (задание 0002 §3.5).
+    /// Устройства, чьи прослушивания лежат здесь (`play_events.device_id`); своих событий (`NULL`) среди них нет, пустая
+    /// строка — события с сервера без устройства («Другое устройство»). Фильтр Истории виден, только когда список не пуст
+    /// (задание 0002 §3.5).
     public func historyDeviceIds() async throws -> Set<String> {
         try await read { tx in
             Set(try String.fetchAll(tx.db, sql: "SELECT DISTINCT device_id FROM play_events WHERE device_id IS NOT NULL"))
@@ -604,10 +605,12 @@ public struct SyncTx {
     }
 
     /// Прослушивание с сервера: новое вставляется отправленным, своё вернувшееся (тот же `eventId`) не задваивается.
+    /// Без `deviceId` (API: `Uuid | null`) — `device_id` пустой строкой, как на Android: `NULL` — только события этого
+    /// устройства, иначе чужое событие попало бы в «Это устройство», а после смены аккаунта ушло бы в новый как своё.
     public func insertPlay(eventId: String, videoId: String, playedAt: Int64, playTimeMs: Int64, deviceId: String?) throws {
         try db.execute(
             sql: "INSERT OR IGNORE INTO play_events (event_id, video_id, played_at, play_time_ms, synced, device_id) VALUES (?, ?, ?, ?, 1, ?)",
-            arguments: [eventId, videoId, playedAt, playTimeMs, deviceId]
+            arguments: [eventId, videoId, playedAt, playTimeMs, deviceId ?? ""]
         )
     }
 

@@ -647,7 +647,8 @@ struct LibrarySyncTests {
         let ops = h.ops(0)
         #expect(ops.map { $0["kind"] as? String } == ["history.forget", "history.clear"])
         #expect(ops[0]["videoId"] as? String == "t1")
-        #expect(ops[0]["resetTotal"] as? Bool == false)
+        // Общее время трека обнуляется на всех устройствах, как на Android (GLOSSARY №87)
+        #expect(ops[0]["resetTotal"] as? Bool == true)
         #expect(ops[0]["eventsBefore"] as? String == "2026-09-21T14:13:20.000Z")
         #expect(ops[1]["videoId"] == nil)
         #expect(try h.strings("SELECT op_id FROM history_ops").isEmpty)
@@ -786,6 +787,35 @@ struct LibrarySyncTests {
         #expect(h.syncRequests.count == before + 1)
     }
 
+    /// После выхода очередь действий истории остаётся и уйдёт после входа в тот же аккаунт (задание 0002 §5): подписи
+    /// «…на всех устройствах» — пока привязка к аккаунту в базе, и после перезапуска; до первого входа — нет.
+    @Test func historyActionsReachTheAccountWhileItsBindingIsKept() async throws {
+        let never = try SyncHarness(bound: false)
+        never.server.on("POST", "/auth/logout") { _ in (204, "") }
+        await never.account.signOut()
+        never.engine.start()
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(!never.engine.historyReachesAccount)
+        never.engine.stop()
+
+        // Вошёл, синхронизировался, вышел
+        let h = try SyncHarness(bound: false)
+        h.server.on("POST", "/sync") { request in (200, SyncFixtures.response(request)) }
+        h.server.on("POST", "/auth/logout") { _ in (204, "") }
+        #expect(h.engine.historyReachesAccount)
+        await h.engine.sync()
+        await h.account.signOut()
+        #expect(!h.account.isSignedIn)
+        #expect(h.engine.historyReachesAccount)
+
+        // Перезапуск без аккаунта: привязка — из базы
+        let relaunched = LibrarySync(account: h.account, library: h.library, timing: SyncHarness.timing, liveEvents: false)
+        relaunched.start()
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(relaunched.historyReachesAccount)
+        relaunched.stop()
+    }
+
     @Test func signOutTurnsSyncOff() async throws {
         let h = try SyncHarness()
         h.server.on("POST", "/sync") { request in (200, SyncFixtures.response(request)) }
@@ -879,6 +909,72 @@ struct LibrarySyncTests {
         h.server.on("GET", "/auth/me/devices") { _ in (503, Fixtures.error("unavailable", 503)) }
         h.engine.handle(LiveEvent(id: "1", type: "devices.updated", at: "", kind: .devicesUpdated(reason: "device_added", deviceId: "watch")))
         #expect(await h.engine.historyDevices().map(\.name) == ["Pixel", nil, nil])
+        #expect(h.server.requests("GET", "/auth/me/devices").count == 3)
+    }
+
+    /// `GET /auth/me/devices`: текущее устройство `d1` и `others` — (id, имя, платформа).
+    private func deviceList(_ others: [(String, String, String)]) -> String {
+        let rows = others.map { id, name, platform in
+            Fixtures.device.replacingOccurrences(of: #""id":"d1""#, with: #""id":"\#(id)""#)
+                .replacingOccurrences(of: #""name":"Test iPhone""#, with: #""name":"\#(name)""#)
+                .replacingOccurrences(of: #""platform":"ios""#, with: #""platform":"\#(platform)""#)
+                .replacingOccurrences(of: #""isCurrent":true"#, with: #""isCurrent":false"#)
+        }
+        return #"{"devices":[\#(([Fixtures.device] + rows).joined(separator: ","))],"maxDevices":20}"#
+    }
+
+    private func connected(_ id: String) -> LiveEvent {
+        LiveEvent(id: id, type: "system.connected", at: "", kind: .connected(heartbeatMs: 25_000, retryMs: 5_000))
+    }
+
+    /// Пока приложение было в фоне, поток событий молчал: `devices.updated` за это время сервер не повторяет. После
+    /// переподключения имена перечитываются — переименованное устройство под новым именем, отозванное — «Другое устройство».
+    @Test func deviceNamesAreReadAgainAfterTheStreamReconnects() async throws {
+        let h = try SyncHarness()
+        try h.sql("INSERT INTO tracks (video_id, title, created_at) VALUES ('t1', 't1', 0)")
+        try h.sql("INSERT INTO play_events (event_id, video_id, played_at, play_time_ms, synced, device_id) VALUES ('e1', 't1', 1, 1, 1, 'phone')")
+        h.server.on("POST", "/sync") { request in (200, SyncFixtures.response(request)) }
+        let pixel9 = deviceList([("phone", "Pixel 9", "android")])
+        h.server.on("GET", "/auth/me/devices") { _ in (200, pixel9) }
+        #expect(await h.engine.historyDevices().map(\.name) == ["Pixel 9"])
+
+        let pixel10 = deviceList([("phone", "Pixel 10", "android")])
+        h.server.on("GET", "/auth/me/devices") { _ in (200, pixel10) }
+        h.engine.handle(connected("1"))
+        #expect(await h.engine.historyDevices().map(\.name) == ["Pixel 10"])
+
+        let revoked = deviceList([])
+        h.server.on("GET", "/auth/me/devices") { _ in (200, revoked) }
+        h.engine.handle(connected("2"))
+        #expect(await h.engine.historyDevices().map(\.name) == [nil])
+        #expect(h.server.requests("GET", "/auth/me/devices").count == 3)
+        await h.engine.sync()
+    }
+
+    /// Имена устройств переживают перезапуск: без связи фильтр показывает прошлые имена, а не два одинаковых «Другое
+    /// устройство». Неудавшийся запрос не повторяется с каждой правкой истории — только при новом поводе.
+    @Test func deviceNamesSurviveARelaunchWithoutConnection() async throws {
+        let h = try SyncHarness()
+        try h.sql("INSERT INTO tracks (video_id, title, created_at) VALUES ('t1', 't1', 0)")
+        try h.sql("INSERT INTO play_events (event_id, video_id, played_at, play_time_ms, synced, device_id) VALUES ('e1', 't1', 1, 1, 1, 'phone'), ('e2', 't1', 2, 1, 1, 'watch')")
+        let list = deviceList([("phone", "Pixel 9", "android"), ("watch", "Apple Watch", "watchos")])
+        h.server.on("GET", "/auth/me/devices") { _ in (200, list) }
+        #expect(await h.engine.historyDevices().map(\.name) == ["Apple Watch", "Pixel 9"])
+
+        h.server.on("GET", "/auth/me/devices") { _ in (503, Fixtures.error("unavailable", 503)) }
+        let relaunched = LibrarySync(account: h.account, library: h.library, timing: SyncHarness.timing, liveEvents: false)
+        let devices = await relaunched.historyDevices()
+        #expect(devices.map(\.name) == ["Apple Watch", "Pixel 9"])
+        #expect(devices.map(\.platform) == ["watchos", "android"])
+        #expect(h.server.requests("GET", "/auth/me/devices").count == 2)
+
+        // Правка истории — не повод спрашивать снова; devices.updated — повод
+        try h.sql("INSERT INTO play_events (event_id, video_id, played_at, play_time_ms, synced, device_id) VALUES ('e3', 't1', 3, 1, 1, 'phone')")
+        _ = await relaunched.historyDevices()
+        _ = await relaunched.historyDevices()
+        #expect(h.server.requests("GET", "/auth/me/devices").count == 2)
+        relaunched.handle(LiveEvent(id: "1", type: "devices.updated", at: "", kind: .devicesUpdated(reason: "device_renamed", deviceId: "phone")))
+        #expect(await relaunched.historyDevices().map(\.name) == ["Apple Watch", "Pixel 9"])
         #expect(h.server.requests("GET", "/auth/me/devices").count == 3)
     }
 }

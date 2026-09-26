@@ -387,14 +387,14 @@ struct LiveSyncTests {
         let edits = await b.traffic { await b.synced() }
         #expect(kinds(edits) == ["like.set", "playlist.item.remove", "history.forget"])
 
-        // A получает это; общее время остаётся (resetTotal: false), свой текст — тоже
+        // A получает это; общее время трека обнулено на обоих (resetTotal: true, как на Android), свой текст остаётся
         await a.synced()
         #expect(try a.strings("SELECT video_id FROM tracks WHERE liked_at IS NOT NULL").isEmpty)
         #expect(try a.strings("SELECT video_id FROM playlist_items ORDER BY position") == [songs[2], songs[1]])
         #expect(try a.strings("SELECT event_id FROM play_events ORDER BY played_at") == [plays[1]])
         #expect(try b.strings("SELECT event_id FROM play_events ORDER BY played_at") == [plays[1]])
         for device in [a, b] {
-            #expect(try device.numbers("SELECT total_play_ms FROM tracks WHERE video_id = ?", [liked]) == [105_000])
+            #expect(try device.numbers("SELECT total_play_ms FROM tracks WHERE video_id = ?", [liked]) == [0])
             #expect(try device.strings("SELECT synced FROM lyrics WHERE video_id = ?", [liked]) == [lyrics])
         }
         await expectNothingSent(a)

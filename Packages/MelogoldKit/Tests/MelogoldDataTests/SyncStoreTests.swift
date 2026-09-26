@@ -41,8 +41,14 @@ struct SyncStoreTests {
         #expect(byTable["synced_bookmarks"] == ["type", "browse_id"])
     }
 
-    /// Сервер восстановлен из копии: снимок забыт, `sync_id` остаются, свои прослушивания снова неотправленные,
-    /// отвергнутый сервером текст остаётся отвергнутым.
+    /// Своё прослушивание, уже отправленное на сервер.
+    private func sentOwnPlay(_ tx: SyncTx, _ eventId: String, playedAt: Int64) throws {
+        try tx.db.execute(sql: "INSERT INTO play_events (event_id, video_id, played_at, play_time_ms, synced, device_id) VALUES (?, 'aaaaaaaaaaa', ?, 1000, 1, NULL)",
+                          arguments: [eventId, playedAt])
+    }
+
+    /// Сервер восстановлен из копии: снимок забыт, `sync_id` остаются, свои прослушивания снова неотправленные (чужие,
+    /// и без устройства, — нет), отвергнутый сервером текст остаётся отвергнутым.
     @Test func forgetServerCopyKeepsSyncIdsAndRejectedLyrics() async throws {
         try await store.write { tx in
             try tx.upsertTrack(self.track("aaaaaaaaaaa"))
@@ -51,8 +57,9 @@ struct SyncStoreTests {
             let id = try tx.insertPlaylist(name: "Дорога", browseId: nil, thumbnailUrl: nil, syncId: "p1", createdAt: 1)
             try tx.upsertItem(id, videoId: "aaaaaaaaaaa", sortKey: "a0", addedAt: 1)
             try tx.reorder(id)
-            try tx.insertPlay(eventId: "e-own", videoId: "aaaaaaaaaaa", playedAt: 10, playTimeMs: 1000, deviceId: nil)
+            try self.sentOwnPlay(tx, "e-own", playedAt: 10)
             try tx.insertPlay(eventId: "e-other", videoId: "aaaaaaaaaaa", playedAt: 20, playTimeMs: 1000, deviceId: "phone")
+            try tx.insertPlay(eventId: "e-gone", videoId: "aaaaaaaaaaa", playedAt: 30, playTimeMs: 1000, deviceId: nil)
             try tx.setSyncedLyrics("aaaaaaaaaaa", rev: 2, hash: "h")
             try tx.setSyncedLyrics("bbbbbbbbbbb", rev: LyricsSnapshot.rejected, hash: "h2")
         }
@@ -67,9 +74,11 @@ struct SyncStoreTests {
         #expect(try await strings("SELECT video_id FROM playlist_items WHERE sort_key IS NOT NULL").isEmpty)
         #expect(try await strings("SELECT liked_at FROM tracks") == ["1000"])
         #expect(try await store.read { try $0.unsentPlays() }.map(\.eventId) == ["e-own"])
-        #expect(try await strings("SELECT event_id FROM play_events ORDER BY event_id") == ["e-other", "e-own"])
+        #expect(try await strings("SELECT event_id FROM play_events ORDER BY event_id") == ["e-gone", "e-other", "e-own"])
     }
 
+    /// Другой аккаунт: свои прослушивания уйдут в него, чужие прошлого аккаунта — и те, что пришли без устройства, —
+    /// удаляются, а не уходят в новый аккаунт как свои (задание 0002 §3.7).
     @Test func forgetBindingKeepsOwnPlaysAndDropsForeignOnes() async throws {
         try await store.write { tx in
             try tx.upsertTrack(self.track("aaaaaaaaaaa"))
@@ -77,8 +86,9 @@ struct SyncStoreTests {
             try tx.setLike("aaaaaaaaaaa", likedAt: 1000)
             let id = try tx.insertPlaylist(name: "Дорога", browseId: nil, thumbnailUrl: nil, syncId: "p1", createdAt: 1)
             try tx.upsertItem(id, videoId: "aaaaaaaaaaa", sortKey: "a0", addedAt: 1)
-            try tx.insertPlay(eventId: "e-own", videoId: "aaaaaaaaaaa", playedAt: 10, playTimeMs: 1000, deviceId: nil)
+            try self.sentOwnPlay(tx, "e-own", playedAt: 10)
             try tx.insertPlay(eventId: "e-other", videoId: "aaaaaaaaaaa", playedAt: 20, playTimeMs: 1000, deviceId: "phone")
+            try tx.insertPlay(eventId: "e-gone", videoId: "aaaaaaaaaaa", playedAt: 30, playTimeMs: 1000, deviceId: nil)
             try tx.setSyncedLyrics("aaaaaaaaaaa", rev: 2, hash: "h")
             try tx.enqueueHistoryOp(kind: "history.clear", videoId: nil, eventsBefore: 5)
         }
@@ -132,7 +142,7 @@ struct SyncStoreTests {
     }
 
     /// «Убрать из истории» и «Очистить историю» библиотеки ставят ровно по одной op в очередь синка той же транзакцией;
-    /// общее время трека остаётся (`resetTotal: false`).
+    /// общее время убранного трека обнуляется (`resetTotal: true`), очистка его не трогает.
     @Test func historyActionsQueueExactlyOneOpEach() async throws {
         let library = Library(database: database)
         store.queueHistoryOps(of: library)
@@ -154,7 +164,25 @@ struct SyncStoreTests {
         #expect(ops.map(\.eventsBefore) == [3_000, 4_000])
         #expect(ops[1].videoId == nil)
         #expect(Set(ops.map(\.opId)).count == 2 && ops.allSatisfy { $0.opId == $0.opId.lowercased() })
-        #expect(try await store.read { try $0.playTotals() }.map(\.totalMs) == [120_000, 60_000])
+        #expect(try await store.read { try $0.playTotals() }.map(\.videoId) == ["bbbbbbbbbbb"])
+        #expect(try await store.read { try $0.playTotals() }.map(\.totalMs) == [60_000])
+    }
+
+    /// Прослушивание с сервера без устройства (`deviceId: null`, API §4.8) — не своё: его нет в «Это устройство» и среди
+    /// неотправленных, в устройствах прослушиваний оно — пустой строкой («Другое устройство»).
+    @Test func serverPlayWithoutDeviceIsNotOwn() async throws {
+        let library = Library(database: database)
+        library.recordPlay(Track(videoId: "aaaaaaaaaaa", title: "A"), playTimeMs: 10_000, endedAt: 1_000)
+        try await store.write { tx in
+            try tx.upsertTrack(self.track("bbbbbbbbbbb"))
+            try tx.insertPlay(eventId: "e-gone", videoId: "bbbbbbbbbbb", playedAt: 2_000, playTimeMs: 5_000, deviceId: nil)
+        }
+
+        #expect(try await store.historyDeviceIds() == [""])
+        #expect(library.recentHistory(device: .thisDevice(currentDeviceId: "d1")).map(\.track.videoId) == ["aaaaaaaaaaa"])
+        #expect(library.recentHistory(device: .thisDevice(currentDeviceId: nil)).map(\.track.videoId) == ["aaaaaaaaaaa"])
+        #expect(library.recentHistory(device: .device("")).map(\.track.videoId) == ["bbbbbbbbbbb"])
+        #expect(try await store.read { try $0.unsentPlays() }.map(\.videoId) == ["aaaaaaaaaaa"])
     }
 
     /// Пока синк не поставил запись операций (`queueHistoryOps`), действия с историей остаются на этом устройстве.

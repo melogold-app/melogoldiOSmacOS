@@ -36,6 +36,8 @@ public struct TopEntry: Hashable, Sendable {
 
 /// Чьи прослушивания показывает История (задание 0002 §3.5): все; это устройство — события без `device_id` и с
 /// `device_id` этого устройства в аккаунте (своё событие, вернувшееся с сервера); другое устройство аккаунта.
+/// `device_id` пустой строкой — событие с сервера без `deviceId` (`SyncTx.insertPlay`): это не это устройство, а
+/// «Другое устройство».
 public enum HistoryDeviceFilter: Hashable, Sendable {
     case all
     /// `currentDeviceId` — это устройство в аккаунте; `nil` — без аккаунта: только события без `device_id`.
@@ -585,11 +587,13 @@ public final class Library: Sendable {
         }
     }
 
-    /// «Убрать из истории» — на всех устройствах аккаунта: события трека до `now` удаляются здесь, `history.forget` уходит
-    /// в очередь синка той же транзакцией. Общее время трека остаётся (`resetTotal: false`, как на Windows).
+    /// «Убрать из истории» — на всех устройствах аккаунта: события трека до `now` удаляются здесь, общее время трека
+    /// обнуляется, `history.forget` (`resetTotal: true`) уходит в очередь синка той же транзакцией. Трек пропадает из
+    /// Истории и из «Чаще всего» за всё время (GLOSSARY №87, как на Android: `PendingMutations.ForgetTrack`).
     public func removeFromHistory(_ videoId: String, at now: Int64 = EpochMs.now()) {
         write { db in
             try db.execute(sql: "DELETE FROM play_events WHERE video_id = ? AND played_at <= ?", arguments: [videoId, now])
+            try db.execute(sql: "UPDATE tracks SET total_play_ms = 0 WHERE video_id = ?", arguments: [videoId])
             try historyOpBox.record(db, HistoryOp(kind: "history.forget", videoId: videoId, eventsBefore: now))
         }
     }

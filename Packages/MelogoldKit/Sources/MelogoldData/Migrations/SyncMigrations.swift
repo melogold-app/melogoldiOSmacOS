@@ -30,5 +30,12 @@ enum SyncMigrations {
                 CREATE INDEX play_events_unsent ON play_events(played_at) WHERE synced = 0 AND device_id IS NULL;
                 """)
         },
+        DatabaseMigration("sync-v2") { db in
+            // Фильтр Истории по устройствам (задание 0002 §3.5): «Недавние», «Чаще всего» и число прослушиваний
+            // устройства — по индексу без чтения строк таблицы, устройства прослушиваний — без полного прохода
+            try db.execute(sql: """
+                CREATE INDEX play_events_device ON play_events(device_id, video_id, played_at, play_time_ms);
+                """)
+        },
     ]
 }

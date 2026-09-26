@@ -43,6 +43,9 @@ enum SyncStateKey {
     /// Свои прослушивания уходят ещё раз после восстановления сервера (тихое слияние, DESIGN §3.14): только в историю,
     /// время — `play.baseline atLeast`, иначе оно задвоится.
     static let historyReplay = "historyReplay"
+    /// Последний список устройств аккаунта для имён в фильтре Истории (`LibrarySync.historyDevices`): без связи после
+    /// запуска имена остаются. Смена аккаунта его стирает вместе со всем состоянием (`forgetBinding`).
+    static let accountDevices = "accountDevices"
 }
 
 /// Что изменилось здесь с прошлой синхронизации — ops (вариант со снимком, REWRITE §4.12a; Windows `BuildOps`).
@@ -220,8 +223,9 @@ struct SyncOpBuilder {
             }
             make(record.kind, "hop:\(record.opId)", at: record.eventsBefore, opId: record.opId) {
                 if record.kind == "history.forget" {
+                    // Общее время трека обнуляется на всех устройствах, как здесь (`Library.removeFromHistory`)
                     $0.videoId = record.videoId
-                    $0.resetTotal = false
+                    $0.resetTotal = true
                 }
                 $0.eventsBefore = IsoTime.string(epochMs: record.eventsBefore)
             }

@@ -92,10 +92,44 @@ struct LibraryTests {
         #expect(library.mostPlayed(since: nil).first?.playTimeMs == 120_000)
         library.removeFromHistory("a1aaaaaaaaa")
         #expect(library.recentHistory().map(\.track.title) == ["B"])
-        // Общее время остаётся.
-        #expect(library.mostPlayed(since: nil).first?.track.title == "A")
+        // Трек пропадает и из «Чаще всего» за всё время (GLOSSARY №87, как на Android): общее время обнулено
+        #expect(library.mostPlayed(since: nil).map(\.track.title) == ["B"])
+        // Очистка общее время не трогает
         library.clearHistory()
         #expect(library.playCount() == 0)
+        #expect(library.mostPlayed(since: nil).map(\.track.title) == ["B"])
+    }
+
+    /// Граница действия — момент нажатия (`at:`), а не выполнения после «Отменить»: прослушивание, закончившееся позже,
+    /// остаётся.
+    @Test func historyActionsKeepPlaysAfterTheirMoment() throws {
+        let now = EpochMs.now()
+        library.recordPlay(track("a1aaaaaaaaa", "A"), playTimeMs: 60_000, endedAt: now - 10_000)
+        library.recordPlay(track("a1aaaaaaaaa", "A"), playTimeMs: 30_000, endedAt: now + 3_000)
+        library.recordPlay(track("b2bbbbbbbbb", "B"), playTimeMs: 30_000, endedAt: now + 2_000)
+        library.removeFromHistory("a1aaaaaaaaa", at: now)
+        #expect(library.recentHistory().map { "\($0.track.title) \($0.playedAt - now)" } == ["A 3000", "B 2000"])
+        library.clearHistory(at: now + 1_000)
+        #expect(library.playCount() == 2)
+    }
+
+    /// Фильтр по устройству идёт по индексу `play_events_device`, без чтения строк таблицы: экран Истории перечитывает
+    /// «Недавние», «Чаще всего» и число прослушиваний на главном потоке с каждой правкой библиотеки, событий — до 50 000.
+    @Test func deviceFilterUsesTheIndex() throws {
+        for filter in [HistoryDeviceFilter.device("phone"), .thisDevice(currentDeviceId: "me"), .thisDevice(currentDeviceId: nil)] {
+            let condition = filter.condition
+            for sql in [
+                "SELECT video_id, MAX(played_at) FROM play_events WHERE \(condition.sql) GROUP BY video_id",
+                "SELECT video_id, SUM(play_time_ms) FROM play_events WHERE played_at >= 0 AND \(condition.sql) GROUP BY video_id",
+                "SELECT COUNT(*) FROM play_events WHERE \(condition.sql)",
+            ] {
+                let plan = try database.writer.read { db in
+                    try Row.fetchAll(db, sql: "EXPLAIN QUERY PLAN " + sql, arguments: condition.arguments).map { $0["detail"] as String }
+                }
+                #expect(plan.contains { $0.contains("COVERING INDEX play_events_device") }, "\(sql): \(plan)")
+                #expect(!plan.contains { $0.hasPrefix("SCAN") }, "\(sql): \(plan)")
+            }
+        }
     }
 
     /// Фильтр Истории по устройствам (задание 0002 §3.5): «Это устройство» — свои события и свои, вернувшиеся с сервера;
