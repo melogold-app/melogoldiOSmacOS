@@ -60,9 +60,8 @@ struct TabShell: View {
         }
         #endif
         .overlay(alignment: .bottom) {
-            SkipNoticeOverlay()
+            ToastHost()
                 .padding(.bottom, hasTrack ? 120 : 60)
-                .animation(.snappy, value: model.services.player.notice)
         }
     }
 }

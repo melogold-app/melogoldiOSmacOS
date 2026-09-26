@@ -3,12 +3,13 @@ import MelogoldCore
 import MelogoldInnerTube
 
 /// Поиск на часах (docs/PROMPT.md §5.6): поле — системный ввод (клавиатура, рукописный ввод, диктовка, клавиатура
-/// iPhone), выдача — группы Песни и Видео. Нажатие по треку играет его с радио и открывает «Сейчас играет».
+/// iPhone), выдача — группы Песни, Видео, Альбомы, Исполнители, Плейлисты. Нажатие по треку играет его с радио и открывает «Сейчас играет».
 struct WatchSearchView: View {
     @Environment(WatchModel.self) private var model
     @State private var query = ""
     @State private var songs: [Track] = []
     @State private var videos: [Track] = []
+    @State private var collections: [MusicItem] = []
     @State private var state: State = .idle
 
     enum State { case idle, loading, loaded, failed(YouTubeError.Kind) }
@@ -36,6 +37,18 @@ struct WatchSearchView: View {
                 }
                 if !videos.isEmpty {
                     Section("search.filter.videos") { rows(videos) }
+                }
+                let albums = collections.filter { $0.album != nil }
+                if !albums.isEmpty {
+                    Section("search.filter.albums") { ForEach(albums) { WatchItemRow(item: $0) } }
+                }
+                let artists = collections.filter { if case .artist = $0 { true } else { false } }
+                if !artists.isEmpty {
+                    Section("search.filter.artists") { ForEach(artists) { WatchItemRow(item: $0) } }
+                }
+                let playlists = collections.filter { if case .playlist(let p) = $0 { !p.isMix } else { false } }
+                if !playlists.isEmpty {
+                    Section("search.filter.playlists") { ForEach(playlists) { WatchItemRow(item: $0) } }
                 }
             }
         }
@@ -71,8 +84,11 @@ struct WatchSearchView: View {
         Task {
             async let music = catalog.search(text, filter: .songs)
             async let web = catalog.searchWeb(text, filter: .videos)
+            async let summary = try? catalog.searchSummary(text)
             do {
                 let (musicPage, webPage) = try await (music, web)
+                let mixed = await summary
+                collections = ([mixed?.topResult].compactMap { $0 } + (mixed?.items ?? [])).filter { $0.track == nil }
                 songs = Array(musicPage.items.compactMap(\.track).prefix(10))
                 let known = Set(songs.map(\.videoId))
                 videos = Array(webPage.items.compactMap(\.track).filter { !known.contains($0.videoId) }.prefix(10))
@@ -93,13 +109,5 @@ struct WatchSearchView: View {
         case .parser: "error.parser"
         case .unknown: "error.unknown"
         }
-    }
-}
-
-extension YouTubeError.Kind {
-    static func of(_ error: any Error) -> YouTubeError.Kind {
-        if let error = error as? YouTubeError { return error.kind }
-        if error is URLError { return .offline }
-        return .unknown
     }
 }

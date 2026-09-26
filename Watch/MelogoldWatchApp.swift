@@ -35,9 +35,23 @@ struct MelogoldWatchApp: App {
                 .environment(model)
                 #if DEBUG
                 .task {
-                    if let query = UserDefaults.standard.string(forKey: "MelogoldSearch") {
+                    let defaults = UserDefaults.standard
+                    if defaults.bool(forKey: "MelogoldMute") { model.services.player.volume = 0 }
+                    if let query = defaults.string(forKey: "MelogoldSearch") {
                         model.pendingQuery = query
                         model.path = [.section(.search)]
+                    }
+                    // -MelogoldOpen trends|new|album:<id>|artist:<id>|playlist:<id> — экран для снимка.
+                    if let target = defaults.string(forKey: "MelogoldOpen") {
+                        let parts = target.split(separator: ":", maxSplits: 1).map(String.init)
+                        switch (parts.first, parts.count > 1 ? parts[1] : nil) {
+                        case ("trends", _): model.path = [.section(.trends)]
+                        case ("new", _): model.path = [.section(.new)]
+                        case ("album", let id?): model.path = [.album(id)]
+                        case ("artist", let id?): model.path = [.artist(id)]
+                        case ("playlist", let id?): model.path = [.playlist(id)]
+                        default: break
+                        }
                     }
                 }
                 #endif
@@ -45,10 +59,16 @@ struct MelogoldWatchApp: App {
     }
 }
 
-/// Куда ведёт строка корня часов.
+/// Куда ведёт строка списка часов.
 enum WatchRoute: Hashable {
     case section(AppSection)
     case nowPlaying
+    case album(String)
+    case artist(String)
+    case playlist(String)
+    case mood(MoodItem)
+    case moods
+    case newReleases
 }
 
 /// Состояние приложения часов.
@@ -73,5 +93,19 @@ final class WatchModel {
     func play(single track: Track) {
         services.player.playSingle(track)
         path.append(.nowPlaying)
+    }
+
+    /// Трек из списка: очередь — весь список с этого трека.
+    func play(_ tracks: [Track], startAt index: Int) {
+        guard tracks.indices.contains(index) else { return }
+        services.player.play(tracks: tracks, startAt: index)
+        path.append(.nowPlaying)
+    }
+
+    /// «Слушать» и «Перемешать» коллекции.
+    func playAll(_ tracks: [Track], shuffled: Bool) {
+        let playable = tracks.filter { !$0.unavailable }
+        guard !playable.isEmpty else { return }
+        play(shuffled ? playable.shuffled() : playable, startAt: 0)
     }
 }

@@ -32,7 +32,7 @@ public enum WebSearchFilter: String, CaseIterable, Sendable {
 }
 
 /// Каталог YouTube Music и обычного YouTube: поиск, «Далее», поток. Ошибки — `YouTubeError` с классом для экрана.
-/// Страницы каталога (альбом, исполнитель, плейлист, Тренды, Новое) добавляются в срезе 3.
+/// Страницы каталога (альбом, исполнитель, плейлист, Тренды, Новое) — `Catalog.swift`.
 public struct YouTubeMusic: Sendable {
     public let client: InnerTubeClient
 
@@ -148,11 +148,11 @@ public struct YouTubeMusic: Sendable {
     // MARK: - «Далее»
 
     /// Очередь «Далее»: радио по треку (`RDAMVM<videoId>`, REWRITE §4.10.5) или плейлист с этого трека.
-    public func next(videoId: String, playlistId: String? = nil, params: String? = nil) async throws -> NextPage {
+    public func next(videoId: String?, playlistId: String? = nil, params: String? = nil) async throws -> NextPage {
         var body: [String: any Sendable] = [
-            "videoId": videoId, "isAudioOnly": true, "enablePersistentPlaylistPanel": true,
-            "tunerSettingValue": "AUTOMIX_SETTING_NORMAL",
+            "isAudioOnly": true, "enablePersistentPlaylistPanel": true, "tunerSettingValue": "AUTOMIX_SETTING_NORMAL",
         ]
+        if let videoId { body["videoId"] = videoId }
         if let playlistId { body["playlistId"] = playlistId }
         if let params { body["params"] = params }
         return Self.parseNext(try await music("next", body))

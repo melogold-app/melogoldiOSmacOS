@@ -3,19 +3,6 @@ import MelogoldCore
 import MelogoldData
 import MelogoldInnerTube
 
-/// Состояние загрузки части экрана (REWRITE §4.11.3).
-enum Loadable<Value> {
-    case idle
-    case loading
-    case loaded(Value)
-    case failed(YouTubeError.Kind)
-
-    var value: Value? {
-        if case .loaded(let value) = self { return value }
-        return nil
-    }
-}
-
 /// Поиск (REWRITE §3.1): корень с недавними запросами, ввод с подсказками, выдача «Всё · Музыка · YouTube».
 /// Живёт в модели окна: выбор области и фильтра переживает переход в детальный экран и обратно.
 @MainActor
@@ -249,13 +236,6 @@ final class SearchModel {
         case .all:
             break
         }
-    }
-}
-
-extension Loadable {
-    var isIdle: Bool {
-        if case .idle = self { return true }
-        return false
     }
 }
 

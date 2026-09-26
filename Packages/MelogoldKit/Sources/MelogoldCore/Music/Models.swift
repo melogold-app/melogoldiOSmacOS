@@ -156,6 +156,9 @@ public struct PlaylistItem: Hashable, Codable, Sendable, Identifiable {
     public var id: String { playlistId }
     public var browseId: String { "VL" + playlistId }
 
+    /// Микс — бесконечная очередь «Далее», а не плейлист: `RD…`, кроме редакционных `RDCLAK…`.
+    public var isMix: Bool { playlistId.hasPrefix("RD") && !playlistId.hasPrefix("RDCLAK") }
+
     public init(playlistId: String, title: String, subtitle: String? = nil, thumbnailUrl: String? = nil) {
         self.playlistId = playlistId
         self.title = title
@@ -269,4 +272,75 @@ public struct NextPage: Hashable, Sendable {
 public func distinctItems(_ items: [MusicItem]) -> [MusicItem] {
     var seen = Set<String>()
     return items.filter { seen.insert($0.id).inserted }
+}
+
+/// Страница альбома: шапка, треки, полки внизу («Другие версии»), описание.
+public struct AlbumDetails: Hashable, Sendable {
+    public var album: AlbumItem
+    public var description: String?
+    /// «11 треков · 45 мин» — как пришло от YouTube.
+    public var countText: String?
+    public var tracks: [Track]
+    public var shelves: [Shelf]
+
+    public init(album: AlbumItem, description: String?, countText: String?, tracks: [Track], shelves: [Shelf]) {
+        self.album = album
+        self.description = description
+        self.countText = countText
+        self.tracks = tracks
+        self.shelves = shelves
+    }
+}
+
+/// Страница исполнителя YouTube Music или, если музыкального профиля нет, канала YouTube (REWRITE §4.8.5).
+public struct ArtistDetails: Hashable, Sendable {
+    public var browseId: String
+    public var name: String
+    public var description: String?
+    public var thumbnailUrl: String?
+    public var subscribersText: String?
+    public var isChannel: Bool
+    public var shelves: [Shelf]
+    /// Плейлист «Все треки» исполнителя, если YouTube его дал.
+    public var songsPlaylistId: String?
+    /// Радио исполнителя (`RDEM…`), если дал.
+    public var radioPlaylistId: String?
+    /// Продолжение видео канала.
+    public var continuation: String?
+
+    public init(browseId: String, name: String, description: String? = nil, thumbnailUrl: String? = nil,
+                subscribersText: String? = nil, isChannel: Bool = false, shelves: [Shelf] = [],
+                songsPlaylistId: String? = nil, radioPlaylistId: String? = nil, continuation: String? = nil) {
+        self.browseId = browseId
+        self.name = name
+        self.description = description
+        self.thumbnailUrl = thumbnailUrl
+        self.subscribersText = subscribersText
+        self.isChannel = isChannel
+        self.shelves = shelves
+        self.songsPlaylistId = songsPlaylistId
+        self.radioPlaylistId = radioPlaylistId
+        self.continuation = continuation
+    }
+}
+
+/// Плейлист YouTube: шапка, первая страница треков и продолжение.
+public struct PlaylistDetails: Hashable, Sendable {
+    public var playlist: PlaylistItem
+    public var description: String?
+    public var authorText: String?
+    /// «2 067 треков · Больше 187 ч.» — как пришло от YouTube.
+    public var countText: String?
+    public var tracks: [Track]
+    public var continuation: String?
+
+    public init(playlist: PlaylistItem, description: String?, authorText: String?, countText: String?,
+                tracks: [Track], continuation: String?) {
+        self.playlist = playlist
+        self.description = description
+        self.authorText = authorText
+        self.countText = countText
+        self.tracks = tracks
+        self.continuation = continuation
+    }
 }

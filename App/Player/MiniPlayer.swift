@@ -50,29 +50,61 @@ struct MiniPlayer: View {
     }
 }
 
-/// Плашка пропуска: «Пропущен „Трек“: недоступен в регионе» — над мини-плеером, 4 секунды.
-struct SkipNoticeOverlay: View {
+/// Плашка над мини-плеером (REWRITE §2.3 «Снекбары»): пропуск трека и его причина или сообщение окна
+/// («Играет следующим: …»). Одна на окно, держится 4 секунды.
+struct ToastHost: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
         let player = model.services.player
-        if let notice = player.notice {
-            Text("player.skipped \(notice.skippedTitle) \(String(localized: PlaybackFailure(kind: notice.reason, videoId: nil).shortText))")
-                .font(.subheadline)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                #if os(visionOS)
-                .glassBackgroundEffect(in: .capsule)
-                #else
-                .glassEffect(.regular, in: .capsule)
-                #endif
-                .padding(.bottom, 8)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+        Group {
+            if let toast = model.toast {
+                capsule {
+                    HStack(spacing: 12) {
+                        Text(verbatim: toast.text)
+                        if let title = toast.actionTitle, let action = toast.action {
+                            Button {
+                                action()
+                                model.toast = nil
+                            } label: {
+                                Text(title).fontWeight(.semibold)
+                            }
+                            .buttonStyle(.borderless)
+                        }
+                    }
+                }
+                .task(id: toast.id) {
+                    try? await Task.sleep(for: .seconds(4))
+                    if model.toast?.id == toast.id { model.toast = nil }
+                }
+            } else if let notice = player.notice {
+                capsule {
+                    Text("player.skipped \(notice.skippedTitle) \(String(localized: PlaybackFailure(kind: notice.reason, videoId: nil).shortText))")
+                }
                 .task(id: notice.id) {
                     try? await Task.sleep(for: .seconds(4))
                     if player.notice?.id == notice.id { player.notice = nil }
                 }
-                .accessibilityAddTraits(.isStaticText)
+            }
         }
+        .animation(.snappy, value: model.toast)
+        .animation(.snappy, value: player.notice)
+    }
+
+    private func capsule<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        content()
+            .font(.subheadline)
+            .lineLimit(2)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            #if os(visionOS)
+            .glassBackgroundEffect(in: .capsule)
+            #else
+            .glassEffect(.regular, in: .capsule)
+            #endif
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+            .accessibilityAddTraits(.isStaticText)
     }
 }

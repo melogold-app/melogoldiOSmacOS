@@ -32,6 +32,12 @@ struct WatchRootView: View {
                 switch route {
                 case .section(let section): WatchSectionView(section: section)
                 case .nowPlaying: WatchNowPlayingView()
+                case .album(let browseId): WatchAlbumView(browseId: browseId)
+                case .artist(let browseId): WatchArtistView(browseId: browseId)
+                case .playlist(let playlistId): WatchPlaylistView(playlistId: playlistId)
+                case .mood(let mood): WatchMoodView(mood: mood)
+                case .moods: WatchMoodsView()
+                case .newReleases: WatchNewReleasesView()
                 }
             }
         }
@@ -43,6 +49,10 @@ struct WatchSectionView: View {
 
     var body: some View {
         switch section {
+        case .trends:
+            WatchTrendsView()
+        case .new:
+            WatchNewView()
         case .search:
             WatchSearchView()
         case .settings:

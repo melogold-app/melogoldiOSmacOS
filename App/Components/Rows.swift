@@ -9,19 +9,31 @@ struct TrackRow: View {
     var isCurrent = false
     var cached = false
     var dimmed = false
+    /// Номер в списке: у альбома — вместо обложки, у «Популярного» исполнителя — перед ней.
+    var number: Int?
+    var showsArtwork = true
 
     var body: some View {
         HStack(spacing: 12) {
-            ZStack {
-                ArtworkView(url: track.artworkURL, size: 48)
-                if isCurrent {
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(.black.opacity(0.45))
-                        .frame(width: 48, height: 48)
-                    // Столбики под реальный звук — срез 7 (docs/PROMPT.md §4); до тех пор значок стоит.
-                    Image(systemName: "waveform")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(.white)
+            if let number {
+                Text("\(number)")
+                    .font(.body)
+                    .monospacedDigit()
+                    .foregroundStyle(isCurrent ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                    .frame(minWidth: 24, alignment: .center)
+            }
+            if showsArtwork {
+                ZStack {
+                    ArtworkView(url: track.artworkURL, size: 48)
+                    if isCurrent {
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(.black.opacity(0.45))
+                            .frame(width: 48, height: 48)
+                        // Столбики под реальный звук — срез 7 (docs/PROMPT.md §4); до тех пор значок стоит.
+                        Image(systemName: "waveform")
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(.white)
+                    }
                 }
             }
             VStack(alignment: .leading, spacing: 2) {
@@ -29,7 +41,7 @@ struct TrackRow: View {
                     .font(.body)
                     .foregroundStyle(isCurrent ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
                     .lineLimit(1)
-                let line = subtitle ?? track.subtitle
+                let line = track.unavailable ? String(localized: "badge.unavailable") : (subtitle ?? track.subtitle)
                 if !line.isEmpty {
                     Text(line)
                         .font(.subheadline)
@@ -155,6 +167,89 @@ struct CollectionRow: View {
             if !subtitle.isEmpty {
                 Text(subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
             }
+        }
+    }
+}
+
+/// Строка трека в списке: состояние «играет», «есть без сети», приглушение без сети и кнопка «…».
+/// iPhone, iPad и Vision: нажатие — `target`, долгое нажатие — меню. Mac: действие даёт список (`SelectableList`):
+/// щелчок выделяет, двойной щелчок или Return играет.
+struct TrackListRow: View {
+    @Environment(AppModel.self) private var model
+    let track: Track
+    var subtitle: String?
+    var number: Int?
+    var showsArtwork = true
+    /// Превью 16:9 — выдача YouTube и видео канала.
+    var wide = false
+    let target: RowTarget?
+
+    var body: some View {
+        let isCurrent = model.services.player.currentTrack?.videoId == track.videoId
+        let cached = model.cachedIds.contains(track.videoId)
+        let dimmed = !model.services.network.isOnline && !cached
+        HStack(spacing: 4) {
+            TapTarget(target: target) {
+                if wide {
+                    VideoRow(track: track, isCurrent: isCurrent, dimmed: dimmed)
+                } else {
+                    TrackRow(track: track, subtitle: subtitle, isCurrent: isCurrent, cached: cached, dimmed: dimmed,
+                             number: number, showsArtwork: showsArtwork)
+                }
+            }
+            #if !os(macOS)
+            .contextMenu { TrackMenuItems(track: track) }
+            #endif
+            TrackMenuButton(track: track)
+        }
+    }
+}
+
+/// Нажатие по строке на iPhone, iPad и Vision; на Mac строка — только содержимое, действие даёт список.
+struct TapTarget<Label: View>: View {
+    @Environment(AppModel.self) private var model
+    let target: RowTarget?
+    @ViewBuilder let label: () -> Label
+
+    var body: some View {
+        #if os(macOS)
+        label()
+        #else
+        Button {
+            if let target { model.activate(target) }
+        } label: {
+            label()
+        }
+        .buttonStyle(.plain)
+        #endif
+    }
+}
+
+/// Список строк с действиями (docs/PROMPT.md §5.4, §5.8). На Mac — выделение, двойной щелчок или Return, правый
+/// щелчок (`contextMenu(forSelectionType:primaryAction:)`, строки помечены `tag`); на iPhone, iPad и Vision — обычный
+/// список: действие и меню у самих строк.
+struct SelectableList<Content: View>: View {
+    let target: (String) -> RowTarget?
+    @ViewBuilder let content: () -> Content
+    @State private var selection: Set<String> = []
+
+    var body: some View {
+        #if os(macOS)
+        List(selection: $selection, content: content)
+            .rowActions(target)
+        #else
+        List(content: content)
+        #endif
+    }
+}
+
+extension RowTarget {
+    /// Элемент выдачи или полки: трек — одиночный трек и радио, микс — радио, прочее — свой экран.
+    static func of(_ item: MusicItem) -> RowTarget? {
+        switch item {
+        case .track(let track): .single(track)
+        case .playlist(let playlist) where playlist.isMix: .mix(playlist)
+        default: Route.of(item).map(RowTarget.open)
         }
     }
 }

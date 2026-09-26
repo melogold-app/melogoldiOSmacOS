@@ -24,21 +24,11 @@ struct SplitShell: View {
             #endif
         } detail: {
             NavigationStack(path: model.path(for: model.section)) {
-                SectionRoot(section: model.section)
+                // iPad: мини-плеер — полоса внизу колонки детали (docs/PROMPT.md §5.3); ставит её каждый экран стека.
+                SectionRoot(section: model.section, miniPlayerBar: true)
             }
             .id(model.section)
-            #if os(iOS)
-            // iPad: мини-плеер — полоса внизу колонки детали на системном стекле (docs/PROMPT.md §5.3).
-            .safeAreaBar(edge: .bottom) {
-                if model.services.player.currentTrack != nil {
-                    MiniPlayer()
-                        .padding(.vertical, 8)
-                        .glassEffect(.regular, in: .capsule)
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 8)
-                }
-            }
-            #elseif os(macOS)
+            #if os(macOS)
             .onExitCommand { model.goBack() }
             #endif
         }
@@ -59,9 +49,35 @@ struct SplitShell: View {
         }
         #endif
         .overlay(alignment: .bottom) {
-            SkipNoticeOverlay()
+            ToastHost()
                 .padding(.bottom, 90)
-                .animation(.snappy, value: model.services.player.notice)
         }
+    }
+}
+
+/// Полоса мини-плеера на системном стекле внизу экрана (iPad с боковой панелью). Ставится на каждый экран стека:
+/// полоса, повешенная на сам `NavigationStack`, у открытых экранов пропадает.
+struct MiniPlayerBar: ViewModifier {
+    @Environment(AppModel.self) private var model
+    let enabled: Bool
+
+    func body(content: Content) -> some View {
+        #if os(iOS)
+        if enabled {
+            content.safeAreaBar(edge: .bottom) {
+                if model.services.player.currentTrack != nil {
+                    MiniPlayer()
+                        .padding(.vertical, 8)
+                        .glassEffect(.regular, in: .capsule)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 8)
+                }
+            }
+        } else {
+            content
+        }
+        #else
+        content
+        #endif
     }
 }

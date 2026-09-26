@@ -13,6 +13,12 @@ struct RootView: View {
         @Bindable var model = model
         shell
             .onOpenURL { model.handle(url: $0) }
+            // Ссылку YouTube можно перетащить в окно (Mac, iPad) — она открывается, как вставленная в Поиске.
+            .dropDestination(for: URL.self) { urls, _ in
+                guard let url = urls.first else { return false }
+                model.openLink(url.absoluteString)
+                return true
+            }
             #if DEBUG
             .task {
                 DebugLaunch.apply(to: model)
@@ -49,10 +55,15 @@ struct RootView: View {
 /// Корневой экран раздела и детальные экраны его стека.
 struct SectionRoot: View {
     let section: AppSection
+    /// iPad с боковой панелью: полоса мини-плеера на каждом экране стека.
+    var miniPlayerBar = false
 
     var body: some View {
         content
-            .navigationDestination(for: Route.self) { RouteView(route: $0) }
+            .modifier(MiniPlayerBar(enabled: miniPlayerBar))
+            .navigationDestination(for: Route.self) { [miniPlayerBar] in
+                RouteView(route: $0).modifier(MiniPlayerBar(enabled: miniPlayerBar))
+            }
     }
 
     @ViewBuilder
@@ -76,6 +87,20 @@ struct RouteView: View {
             ServerView(prefill: prefill, expectedServerId: serverId)
         case .account(let route):
             AccountRouteView(route: route)
+        case .album(let browseId):
+            AlbumView(browseId: browseId)
+        case .artist(let browseId):
+            ArtistView(browseId: browseId)
+        case .playlist(let playlistId):
+            PlaylistView(playlistId: playlistId)
+        case .mood(let mood):
+            MoodView(mood: mood)
+        case .moods:
+            MoodsView()
+        case .newReleases:
+            NewReleasesView()
+        case .browse(let title, let browseId, let params):
+            BrowseView(title: title, browseId: browseId, params: params)
         }
     }
 }

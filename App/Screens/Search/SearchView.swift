@@ -20,6 +20,13 @@ struct SearchView: View {
                 }
             }
             .searchSuggestions {
+                if let title = YouTubeLinkParser.parse(model.searchQuery).openTitle {
+                    Button {
+                        model.openLink(model.searchQuery)
+                    } label: {
+                        Label(title, systemImage: "link")
+                    }
+                }
                 ForEach(search.suggestions, id: \.self) { suggestion in
                     Button {
                         model.searchQuery = suggestion
@@ -30,12 +37,36 @@ struct SearchView: View {
                     .searchCompletion(suggestion)
                 }
             }
-            .onSubmit(of: .search) { search.submit(model.searchQuery) }
+            .onSubmit(of: .search) { submit() }
             .onChange(of: model.searchQuery) { _, text in search.queryChanged(text) }
             .searchFocused($focused)
             .onChange(of: model.searchFocusRequest) { focused = true }
             .onChange(of: focused) { _, value in model.textInputActive = value }
             .onAppear { if model.searchFocusRequest > 0 { focused = true } }
+    }
+
+    /// Enter: ссылка YouTube открывает свою цель (REWRITE §2.3), остальное — поиск.
+    private func submit() {
+        if YouTubeLinkParser.parse(model.searchQuery).openTitle != nil {
+            model.openLink(model.searchQuery)
+        } else {
+            model.search.submit(model.searchQuery)
+        }
+    }
+}
+
+/// «Вставить ссылку» — системная `PasteButton`: буфер читается только по нажатию и без вопроса «Разрешить
+/// вставку» (docs/PROMPT.md §5.9).
+private struct PasteLinkButton: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        PasteButton(payloadType: String.self) { strings in
+            guard let text = strings.first else { return }
+            Task { @MainActor in model.openLink(text) }
+        }
+        .labelStyle(.titleAndIcon)
+        .buttonBorderShape(.capsule)
     }
 }
 
@@ -64,9 +95,15 @@ private struct SearchRootView: View {
                 Label(AppSection.search.title, systemImage: AppSection.search.systemImage)
             } description: {
                 Text(model.settings.historyPaused ? "search.historyPaused" : "search.tip")
+            } actions: {
+                PasteLinkButton()
             }
         } else {
             List {
+                Section {
+                    PasteLinkButton()
+                        .listRowSeparator(.hidden)
+                }
                 Section {
                     ForEach(search.recent, id: \.self) { query in
                         Button {
@@ -137,7 +174,7 @@ private struct AllResultsList: View {
                 Label("search.nothingFound", systemImage: "magnifyingglass")
             }
         } else {
-            List {
+            SelectableList(target: target) {
                 if musicEmpty {
                     Section {
                         videosRows(all.videos)
@@ -148,10 +185,10 @@ private struct AllResultsList: View {
                     }
                 } else {
                     Section {
-                        if let top = all.top { ItemRow(item: top) }
+                        if let top = all.top { ItemRow(item: top).tag(RowID.make("top", top.id)) }
                         switch all.music {
                         case .loaded(let items):
-                            ForEach(items) { ItemRow(item: $0) }
+                            ForEach(items) { ItemRow(item: $0).tag(RowID.make("m", $0.id)) }
                         case .failed:
                             UnavailableSourceRow(source: "YouTube Music") { search.retry() }
                         default:
@@ -170,11 +207,22 @@ private struct AllResultsList: View {
         }
     }
 
+    private func target(_ id: String) -> RowTarget? {
+        guard let (section, key) = RowID.split(id) else { return nil }
+        let all = model.search.all
+        switch section {
+        case "top": return all.top.flatMap(RowTarget.of)
+        case "m": return all.music.value?.first { $0.id == key }.flatMap(RowTarget.of)
+        case "v": return all.videos.value?.first { $0.videoId == key }.map(RowTarget.single)
+        default: return nil
+        }
+    }
+
     @ViewBuilder
     private func videosRows(_ state: Loadable<[Track]>) -> some View {
         switch state {
         case .loaded(let videos):
-            ForEach(videos) { ItemRow(item: .track($0), wide: true) }
+            ForEach(videos) { ItemRow(item: .track($0), wide: true).tag(RowID.make("v", $0.videoId)) }
         case .failed:
             UnavailableSourceRow(source: "YouTube") { model.search.retry() }
         default:
@@ -203,7 +251,10 @@ private struct PagedResultsList<Chips: View>: View {
     @ViewBuilder let chips: () -> Chips
 
     var body: some View {
-        List {
+        SelectableList(target: { id in
+            guard let (_, key) = RowID.split(id) else { return nil }
+            return state.items.first { $0.id == key }.flatMap(RowTarget.of)
+        }) {
             Section {
                 switch state.state {
                 case .failed(let kind):
@@ -215,6 +266,7 @@ private struct PagedResultsList<Chips: View>: View {
                 case .loaded:
                     ForEach(state.items) { item in
                         ItemRow(item: item, wide: model.search.scope == .youtube)
+                            .tag(RowID.make("p", item.id))
                             .onAppear { model.search.loadMoreIfNeeded(after: item) }
                     }
                     if state.loadingMore { ProgressRow() }
@@ -255,37 +307,25 @@ private struct FilterChips<Option: Hashable>: View {
     }
 }
 
-/// Строка выдачи: трек или видео играет «одиночный трек + радио» (REWRITE §2.3), коллекции открываются в срезе 3.
+/// Строка выдачи. Трек или видео играет «одиночный трек + радио» (REWRITE §2.3), коллекция открывает свой экран —
+/// действие даёт `rowActions` списка.
 struct ItemRow: View {
-    @Environment(AppModel.self) private var model
     let item: MusicItem
     var wide = false
 
     var body: some View {
         switch item {
         case .track(let track):
-            let player = model.services.player
-            let isCurrent = player.currentTrack?.videoId == track.videoId
-            let cached = model.cachedIds.contains(track.videoId)
-            let dimmed = !model.services.network.isOnline && !cached
-            Button {
-                model.play(single: track)
-            } label: {
-                if wide {
-                    VideoRow(track: track, isCurrent: isCurrent, dimmed: dimmed)
-                } else {
-                    TrackRow(track: track, isCurrent: isCurrent, cached: cached, dimmed: dimmed)
-                }
-            }
-            .buttonStyle(.plain)
-            .accessibilityAction(named: Text("action.play")) { model.play(single: track) }
+            TrackListRow(track: track, wide: wide, target: .single(track))
         default:
-            CollectionRow(item: item)
+            TapTarget(target: RowTarget.of(item)) {
+                CollectionRow(item: item)
+            }
         }
     }
 }
 
-private struct ProgressRow: View {
+struct ProgressRow: View {
     var body: some View {
         HStack {
             Spacer()

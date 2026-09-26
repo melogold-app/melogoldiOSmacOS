@@ -80,6 +80,26 @@ final class RenderPipeline: @unchecked Sendable {
         }
     }
 
+    /// Отбросить всё, что подано с времени `time` и дальше: очередь изменилась после текущего трека, а следующий
+    /// уже стоял на шкале. `false` — рендерер не смог (время слишком близко к текущему).
+    func truncate(from time: CMTime) async -> Bool {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
+            queue.async { [self] in
+                lock.withLock {
+                    pending.removeAll { CMTimeCompare(CMSampleBufferGetPresentationTimeStamp($0), time) >= 0 }
+                }
+                renderer.flush(fromSourceTime: time) { [self] success in
+                    if success {
+                        lock.withLock {
+                            if CMTimeCompare(enqueuedEndValue, time) > 0 { enqueuedEndValue = time }
+                        }
+                    }
+                    continuation.resume(returning: success)
+                }
+            }
+        }
+    }
+
     func setRate(_ rate: Float) {
         synchronizer.rate = rate
     }

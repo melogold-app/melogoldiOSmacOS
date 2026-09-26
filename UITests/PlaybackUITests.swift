@@ -21,12 +21,13 @@ final class PlaybackUITests: XCTestCase {
     func testSearchAndPlaySong() {
         let app = launchApp(section: "search", language: "ru")
         search(app, "кино группа крови")
-        let song = app.buttons.containing(NSPredicate(format: "label CONTAINS[c] 'Группа крови'")).firstMatch
+        let song = app.cells.containing(NSPredicate(format: "label CONTAINS 'Группа крови'")).firstMatch
         XCTAssertTrue(song.waitForExistence(timeout: 20))
         saveScreenshot("iphone-search-all")
         song.tap()
         XCTAssertTrue(app.buttons["Пауза"].waitForExistence(timeout: 20), "трек не заиграл")
         sleep(2)
         saveScreenshot("iphone-playing")
+        app.terminate()
     }
 }

@@ -53,6 +53,9 @@ public final class PlayerEngine {
     public var currentTrack: Track? { current?.track }
     public var isPlaying: Bool { wantsToPlay && (phase == .playing || phase == .loading) }
     public var hasNext: Bool { index.map { $0 + 1 < items.count } ?? false }
+    /// Меняется при замене очереди: фоновая дозагрузка списка (плейлист длиннее первой страницы) дописывает треки,
+    /// только пока очередь та же (REWRITE §3.8.2).
+    public private(set) var queueId = UUID()
 
     let catalog: YouTubeMusic
     let resolver: StreamResolver
@@ -71,6 +74,8 @@ public final class PlayerEngine {
         var duration: Double = 0
         var loudnessDb: Double?
         var fromCache = false
+        /// Начать не с начала (ссылка с `t=`): секунды от начала трека.
+        var startOffset: Double = 0
         var producer: Task<Void, Never>?
 
         init(item: QueueItem, reader: TrackReader, start: CMTime) {
@@ -126,17 +131,67 @@ public final class PlayerEngine {
         radio = nil
         items = tracks.map { QueueItem(track: $0) }
         index = startAt
+        queueId = UUID()
         startCurrent(tapped: true)
     }
 
-    /// Нажатие по одиночному треку: трек и радио по нему (автовоспроизведение похожих).
-    public func playSingle(_ track: Track) {
+    /// Нажатие по одиночному треку: трек и радио по нему (автовоспроизведение похожих). `seconds` — стартовая
+    /// позиция (ссылка с `t=`).
+    public func playSingle(_ track: Track, from seconds: Double = 0) {
         radioTask?.cancel()
         items = [QueueItem(track: track)]
         index = 0
+        queueId = UUID()
         radio = RadioState(seedVideoId: track.videoId, playlistId: "RDAMVM" + track.videoId)
+        startCurrent(tapped: true, from: seconds)
+        loadRadio()
+    }
+
+    /// Радио плейлиста или микса (`RD…`): очередь «Далее» этого списка с первого трека.
+    public func playRadio(playlistId: String, seed: Track) {
+        radioTask?.cancel()
+        items = [QueueItem(track: seed)]
+        index = 0
+        queueId = UUID()
+        radio = RadioState(seedVideoId: seed.videoId, playlistId: playlistId)
         startCurrent(tapped: true)
         loadRadio()
+    }
+
+    /// «Играть следующим»: сразу после текущего (REWRITE §2.3). Пустая очередь — играть.
+    public func playNext(_ tracks: [Track]) {
+        guard !tracks.isEmpty else { return }
+        guard let index, !items.isEmpty else {
+            play(tracks: tracks, startAt: 0)
+            return
+        }
+        items.insert(contentsOf: tracks.map { QueueItem(track: $0) }, at: index + 1)
+        upcomingChanged()
+    }
+
+    /// «В конец очереди»: перед блоком автовоспроизведения. Пустая очередь — играть.
+    public func enqueue(_ tracks: [Track]) {
+        guard !tracks.isEmpty else { return }
+        guard let index, !items.isEmpty else {
+            play(tracks: tracks, startAt: 0)
+            return
+        }
+        let firstAutoplay = items.indices.dropFirst(index + 1).first { items[$0].fromAutoplay } ?? items.count
+        items.insert(contentsOf: tracks.map { QueueItem(track: $0) }, at: firstAutoplay)
+        upcomingChanged()
+    }
+
+    /// Дозагруженные треки списка — в конец, если очередь с тех пор не заменили. `false` — заменили, дальше не грузить.
+    @discardableResult
+    public func append(_ tracks: [Track], toQueue id: UUID) -> Bool {
+        guard id == queueId else { return false }
+        let known = Set(items.map(\.track.videoId))
+        let fresh = tracks.filter { !known.contains($0.videoId) }
+        guard !fresh.isEmpty else { return true }
+        let wasLast = index.map { $0 + 1 >= items.count } ?? false
+        items.append(contentsOf: fresh.map { QueueItem(track: $0) })
+        if wasLast { upcomingChanged() }
+        return true
     }
 
     /// Перейти к элементу очереди.
@@ -265,19 +320,21 @@ public final class PlayerEngine {
     }
 
     /// Начать текущий элемент заново: шкала с нуля, первый фрагмент, звук как только он есть.
-    private func startCurrent(tapped: Bool) {
+    private func startCurrent(tapped: Bool, from offset: Double = 0) {
         guard let current else { return }
         if tapped { tapTime = Date() }
         wantsToPlay = true
         failure = nil
         phase = .loading
         loadingSince = Date()
-        position = 0
+        position = max(0, offset)
         duration = Double(current.track.durationMs ?? 0) / 1000
         playingFromCache = cache?.isComplete(current.track.videoId) ?? false
         cancelProducers()
-        generation = pipeline.reset(to: .zero)
+        let startTime = CMTime(seconds: max(0, offset), preferredTimescale: 44_100)
+        generation = pipeline.reset(to: startTime)
         let segment = makeSegment(for: current, start: .zero)
+        segment.startOffset = max(0, offset)
         segments = [segment]
         protectCache()
         applyVolume()
@@ -290,7 +347,7 @@ public final class PlayerEngine {
                 return
             }
             guard self.current?.id == current.id else { return }
-            produce(segment, from: 0, trimBefore: nil)
+            produce(segment, from: 0, trimBefore: offset > 0 ? startTime : nil)
             prefetch()
         }
     }
@@ -320,7 +377,12 @@ public final class PlayerEngine {
                     self.syncNowPlaying()
                 }
                 var trim = trimBefore
-                for number in firstFragment..<timing.fragmentCount {
+                var first = firstFragment
+                if segment.startOffset > 0 {
+                    first = await segment.reader.fragment(at: segment.startOffset)
+                    segment.startOffset = 0
+                }
+                for number in first..<timing.fragmentCount {
                     try Task.checkCancellation()
                     // Не читать слишком далеко вперёд.
                     while (self.pipeline.enqueuedEnd - self.pipeline.currentTime).seconds > Self.readAhead {
@@ -328,6 +390,8 @@ public final class PlayerEngine {
                     }
                     let batch = try await segment.reader.batch(number, start: segment.start, trimBefore: trim)
                     trim = nil
+                    // Отрезок сняли со шкалы (очередь изменилась), пока читался фрагмент.
+                    try Task.checkCancellation()
                     guard generation == self.generation else { return }
                     self.pipeline.append(batch, generation: generation)
                     if number == timing.fragmentCount - 1 { segment.end = batch.end }
@@ -353,6 +417,38 @@ public final class PlayerEngine {
         let next = makeSegment(for: items[position + 1], start: end)
         segments.append(next)
         produce(next, from: 0, trimBefore: nil)
+    }
+
+    /// Очередь после текущего трека изменилась. Если на шкале уже стоит прежний следующий трек — снять его
+    /// (рендерер отбрасывает отсчёты после конца текущего) и подать настоящий следующий.
+    private func upcomingChanged() {
+        defer {
+            protectCache()
+            prefetch()
+        }
+        guard let segment = currentSegment,
+              let position = items.firstIndex(where: { $0.id == segment.item.id }) else { return }
+        let stale = segments.filter { $0 !== segment }
+        let expectedNext = position + 1 < items.count ? items[position + 1].id : nil
+        if stale.isEmpty {
+            if segment.end != nil { segmentFinished(segment) }
+            return
+        }
+        if stale.count == 1, stale[0].item.id == expectedNext { return }
+        for old in stale { old.producer?.cancel() }
+        segments = [segment]
+        guard let end = segment.end else { return }
+        let generation = generation
+        Task {
+            let truncated = await pipeline.truncate(from: end)
+            guard generation == self.generation, self.currentSegment === segment else { return }
+            if truncated {
+                segmentFinished(segment)
+            } else {
+                // Граница уже слишком близко: следующий трек начнётся обычным стартом после конца текущего.
+                Log.info("player", "Очередь изменилась у самой границы трека")
+            }
+        }
     }
 
     /// Адреса двух следующих треков — заранее, в фоне.

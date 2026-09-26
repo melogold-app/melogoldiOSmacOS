@@ -21,6 +21,8 @@ final class Services {
     let player: PlayerEngine
     let searchHistory: SearchHistory?
     let network = NetworkStatus()
+    /// «Обзор» YouTube Music — общий для Трендов и Нового.
+    let explore: ExploreStore
 
     init(settings: AppSettings, paths: AppPaths?) {
         self.settings = settings
@@ -54,6 +56,7 @@ final class Services {
         player.autoplayEnabled = settings.autoplay
         player.speed = Float(settings.speed)
         searchHistory = database.map { SearchHistory(database: $0) }
+        explore = ExploreStore(catalog: catalog, file: paths?.caches.appendingPathComponent("explore.json"))
         network.onPathChange = { [resolver] in
             Task { await resolver.invalidateAll() }
         }

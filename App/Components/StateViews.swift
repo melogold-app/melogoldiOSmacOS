@@ -49,11 +49,3 @@ struct ErrorStateView: View {
         }
     }
 }
-
-extension YouTubeError.Kind {
-    static func of(_ error: any Error) -> YouTubeError.Kind {
-        if let error = error as? YouTubeError { return error.kind }
-        if error is URLError { return .offline }
-        return .unknown
-    }
-}

@@ -41,6 +41,9 @@ final class AppModel {
     /// Сообщение поверх окна (разбор ссылки и т. п.).
     var notice: Notice?
 
+    /// Плашка над мини-плеером: «Играет следующим: …», «Эта ссылка пока не поддерживается».
+    var toast: Toast?
+
     /// Открыт «Сейчас играет».
     var showNowPlaying = false
 
@@ -102,6 +105,7 @@ final class AppModel {
             return
         }
         if let stack = routes[section], !stack.isEmpty {
+            Log.info("nav", "Повторное нажатие на раздел — к корню")
             routes[section] = []
         } else {
             scrollToTopRequests[section, default: 0] += 1
@@ -134,10 +138,14 @@ final class AppModel {
         routes[section, default: []].append(route)
     }
 
-    /// Ссылка, которую отдала система (`onOpenURL`): `melogold://` (API §7.2). Ссылки YouTube система приложению
-    /// не отдаёт — они приходят вставкой в Поиске (срез 3).
+    /// Ссылка, которую отдала система (`onOpenURL`): `melogold://` (API §7.2). Ссылки YouTube система отдаёт
+    /// редко (перетаскивание, «Открыть с помощью» на Mac) — они идут в `openLink`, как вставка в Поиске.
     func handle(url: URL) {
         Log.info("links", "Открыта ссылка \(url.scheme ?? "?")://\(url.host() ?? "")")
+        if url.scheme?.lowercased() != "melogold" {
+            openLink(url.absoluteString)
+            return
+        }
         switch MelogoldLink.parse(url) {
         case .success(.server(let address, _, let serverId)):
             section = .settings
