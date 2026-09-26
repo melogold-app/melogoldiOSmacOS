@@ -32,6 +32,10 @@ enum Route: Hashable {
     case savedArtists
     case localPlaylist(Int64)
     case hiddenTracks
+    /// Настройки (срез 8): «Сведения о потоке», «Диагностика», «Лицензии».
+    case streamInfo
+    case diagnostics
+    case licenses
 }
 
 extension Route {

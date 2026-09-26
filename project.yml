@@ -41,6 +41,10 @@ settings:
 packages:
   MelogoldKit:
     path: Packages/MelogoldKit
+  # Обновления Mac вне App Store (задание 0004): только таргет Mac.
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: 2.7.0
 
 targets:
   Melogold:
@@ -56,6 +60,9 @@ targets:
         products: [MelogoldCore, MelogoldData, MelogoldInnerTube, MelogoldServer, MelogoldPlayback]
       - target: Melogold Watch
         destinationFilters: [iOS]
+      - package: Sparkle
+        product: Sparkle
+        destinationFilters: [macOS]
     info:
       path: App/Info.plist
       properties:
@@ -72,6 +79,7 @@ targets:
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
         NSLocalNetworkUsageDescription: Melogold connects to your own Melogold server on the local network.
+        NSSiriUsageDescription: Siri plays music in Melogold when you ask.
         UIBackgroundModes: [audio]
         UILaunchScreen: {}
         UIApplicationSceneManifest:
@@ -81,6 +89,12 @@ targets:
             CPTemplateApplicationSceneSessionRoleApplication:
               - UISceneConfigurationName: CarPlay
                 UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).CarPlaySceneDelegate
+        # Sparkle (Mac, задание 0004): appcast последнего выпуска GitHub, публичный ключ EdDSA — в Config/Project.xcconfig;
+        # проверка сама, не чаще раза в 6 часов. На iPhone, iPad и Vision ключи ни на что не влияют.
+        SUFeedURL: https://github.com/melogold-app/melogoldiOSmacOS/releases/latest/download/appcast.xml
+        SUPublicEDKey: $(SPARKLE_PUBLIC_ED_KEY)
+        SUEnableAutomaticChecks: true
+        SUScheduledCheckInterval: 21600
         INIntentsSupported: [INPlayMediaIntent]
         INSupportedMediaCategories: [INMediaCategoryMusic]
         UISupportedInterfaceOrientations:
@@ -109,6 +123,9 @@ targets:
         "ASSETCATALOG_COMPILER_APPICON_NAME[sdk=xrsimulator*]": AppIcon
         ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: NO
         ENABLE_HARDENED_RUNTIME: YES
+        # Mac: встроенные фреймворки (Sparkle) — в Contents/Frameworks; XcodeGen для мультиплатформенного таргета
+        # ставит только путь iOS
+        "LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]": "$(inherited) @executable_path/../Frameworks"
 
   Melogold Watch:
     type: application

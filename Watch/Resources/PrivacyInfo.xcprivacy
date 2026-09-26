@@ -6,9 +6,10 @@
 	<false/>
 	<key>NSPrivacyTrackingDomains</key>
 	<array/>
+	<!-- Только при входе в аккаунт сервера Melogold (задание 0005, docs/PROMPT.md §3): логин, id устройства и библиотека
+	     с историей уходят на выбранный сервер для синхронизации. Без аккаунта с устройства ничего не уходит. -->
 	<key>NSPrivacyCollectedDataTypes</key>
 	<array>
-		<!-- Логин аккаунта Melogold (по желанию пользователя): связан с ним, только для работы приложения. -->
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeUserID</string>
@@ -21,7 +22,18 @@
 				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
 			</array>
 		</dict>
-		<!-- Библиотека и история прослушиваний синхронизируются через сервер Melogold, если пользователь вошёл. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeDeviceID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeOtherUserContent</string>
@@ -37,7 +49,7 @@
 	</array>
 	<key>NSPrivacyAccessedAPITypes</key>
 	<array>
-		<!-- Свои настройки приложения. -->
+		<!-- Свои настройки. -->
 		<dict>
 			<key>NSPrivacyAccessedAPIType</key>
 			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
@@ -46,7 +58,7 @@
 				<string>CA92.1</string>
 			</array>
 		</dict>
-		<!-- Время своих файлов: журнал, кэш музыки, загрузки. -->
+		<!-- Время своих файлов: журнал, отчёт о падении, кэш и загрузки. -->
 		<dict>
 			<key>NSPrivacyAccessedAPIType</key>
 			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
@@ -55,13 +67,23 @@
 				<string>C617.1</string>
 			</array>
 		</dict>
-		<!-- Свободное место перед загрузкой и записью в кэш. -->
+		<!-- Свободное место: показ на часах и проверка перед загрузками. -->
 		<dict>
 			<key>NSPrivacyAccessedAPIType</key>
 			<string>NSPrivacyAccessedAPICategoryDiskSpace</string>
 			<key>NSPrivacyAccessedAPITypeReasons</key>
 			<array>
+				<string>85F4.1</string>
 				<string>E174.1</string>
+			</array>
+		</dict>
+		<!-- Замер времени внутри приложения: задержка до звука, паузы синхронизации. -->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategorySystemBootTime</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>35F9.1</string>
 			</array>
 		</dict>
 	</array>

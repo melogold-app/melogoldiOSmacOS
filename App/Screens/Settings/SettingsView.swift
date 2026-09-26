@@ -36,18 +36,9 @@ struct SettingsView: View {
             LibrarySettingsSection()
             StorageSettingsSection()
             DownloadSettingsSection()
+            BackupSettingsSection()
 
-            Section("settings.about") {
-                LabeledContent {
-                    Text(verbatim: "\(AppVersion.current) (\(AppVersion.build))")
-                        .textSelection(.enabled)
-                } label: {
-                    Text("settings.version")
-                }
-                Link(destination: URL(string: "https://github.com/melogold-app/melogoldiOSmacOS")!) {
-                    Text("settings.sourceCode")
-                }
-            }
+            AboutSettingsSection()
         }
         .formStyle(.grouped)
         .navigationTitle(Text(AppSection.settings.title))

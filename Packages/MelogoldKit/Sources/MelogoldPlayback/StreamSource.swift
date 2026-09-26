@@ -49,6 +49,19 @@ public actor StreamSource {
 
     public var streamInfo: StreamInfo? { info }
 
+    /// Что известно о потоке сейчас — для «Сведений о потоке».
+    public struct Details: Sendable {
+        public var info: StreamInfo?
+        public var content: StreamContent?
+        /// Байты — из загрузок.
+        public var downloaded: Bool
+        public var networkBytes: Int64
+    }
+
+    public var details: Details {
+        Details(info: info, content: content, downloaded: downloaded, networkBytes: networkBytes)
+    }
+
     /// Длина, тип, длительность. Из индекса кэша — без сети; иначе через адрес потока.
     public func contentInfo() async throws -> StreamContent {
         if let content { return content }

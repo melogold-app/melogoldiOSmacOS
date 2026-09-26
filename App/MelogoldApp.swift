@@ -14,7 +14,7 @@ struct MelogoldApp: App {
     init() {
         let paths: AppPaths?
         do {
-            let standard = try AppPaths.standard()
+            let standard = try Self.debugPaths() ?? AppPaths.standard()
             try standard.prepare()
             paths = standard
         } catch {
@@ -37,6 +37,23 @@ struct MelogoldApp: App {
         _model = State(initialValue: model)
         // Dock, CarPlay и Siri находят модель окна здесь.
         AppModel.current = model
+        #if os(macOS)
+        // Sparkle: проверка обновлений сама, не чаще раза в 6 часов (задание 0004)
+        _ = AppUpdater.shared
+        #endif
+    }
+
+    /// `-MelogoldDataDir <папка>` (только отладочная сборка) — своя база, кэш и журнал: снимки на Mac не трогают
+    /// настоящую библиотеку.
+    private static func debugPaths() -> AppPaths? {
+        #if DEBUG
+        guard let directory = UserDefaults.standard.string(forKey: "MelogoldDataDir") else { return nil }
+        let root = URL(fileURLWithPath: directory, isDirectory: true)
+        return AppPaths(root: root.appendingPathComponent("Support", isDirectory: true),
+                        caches: root.appendingPathComponent("Caches", isDirectory: true))
+        #else
+        return nil
+        #endif
     }
 
     var body: some Scene {

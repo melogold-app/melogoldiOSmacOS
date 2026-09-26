@@ -3,7 +3,8 @@ import MelogoldCore
 import MelogoldData
 
 /// «Библиотека» — хаб (REWRITE §3.2.1, docs/PROMPT.md §5.9): Избранное, Скачанное, История; плейлисты; «Все треки»
-/// (задание 0007), Альбомы, Исполнители и каналы. Сети не требует.
+/// (задание 0007), Альбомы, Исполнители и каналы; последняя строка — «Импорт из ViTune или ViMusic» (задание 0006).
+/// Сети не требует.
 struct LibraryView: View {
     @Environment(AppModel.self) private var model
     @State private var playlists: [LibraryPlaylist] = []
@@ -32,6 +33,7 @@ struct LibraryView: View {
                         Button("library.findMusic") { model.focusSearch() }
                             .buttonStyle(.borderedProminent)
                         Button("new.forYou.trends") { model.select(.trends) }
+                        Button("import.fromViTune") { model.chooseBackupToImport() }
                     }
                 }
             }
@@ -66,6 +68,27 @@ struct LibraryView: View {
                 NavigationLink(value: Route.savedArtists) {
                     countRow("library.artists", systemImage: "music.mic", count: counts.artists)
                 }
+            }
+            // Последняя строка — импорт из ViTune или ViMusic (задание 0006)
+            Section {
+                Button {
+                    model.chooseBackupToImport()
+                } label: {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("import.fromViTune")
+                                .foregroundStyle(Color.primary)
+                            Text("import.fromViTune.description")
+                                .font(.subheadline)
+                                .foregroundStyle(Color.secondary)
+                        }
+                        .multilineTextAlignment(.leading)
+                    } icon: {
+                        Image(systemName: "square.and.arrow.down")
+                    }
+                }
+                .buttonStyle(.borderless)
+                .accessibilityIdentifier("library.import")
             }
         }
         .navigationTitle(Text(AppSection.library.title))

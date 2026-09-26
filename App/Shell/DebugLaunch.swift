@@ -9,7 +9,8 @@ import MelogoldData
 ///     -MelogoldSearch "кино"                            раздел «Поиск» и выдача запроса
 ///     -MelogoldSearchScope music|youtube                 область выдачи
 ///     -MelogoldOpenLink "https://youtu.be/…"             ссылка или текст — как вставка в Поиске
-///     -MelogoldOpen album:<id>|artist:<id>|playlist:<id>|moods|releases   детальный экран в текущем разделе
+///     -MelogoldOpen album:<id>|artist:<id>|playlist:<id>|moods|releases|diagnostics|licenses|streamInfo|…
+///                                                       экран в текущем разделе
 ///     -MelogoldShowNowPlaying YES                      открыть «Сейчас играет», как только появится трек
 ///     -MelogoldShowLyrics YES, -MelogoldLyricsEditor YES   вместе с ним — текст и редактор текста
 ///     -MelogoldShowQueue YES, -MelogoldSleep <мин>       очередь и таймер сна
@@ -60,6 +61,12 @@ enum DebugLaunch {
         if let text = defaults.string(forKey: "MelogoldOpenLink") {
             model.openLink(text)
         }
+        // -MelogoldImport <путь к копии> [-MelogoldImportDelay <с>] — импорт без окна выбора файла (снимки хода и итога).
+        if let path = defaults.string(forKey: "MelogoldImport") {
+            model.importBackup(from: URL(fileURLWithPath: path), debugDelay: .seconds(defaults.integer(forKey: "MelogoldImportDelay")))
+        }
+        // -MelogoldSaveBackup YES — «Сохранить копию» сразу (снимок окна сохранения)
+        if defaults.bool(forKey: "MelogoldSaveBackup") { model.saveBackup() }
         if defaults.bool(forKey: "MelogoldSeedLibrary") {
             Task { await seedLibrary(model) }
         }
@@ -98,6 +105,9 @@ enum DebugLaunch {
             case ("albums", _): .savedAlbums
             case ("artists", _): .savedArtists
             case ("local", let id?): Int64(id).map(Route.localPlaylist)
+            case ("diagnostics", _): .diagnostics
+            case ("licenses", _): .licenses
+            case ("streamInfo", _): .streamInfo
             default: nil
             }
             if let route { model.open(route) }

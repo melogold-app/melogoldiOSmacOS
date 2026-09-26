@@ -915,11 +915,28 @@ public final class PlayerEngine {
 
     /// Громкие треки тише (`loudnessDb` > 0). Тихие не усиливаются: громкость рендерера — не больше 1.
     private func applyVolume() {
-        var gain: Float = 1
-        if normalization, let loudness = currentSegment?.loudnessDb, loudness > 0 {
-            gain = Float(pow(10, -loudness / 20))
-        }
+        let gain = Float(pow(10, appliedGainDb / 20))
         pipeline.volume = max(0, min(1, volume * gain))
+    }
+
+    /// Усиление нормализации текущего трека, дБ: 0 или меньше.
+    private var appliedGainDb: Double {
+        guard normalization, let loudness = currentSegment?.loudnessDb, loudness > 0 else { return 0 }
+        return -loudness
+    }
+
+    /// «Сведения о потоке» (Настройки › Воспроизведение): что играет, откуда и с каким усилением.
+    public struct StreamDetails: Sendable {
+        public var track: Track
+        public var source: StreamSource.Details
+        public var fromCache: Bool
+        public var gainDb: Double
+    }
+
+    public func currentStreamDetails() async -> StreamDetails? {
+        guard let segment = currentSegment else { return nil }
+        let details = await segment.reader.source.details
+        return StreamDetails(track: segment.item.track, source: details, fromCache: segment.fromCache, gainDb: appliedGainDb)
     }
 
     /// Карточка системного «Сейчас играет»: при смене трека, паузе, перемотке и скорости.

@@ -9,4 +9,9 @@ MELOGOLD_SIGN_STYLE = Manual
 MELOGOLD_SIGN_IDENTITY = -
 MELOGOLD_TEAM =
 
+// Публичный ключ EdDSA Sparkle (задание 0004): его печатает `generate_keys` из Sparkle, закрытый — только в секрете
+// SPARKLE_ED_PRIVATE_KEY и в резервной копии у пользователя. Пока пусто, Mac-сборка не проверяет обновления,
+// а scripts/release-macos.sh без --dry-run останавливается.
+SPARKLE_PUBLIC_ED_KEY =
+
 #include? "Local.xcconfig"

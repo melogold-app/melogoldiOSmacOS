@@ -52,6 +52,16 @@
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Melogold connects to your own Melogold server on the local network.</string>
+	<key>NSSiriUsageDescription</key>
+	<string>Siri plays music in Melogold when you ask.</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/melogold-app/melogoldiOSmacOS/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>$(SPARKLE_PUBLIC_ED_KEY)</string>
+	<key>SUScheduledCheckInterval</key>
+	<integer>21600</integer>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

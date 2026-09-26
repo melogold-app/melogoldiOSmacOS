@@ -1718,6 +1718,108 @@
         }
       }
     },
+    "backup.failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not save the copy"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось сохранить копию"
+          }
+        }
+      }
+    },
+    "backup.import" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import a copy"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Импорт копии"
+          }
+        }
+      }
+    },
+    "backup.importFooter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A ViTune, ViMusic or Melogold backup is added to your library: tracks, history, favorites, playlists and lyrics. Nothing here is deleted."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Копия ViTune, ViMusic или Melogold добавится к библиотеке: треки, история, Избранное, плейлисты и тексты. Ничего не удаляется."
+          }
+        }
+      }
+    },
+    "backup.save" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save a copy"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сохранить копию"
+          }
+        }
+      }
+    },
+    "backup.saved" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy saved"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Копия сохранена"
+          }
+        }
+      }
+    },
+    "backup.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Library copy"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Копия библиотеки"
+          }
+        }
+      }
+    },
     "badge.cached" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2026,6 +2128,40 @@
         }
       }
     },
+    "common.copied" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copied"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Скопировано"
+          }
+        }
+      }
+    },
+    "common.copy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Копировать"
+          }
+        }
+      }
+    },
     "common.done" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2192,6 +2328,193 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Отменить"
+          }
+        }
+      }
+    },
+    "diagnostics.app" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Приложение"
+          }
+        }
+      }
+    },
+    "diagnostics.clients" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stream clients"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Клиенты потока"
+          }
+        }
+      }
+    },
+    "diagnostics.device" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Устройство"
+          }
+        }
+      }
+    },
+    "diagnostics.export" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export report"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Экспорт отчёта"
+          }
+        }
+      }
+    },
+    "diagnostics.exportFooter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The report has the log of this and the previous launch, the last crash, versions, settings without passwords and how many records the library has."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "В отчёте — журнал этого и прошлого запуска, последнее падение, версии, настройки без паролей и число записей в библиотеке."
+          }
+        }
+      }
+    },
+    "diagnostics.lastCrash" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last crash"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Последнее падение"
+          }
+        }
+      }
+    },
+    "diagnostics.showInFinder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show in Finder"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показать в Finder"
+          }
+        }
+      }
+    },
+    "diagnostics.system" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "System"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Система"
+          }
+        }
+      }
+    },
+    "diagnostics.test" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Test extraction"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Проверить извлечение"
+          }
+        }
+      }
+    },
+    "diagnostics.test.ok %@ %lld %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · itag %2$lld · %3$lld ms"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · itag %2$lld · %3$lld мс"
+          }
+        }
+      }
+    },
+    "diagnostics.versions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Versions"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Версии"
           }
         }
       }
@@ -3524,6 +3847,261 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Вчера"
+          }
+        }
+      }
+    },
+    "import.datesSkipped %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plays and likes with impossible dates are left out: %lld."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Прослушивания и лайки с невозможными датами пропущены: %lld."
+          }
+        }
+      }
+    },
+    "import.doneTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Library imported"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Библиотека импортирована"
+          }
+        }
+      }
+    },
+    "import.failedTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not import"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось импортировать"
+          }
+        }
+      }
+    },
+    "import.fromViTune" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import from ViTune or ViMusic"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Импорт из ViTune или ViMusic"
+          }
+        }
+      }
+    },
+    "import.fromViTune.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tracks, history, favorites, playlists and lyrics join your library"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Треки, история, Избранное, плейлисты и тексты добавятся к библиотеке"
+          }
+        }
+      }
+    },
+    "import.localSkipped %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Local files are not moved: %lld."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Локальные файлы не перенесены: %lld."
+          }
+        }
+      }
+    },
+    "import.notBackup" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This is not a ViTune, ViMusic or Melogold backup."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Это не копия ViTune, ViMusic или Melogold."
+          }
+        }
+      }
+    },
+    "import.openHistory" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open history"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Открыть историю"
+          }
+        }
+      }
+    },
+    "import.playsKnown %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plays that were already here are not repeated: %lld."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Прослушивания, которые уже были, не повторяются: %lld."
+          }
+        }
+      }
+    },
+    "import.running" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Importing the library…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Импортируем библиотеку…"
+          }
+        }
+      }
+    },
+    "import.summary %lld %lld %lld %lld %lld %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New tracks: %1$lld. Plays: %2$lld. Favorites: %3$lld. Lyrics: %4$lld. Playlists: %5$lld. Saved albums and artists: %6$lld."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Новых треков — %1$lld, прослушиваний — %2$lld, в Избранном — %3$lld, текстов — %4$lld, плейлистов — %5$lld, сохранённых альбомов и исполнителей — %6$lld."
+          }
+        }
+      }
+    },
+    "import.syncNote" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The history goes to your other devices through the server bit by bit: up to 2000 plays an hour."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "На другие устройства история уйдёт через сервер постепенно — до 2000 прослушиваний в час."
+          }
+        }
+      }
+    },
+    "import.tooOld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This backup is too old to read."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Эта копия слишком старая."
+          }
+        }
+      }
+    },
+    "import.unreadable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The file could not be read. It may be damaged."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Файл не читается. Возможно, он повреждён."
+          }
+        }
+      }
+    },
+    "import.unsupported" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backups of InnerTune, Metrolist and similar apps are not supported yet."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Копии InnerTune, Metrolist и похожих приложений пока не поддерживаются."
           }
         }
       }
@@ -4977,6 +5555,23 @@
         }
       }
     },
+    "menu.importViTune" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import from ViTune or ViMusic…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Импорт из ViTune или ViMusic…"
+          }
+        }
+      }
+    },
     "menu.like" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5109,6 +5704,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Убрать из очереди"
+          }
+        }
+      }
+    },
+    "menu.saveBackup" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save Library Copy…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сохранить копию библиотеки…"
           }
         }
       }
@@ -7819,6 +8431,23 @@
         }
       }
     },
+    "settings.diagnostics" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diagnostics"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Диагностика"
+          }
+        }
+      }
+    },
     "settings.downloads" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7972,6 +8601,23 @@
         }
       }
     },
+    "settings.keepScreenOn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep screen on while lyrics are open"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не гасить экран, пока открыт текст"
+          }
+        }
+      }
+    },
     "settings.language" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8019,6 +8665,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Библиотека и история"
+          }
+        }
+      }
+    },
+    "settings.licenses" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Licenses"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Лицензии"
           }
         }
       }
@@ -8121,6 +8784,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Хранилище и данные"
+          }
+        }
+      }
+    },
+    "settings.streamInfo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stream info"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сведения о потоке"
           }
         }
       }
@@ -8482,6 +9162,244 @@
         }
       }
     },
+    "stream.bitrate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bitrate"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Битрейт"
+          }
+        }
+      }
+    },
+    "stream.client" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Extraction client"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Клиент извлечения"
+          }
+        }
+      }
+    },
+    "stream.codec" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codec"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Кодек"
+          }
+        }
+      }
+    },
+    "stream.db %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ dB"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ дБ"
+          }
+        }
+      }
+    },
+    "stream.expires" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Link expires"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Срок жизни ссылки"
+          }
+        }
+      }
+    },
+    "stream.gain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Applied gain"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Применённое усиление"
+          }
+        }
+      }
+    },
+    "stream.kbps %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld kbps"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld кбит/с"
+          }
+        }
+      }
+    },
+    "stream.loudness" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loudness (loudnessDb)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Громкость (loudnessDb)"
+          }
+        }
+      }
+    },
+    "stream.networkBytes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bytes downloaded"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Скачано байт"
+          }
+        }
+      }
+    },
+    "stream.size" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Size"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Размер"
+          }
+        }
+      }
+    },
+    "stream.source" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Source"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Источник"
+          }
+        }
+      }
+    },
+    "stream.source.cache" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cache"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Кэш"
+          }
+        }
+      }
+    },
+    "stream.source.download" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Загрузка"
+          }
+        }
+      }
+    },
+    "stream.source.network" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Network"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сеть"
+          }
+        }
+      }
+    },
     "sync.now" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8733,6 +9651,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "В тренде"
+          }
+        }
+      }
+    },
+    "updates.check" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check for Updates…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Проверить обновления…"
           }
         }
       }

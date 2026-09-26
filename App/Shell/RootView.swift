@@ -58,6 +58,7 @@ struct RootView: View {
                 model.exportedFile = nil
             }
             #endif
+            .modifier(LibraryTransferModifier())
             .onAppear { model.undoManager = undoManager }
             .onChange(of: undoManager) { model.undoManager = undoManager }
             .onChange(of: scenePhase) { _, phase in
@@ -152,6 +153,12 @@ struct RouteView: View {
             LocalPlaylistView(playlistId: id)
         case .hiddenTracks:
             HiddenTracksView()
+        case .streamInfo:
+            StreamInfoView()
+        case .diagnostics:
+            DiagnosticsView()
+        case .licenses:
+            LicensesView()
         }
     }
 }

@@ -120,7 +120,10 @@ public enum TtmlFormat {
                 case .element(let element) where element.local == "span":
                     switch element.attribute(nsTtm, "role") {
                     case "x-bg":
-                        collect(element, into: &backgroundWords, plainText: false)
+                        // Через копию: `backgroundWords` захвачен этой же функцией (исключительный доступ в Release)
+                        var words = backgroundWords
+                        collect(element, into: &words, plainText: false)
+                        backgroundWords = words
                         if backgroundWords.isEmpty { backgroundText = element.innerText.trimmingCharacters(in: .whitespacesAndNewlines) }
                     case "x-translation":
                         let text = element.innerText.trimmingCharacters(in: .whitespacesAndNewlines)

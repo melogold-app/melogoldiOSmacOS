@@ -1,6 +1,6 @@
 # App Store и TestFlight: iPhone, iPad, Vision Pro, Apple Watch
 
-Статус: открыто
+Статус: в работе
 
 Дополнение к `docs/PROMPT.md` (§3, грабли §9, п. 19), срез 8.
 

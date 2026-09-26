@@ -2,8 +2,8 @@ import SwiftUI
 import MelogoldCore
 import MelogoldData
 
-/// «Воспроизведение» (REWRITE §3.5.3): только то, что есть на Android. Скорость — одна глобальная настройка,
-/// в меню плеера её нет (docs/PROMPT.md §4).
+/// «Воспроизведение» (REWRITE §3.5.3): только то, что есть на Android, и «Сведения о потоке». Скорость — одна
+/// глобальная настройка, в меню плеера её нет (docs/PROMPT.md §4). «Не гасить экран» — только iPhone и iPad.
 struct PlaybackSettingsSection: View {
     @Environment(AppModel.self) private var model
 
@@ -21,6 +21,10 @@ struct PlaybackSettingsSection: View {
                 }
             }
             .onChange(of: settings.speed) { _, value in player.speed = Float(value) }
+            #if os(iOS)
+            Toggle("settings.keepScreenOn", isOn: $settings.lyricsKeepScreenOn)
+            #endif
+            NavigationLink(value: Route.streamInfo) { Text("settings.streamInfo") }
         }
     }
 }
@@ -92,6 +96,22 @@ struct StorageSettingsSection: View {
                 used = bytes
                 artwork = artworkBytes
             }
+        }
+    }
+}
+
+/// Копия библиотеки в «Хранилище и данные» (задание 0006): «Сохранить копию» и «Импорт копии».
+struct BackupSettingsSection: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        Section {
+            Button("backup.save") { model.saveBackup() }
+            Button("backup.import") { model.chooseBackupToImport() }
+        } header: {
+            Text("backup.title")
+        } footer: {
+            Text("backup.importFooter")
         }
     }
 }

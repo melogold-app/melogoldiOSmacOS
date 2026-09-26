@@ -1,0 +1,60 @@
+# Выпуск для Mac (задание 0004): DMG и appcast Sparkle в GitHub Releases. По тегу vX.Y.Z — сборка и публикация;
+# вручную — сборка, а публикация, только если отмечено «publish». Шаги — в scripts/release-macos.sh.
+# Без секретов подписи DMG подписан ad-hoc и не нотаризован; итог выпуска говорит, каких секретов не хватило.
+name: Release macOS
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Опубликовать выпуск (тег создаётся на этом коммите)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-macos-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    # Тот же образ и Xcode, что в CI (docs/PROMPT.md §3)
+    runs-on: xcode-27
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Xcode 27
+        run: |
+          xcode=$(ls -d /Applications/Xcode_27.app /Applications/Xcode_27.0*.app 2>/dev/null | head -1)
+          if [ -z "$xcode" ]; then echo "Xcode 27 не найден" >&2; ls -d /Applications/Xcode*.app; exit 1; fi
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
+
+      - name: Выпуск
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          MACOS_DEVELOPER_ID_P12_BASE64: ${{ secrets.MACOS_DEVELOPER_ID_P12_BASE64 }}
+          MACOS_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+          ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          MELOGOLD_PUBLISH: ${{ inputs.publish && '1' || '0' }}
+          MELOGOLD_BUILD_DIR: ${{ runner.temp }}/melogold-release
+        run: scripts/release-macos.sh
+
+      - name: DMG в артефактах запуска
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: melogold-macos
+          path: |
+            ${{ runner.temp }}/melogold-release/*.dmg
+            ${{ runner.temp }}/melogold-release/appcast.xml
+          if-no-files-found: ignore

@@ -67,6 +67,11 @@ final class AppModel {
     /// «Переименовать» свой плейлист.
     var renameRequest: LibraryPlaylist?
 
+    /// Импорт копии и «Сохранить копию» (задание 0006): окно выбора файла, ход и итог импорта, готовая копия.
+    var importPicker = false
+    var importState: LibraryImportState?
+    var backupDocument: BackupDocument?
+
     /// Открыт «Сейчас играет».
     var showNowPlaying = false
 

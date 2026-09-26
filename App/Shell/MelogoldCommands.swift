@@ -12,6 +12,10 @@ struct MelogoldCommands: Commands {
     private static let keys: [KeyEquivalent] = ["1", "2", "3", "4", "5"]
 
     var body: some Commands {
+        CommandGroup(after: .appInfo) {
+            CheckForUpdatesButton()
+        }
+
         CommandGroup(replacing: .appSettings) {
             Button("menu.settings") { model.select(.settings) }
                 .keyboardShortcut(",", modifiers: .command)
@@ -25,6 +29,12 @@ struct MelogoldCommands: Commands {
             Divider()
             Button("menu.back") { model.goBack() }
                 .keyboardShortcut("[", modifiers: .command)
+        }
+
+        // «Файл»: импорт копии и «Сохранить копию библиотеки…» (задание 0006)
+        CommandGroup(replacing: .importExport) {
+            Button("menu.importViTune") { model.chooseBackupToImport() }
+            Button("menu.saveBackup") { model.saveBackup() }
         }
 
         CommandGroup(after: .textEditing) {

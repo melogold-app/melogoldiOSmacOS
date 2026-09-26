@@ -1,0 +1,41 @@
+# Сборки для App Store Connect и TestFlight (задание 0005): iOS (iPhone, iPad, часы внутри) и visionOS. По тегу vX.Y.Z
+# и вручную. Шаги — в scripts/release-testflight.sh. Без секретов архивы собираются без подписи и не загружаются;
+# итог говорит, каких секретов не хватило. Публикация в App Store — только по команде пользователя.
+name: TestFlight
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testflight-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  testflight:
+    runs-on: xcode-27
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Xcode 27
+        run: |
+          xcode=$(ls -d /Applications/Xcode_27.app /Applications/Xcode_27.0*.app 2>/dev/null | head -1)
+          if [ -z "$xcode" ]; then echo "Xcode 27 не найден" >&2; ls -d /Applications/Xcode*.app; exit 1; fi
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
+
+      - name: Архивы и загрузка
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+          ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+          APPLE_DISTRIBUTION_P12_BASE64: ${{ secrets.APPLE_DISTRIBUTION_P12_BASE64 }}
+          APPLE_DISTRIBUTION_P12_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_P12_PASSWORD }}
+          MELOGOLD_BUILD_DIR: ${{ runner.temp }}/melogold-testflight
+        run: scripts/release-testflight.sh

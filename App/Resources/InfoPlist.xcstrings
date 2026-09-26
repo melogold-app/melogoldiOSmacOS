@@ -18,6 +18,24 @@
           }
         }
       }
+    },
+    "NSSiriUsageDescription" : {
+      "comment" : "Privacy - Siri Usage Description",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siri plays music in Melogold when you ask."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siri включает музыку в Melogold, когда вы просите."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
