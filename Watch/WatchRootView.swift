@@ -40,6 +40,7 @@ struct WatchRootView: View {
                 case .newReleases: WatchNewReleasesView()
                 case .library(let page): WatchLibraryPageView(page: page)
                 case .queue: WatchQueueView()
+                case .lyrics: WatchLyricsView()
                 }
             }
         }

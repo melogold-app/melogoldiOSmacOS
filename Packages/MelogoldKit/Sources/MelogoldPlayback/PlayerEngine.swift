@@ -349,6 +349,12 @@ public final class PlayerEngine {
         startCurrent(tapped: true)
     }
 
+    /// Позиция прямо сейчас, по часам рендерера (для заливки слов текста; `position` обновляется раз в 100 мс).
+    public func livePosition() -> Double {
+        guard let segment = currentSegment, phase == .playing else { return position }
+        return min(max(0, (pipeline.currentTime - segment.start).seconds), max(duration, position))
+    }
+
     // MARK: - Правка очереди
 
     /// Убрать элемент; текущий — перейти к следующему.

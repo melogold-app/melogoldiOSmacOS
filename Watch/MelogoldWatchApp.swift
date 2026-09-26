@@ -52,7 +52,11 @@ struct MelogoldWatchApp: App {
                     }
                     // -MelogoldPlayVideo <id> — видео по id (кадр видео в корне и «Сейчас играет», задание 0008).
                     if let videoId = defaults.string(forKey: "MelogoldPlayVideo") {
-                        model.services.player.playSingle(Track(videoId: videoId, title: videoId, videoType: VideoType.video))
+                        let isSong = defaults.bool(forKey: "MelogoldPlaySong")
+                        model.services.player.playSingle(isSong
+                            ? Track(videoId: videoId, title: "Группа крови", artistsText: "Кино", albumTitle: "Группа крови", durationMs: 285_000,
+                                    videoType: VideoType.song)
+                            : Track(videoId: videoId, title: videoId, videoType: VideoType.video))
                     }
                     // -MelogoldOpen trends|new|album:<id>|artist:<id>|playlist:<id> — экран для снимка.
                     if let target = defaults.string(forKey: "MelogoldOpen") {
@@ -66,6 +70,7 @@ struct MelogoldWatchApp: App {
                         case ("library", _): model.path = [.section(.library)]
                         case ("allTracks", _): model.path = [.section(.library), .library(.allTracks)]
                         case ("settings", _): model.path = [.section(.settings)]
+                        case ("lyrics", _): model.path = [.nowPlaying, .lyrics]
                         default: break
                         }
                     }
@@ -91,6 +96,7 @@ enum WatchRoute: Hashable {
     case newReleases
     case library(WatchLibraryPage)
     case queue
+    case lyrics
 }
 
 /// Состояние приложения часов.
@@ -114,6 +120,8 @@ final class WatchModel {
         self.account = Account(settings: services.settings)
         self.sync = LibrarySync(account: account, database: services.database)
         sync.start()
+        let lyricsSync = sync
+        services.lyricsFetcher.community = { videoId in try await lyricsSync.serverLyrics(videoId) }
         let center = NotificationCenter.default
         let sync = sync
         lifecycle = [

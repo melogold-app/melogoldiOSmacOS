@@ -66,6 +66,11 @@ final class AppModel {
     /// Открыт «Сейчас играет».
     var showNowPlaying = false
 
+    /// В «Сейчас играет» показан текст (срез 6); лист «Найти текст» и редактор текста.
+    var lyricsVisible = false
+    var lyricsSearch = false
+    var lyricsEditor = false
+
     /// Курсор в поле ввода: пробел вводит пробел, а не ставит паузу (Mac, docs/PROMPT.md §5.4).
     var textInputActive = false
 
@@ -83,6 +88,9 @@ final class AppModel {
         self.section = services.settings.lastTab
         refreshCached()
         sync.start()
+        // Цепочка поиска текста спрашивает сервер, если провайдеры не нашли синхронный (задание 0001 §3.5).
+        let lyricsSync = sync
+        services.lyricsFetcher.community = { videoId in try await lyricsSync.serverLyrics(videoId) }
         lifecycle = SyncLifecycle.observe(sync)
         wasOnline = services.network.isOnline
         observeNetwork()

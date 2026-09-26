@@ -4,7 +4,7 @@ import MelogoldCore
 import MelogoldPlayback
 
 /// «Сейчас играет» на часах (docs/PROMPT.md §5.6): системный `NowPlayingView` — название, обложка, управление,
-/// громкость колесиком Digital Crown и выбор наушников — и нижняя панель: ♡ и «Очередь» («Текст» — срез 6).
+/// громкость колесиком Digital Crown и выбор наушников — и нижняя панель: ♡, «Текст» и «Очередь».
 /// Длинное аудио watchOS выводит только в Bluetooth: без наушников — понятная причина и «Повторить».
 struct WatchNowPlayingView: View {
     @Environment(WatchModel.self) private var model
@@ -32,6 +32,11 @@ struct WatchNowPlayingView: View {
                             }
                             .accessibilityLabel(Text(liked ? "menu.unlike" : "menu.like"))
                         }
+                        Spacer()
+                        NavigationLink(value: WatchRoute.lyrics) {
+                            Image(systemName: "quote.bubble")
+                        }
+                        .accessibilityLabel(Text("player.lyrics"))
                         Spacer()
                         NavigationLink(value: WatchRoute.queue) {
                             Image(systemName: "list.bullet")

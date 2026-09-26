@@ -10,6 +10,7 @@ import MelogoldCore
 ///     -MelogoldOpenLink "https://youtu.be/…"             ссылка или текст — как вставка в Поиске
 ///     -MelogoldOpen album:<id>|artist:<id>|playlist:<id>|moods|releases   детальный экран в текущем разделе
 ///     -MelogoldShowNowPlaying YES                      открыть «Сейчас играет», как только появится трек
+///     -MelogoldShowLyrics YES, -MelogoldLyricsEditor YES   вместе с ним — текст и редактор текста
 ///     -MelogoldSeedLibrary YES                          пример библиотеки для снимков: лайки, плейлист, история, альбом
 enum DebugLaunch {
     /// Пример библиотеки из живого альбома «Группа крови»: лайки, плейлист, прослушивания, сохранённые альбом и
@@ -49,7 +50,12 @@ enum DebugLaunch {
                 for _ in 0..<300 where model.services.player.currentTrack == nil {
                     try? await Task.sleep(for: .milliseconds(100))
                 }
+                model.lyricsVisible = defaults.bool(forKey: "MelogoldShowLyrics")
                 model.showNowPlaying = model.services.player.currentTrack != nil
+                if defaults.bool(forKey: "MelogoldLyricsEditor") {
+                    try? await Task.sleep(for: .seconds(4))
+                    model.lyricsEditor = true
+                }
             }
         }
         if let target = defaults.string(forKey: "MelogoldOpen") {

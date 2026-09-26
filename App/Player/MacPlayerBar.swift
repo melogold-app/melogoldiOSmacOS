@@ -41,6 +41,19 @@ struct MacPlayerBar: View {
                 .frame(maxWidth: .infinity)
 
                 HStack(spacing: 12) {
+                    Button {
+                        if model.showNowPlaying && model.lyricsVisible {
+                            model.showNowPlaying = false
+                        } else {
+                            model.lyricsVisible = true
+                            model.showNowPlaying = true
+                        }
+                    } label: {
+                        Image(systemName: model.showNowPlaying && model.lyricsVisible ? "quote.bubble.fill" : "quote.bubble")
+                    }
+                    .buttonStyle(.borderless)
+                    .help(Text("player.lyrics"))
+                    .accessibilityLabel(Text("player.lyrics"))
                     RoutePickerButton()
                         .frame(width: 28, height: 28)
                         .accessibilityLabel(Text("player.airplay"))
@@ -49,7 +62,7 @@ struct MacPlayerBar: View {
                         .frame(width: 100)
                         .accessibilityLabel(Text("player.volume"))
                 }
-                .frame(width: 200, alignment: .trailing)
+                .frame(width: 230, alignment: .trailing)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)

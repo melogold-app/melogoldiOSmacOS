@@ -2,14 +2,16 @@ import SwiftUI
 import MelogoldCore
 import MelogoldPlayback
 
-/// «Сейчас играет» (docs/PROMPT.md §5.7): обложка, название, исполнитель, ползунок перемотки, ⏮ ⏯ ⏭, AirPlay.
-/// В широком окне и на iPhone боком — обложка слева, управление справа (REWRITE §3.10.11). Текст, очередь, ♡,
-/// таймер и фон по цвету обложки — в следующих срезах.
+/// «Сейчас играет» (docs/PROMPT.md §5.7): обложка (нажатие — текст), название, исполнитель, ♡, ползунок перемотки,
+/// ⇄ ⏮ ⏯ ⏭ ⟲, «Текст», AirPlay. В широком окне и на iPhone боком — обложка слева, управление справа (REWRITE
+/// §3.10.11); с текстом — слева обложка и управление, справа текст. На узком экране текст встаёт на место обложки,
+/// а название — в строку над ним. Очередь, таймер и фон по цвету обложки — в срезе 7.
 struct NowPlayingView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
+        @Bindable var model = model
         let player = model.services.player
         GeometryReader { proxy in
             let wide = proxy.size.width > proxy.size.height * 1.1
@@ -17,10 +19,31 @@ struct NowPlayingView: View {
                 if let track = player.currentTrack {
                     if wide {
                         HStack(spacing: 40) {
-                            artwork(track, side: min(proxy.size.height - 80, proxy.size.width / 2 - 60))
-                            controls(track).frame(maxWidth: 440)
+                            if model.lyricsVisible {
+                                VStack(spacing: 20) {
+                                    artwork(track, side: min(proxy.size.height * 0.42, proxy.size.width * 0.3))
+                                    controls(track)
+                                }
+                                .frame(maxWidth: 420)
+                                lyricsColumn
+                            } else {
+                                artwork(track, side: min(proxy.size.height - 80, proxy.size.width / 2 - 60))
+                                controls(track).frame(maxWidth: 440)
+                            }
                         }
+                        .padding(.horizontal, 40)
+                        .padding(.top, 56)
+                        .padding(.bottom, 24)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if model.lyricsVisible {
+                        VStack(spacing: 12) {
+                            compactHeader(track)
+                                .padding(.top, 56)
+                            lyricsColumn
+                            controls(track, showsTitle: false)
+                                .padding(.bottom, 12)
+                        }
+                        .padding(.horizontal, 24)
                     } else {
                         VStack(spacing: 28) {
                             Spacer(minLength: 0)
@@ -48,26 +71,64 @@ struct NowPlayingView: View {
             .accessibilityLabel(Text("common.collapse"))
             .keyboardShortcut(.cancelAction)
         }
+        .sheet(isPresented: $model.lyricsSearch) { LyricsSearchSheet() }
+        #if os(macOS)
+        .sheet(isPresented: $model.lyricsEditor) { LyricsEditorView() }
+        #elseif os(iOS)
+        .fullScreenCover(isPresented: $model.lyricsEditor) { LyricsEditorView() }
+        #endif
+    }
+
+    private var lyricsColumn: some View {
+        LyricsPanel()
+            .overlay(alignment: .topTrailing) { LyricsMenu() }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func artwork(_ track: Track, side: CGFloat) -> some View {
-        NowPlayingArtwork(url: track.artworkURL, side: max(120, side))
-            .shadow(color: .black.opacity(0.2), radius: 16, y: 8)
-            .accessibilityHidden(true)
+        Button {
+            withAnimation(.snappy) { model.lyricsVisible = true }
+        } label: {
+            NowPlayingArtwork(url: track.artworkURL, side: max(120, side))
+                .shadow(color: .black.opacity(0.2), radius: 16, y: 8)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text("player.lyrics"))
     }
 
-    private func controls(_ track: Track) -> some View {
-        VStack(spacing: 20) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(track.title)
-                        .font(.title2.weight(.bold))
-                        .lineLimit(2)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    PlayerStatusLine(font: .title3)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+    /// Узкий экран с текстом: маленькая обложка и название над текстом; нажатие по обложке — обратно к обложке.
+    private func compactHeader(_ track: Track) -> some View {
+        HStack(spacing: 12) {
+            Button {
+                withAnimation(.snappy) { model.lyricsVisible = false }
+            } label: {
+                ArtworkView(url: track.artworkURL, size: 56)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text("lyrics.artwork"))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(track.title).font(.headline).lineLimit(1)
+                PlayerStatusLine(font: .subheadline)
+            }
+            Spacer(minLength: 8)
+            LikeButton(size: .title3)
+        }
+    }
+
+    private func controls(_ track: Track, showsTitle: Bool = true) -> some View {
+        VStack(spacing: showsTitle ? 20 : 12) {
+            if showsTitle {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(track.title)
+                            .font(.title2.weight(.bold))
+                            .lineLimit(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        PlayerStatusLine(font: .title3)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    LikeButton(size: .title2)
                 }
-                LikeButton(size: .title2)
             }
             SeekBar()
             HStack(spacing: 28) {
@@ -77,12 +138,20 @@ struct NowPlayingView: View {
                 NextButton(size: .title)
                 RepeatToggle(size: .title3)
             }
-            HStack {
-                Spacer()
+            HStack(spacing: 32) {
+                Button {
+                    withAnimation(.snappy) { model.lyricsVisible.toggle() }
+                } label: {
+                    Image(systemName: model.lyricsVisible ? "quote.bubble.fill" : "quote.bubble")
+                        .font(.title3)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(model.lyricsVisible ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                .accessibilityLabel(Text("player.lyrics"))
                 RoutePickerButton()
                     .frame(width: 44, height: 44)
                     .accessibilityLabel(Text("player.airplay"))
-                Spacer()
             }
         }
     }

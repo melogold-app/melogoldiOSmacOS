@@ -28,6 +28,10 @@ final class Services {
     let explore: ExploreStore
     /// «Для вас» в Новом.
     let forYou: ForYouStore
+    /// Тексты: цепочка поиска (срез 6), кэш и свои тексты в базе, текст играющего трека.
+    let lyricsFetcher: LyricsFetcher
+    let lyricsStore: LyricsStore?
+    let lyrics: LyricsModel
 
     init(settings: AppSettings, paths: AppPaths?) {
         self.settings = settings
@@ -68,10 +72,14 @@ final class Services {
         searchHistory = database.map { SearchHistory(database: $0) }
         explore = ExploreStore(catalog: catalog, file: paths?.caches.appendingPathComponent("explore.json"))
         forYou = ForYouStore(catalog: catalog, file: paths?.caches.appendingPathComponent("foryou.json"))
+        let lrcLibAgent = "Melogold \(AppVersion.current) (https://github.com/melogold-app/melogoldiOSmacOS)"
+        lyricsFetcher = LyricsFetcher(music: catalog, lrcLib: LrcLib(userAgent: lrcLibAgent))
+        lyricsStore = database.map { LyricsStore(database: $0) }
         network.onPathChange = { [resolver, downloads] in
             Task { await resolver.invalidateAll() }
             downloads?.networkChanged()
         }
+        lyrics = LyricsModel(fetcher: lyricsFetcher, store: lyricsStore, player: player)
         configureLibraryHooks()
         start()
     }

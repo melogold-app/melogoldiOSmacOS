@@ -190,3 +190,25 @@ struct LibraryTests {
         #expect(store.entry("a1aaaaaaaaa") == nil)
     }
 }
+
+@Suite("Тексты на устройстве")
+struct LyricsStoreTests {
+    @Test func ownLyricsAreRecordedForSync() throws {
+        final class Box: @unchecked Sendable { var ids: [String] = [] }
+        let box = Box()
+        let store = LyricsStore(database: try AppDatabase.inMemory())
+        store.setOwnLyricsRecorder { _, videoId in box.ids.append(videoId) }
+        store.save("a1aaaaaaaaa", StoredLyrics(synced: "[00:01.00]x", plain: nil, syncedSource: LyricsSources.lrclib, plainSource: nil))
+        #expect(box.ids.isEmpty)
+        store.save("a1aaaaaaaaa", StoredLyrics(synced: "<tt/>", plain: nil, syncedSource: LyricsSources.user, plainSource: nil))
+        store.delete("a1aaaaaaaaa")
+        store.delete("a1aaaaaaaaa")
+        #expect(box.ids == ["a1aaaaaaaaa", "a1aaaaaaaaa"])
+        store.save("b2bbbbbbbbb", StoredLyrics(synced: nil, plain: "p", syncedSource: nil, plainSource: LyricsSources.youtubeMusic))
+        store.save("c3ccccccccc", StoredLyrics(synced: nil, plain: "own", syncedSource: nil, plainSource: LyricsSources.file))
+        #expect(store.fetchedSize() == 1)
+        store.clearFetched()
+        #expect(store.lyrics("b2bbbbbbbbb") == nil)
+        #expect(store.lyrics("c3ccccccccc")?.plain == "own")
+    }
+}

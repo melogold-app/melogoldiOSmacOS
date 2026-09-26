@@ -1,6 +1,6 @@
 # Тексты песен через сервер: задание для клиента Apple
 
-Статус: открыто
+Статус: в работе
 
 Дополнение к `docs/PROMPT.md` (порядок работы — `tasks/README.md`), срез 6. Контракт ниже решён и работает на живом сервере. Android (0.1.2, `app/.../sync/LyricsSync.kt`) и Windows (коммит `056576b`: `src/Melogold.Core/Lyrics/LyricsSyncRules.cs`, `src/Melogold.Server/LibrarySync.cs`) его уже выполнили. Не меняй контракт. Если чего-то не хватает, скажи пользователю.
 
@@ -118,3 +118,10 @@ type MyLyricsPage = { items: MyLyrics[]; rev: number; more: boolean };
 ## 5. Что уже сделано в срезе 5 (ветка `apple/account`)
 
 Цикл синхронизации текстов (§3.1, §3.3, §3.4, §3.7) — в `LibrarySync` вместе с библиотекой: свой текст (`user`/`file`) → `PUT`, пропавший → `DELETE`, `POST /auth/me/lyrics/changes` после `lyricsRev`, надгробие удаляет только неизменённый текст, 413 и 400 — `rev −1` в `synced_lyrics`, повод — SSE `lyrics.changed` и правка таблицы `lyrics` (через 2 с); только при `features.lyrics`. Правила — `MelogoldCore/Sync/LyricsSyncRules.swift` (как `LyricsSyncRules.cs` Windows), модель строки — `StoredLyrics`, источники — `LyricsSources`. Для среза 6 остаются модель текста (LRC/TTML), показ, поиск, импорт и редактор; для цепочки поиска уже есть `LibrarySync.serverLyrics(videoId)` (своя или общая версия, `mine`), а текст, не принятый сервером как слишком большой, — `LibrarySync.rejectedLyrics`.
+
+## 6. Что сделано в срезе 6
+
+Модель текста (LRC, TTML с дуэтами, подпевкой и словами — по `spec/lyrics.md` и векторам), показ на всех платформах
+и на часах, цепочка поиска с общими текстами сервера (`LyricsFetcher.community` → `LibrarySync.serverLyrics`, подпись
+«Текст от сообщества Melogold»), импорт `.lrc`/`.ttml` (источник `file`) и редактор (источник `user`). Остаётся
+сквозная проверка §4 на живом сервере с двумя устройствами — её делает основная сессия вместе с синком.
