@@ -47,7 +47,7 @@ public struct AppPaths: Sendable {
         (try? url.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup) == true
     }
 
-    private static func excludeFromBackup(_ url: URL) throws {
+    public static func excludeFromBackup(_ url: URL) throws {
         var values = URLResourceValues()
         values.isExcludedFromBackup = true
         var target = url

@@ -2,6 +2,7 @@ import SwiftUI
 import MelogoldCore
 import MelogoldInnerTube
 import MelogoldPlayback
+import MelogoldData
 
 /// Плейлист YouTube, он же «Весь список» чарта (REWRITE §3.8.2): шапка, «Слушать · Перемешать», продолжения при
 /// прокрутке. «Слушать» и «Перемешать» до полной загрузки ставят в очередь полученное и дозагружают остальное
@@ -10,6 +11,7 @@ struct PlaylistView: View {
     @Environment(AppModel.self) private var model
     let playlistId: String
     @State private var page = PlaylistPageModel()
+    @State private var saveOptions = false
 
     var body: some View {
         Group {
@@ -68,6 +70,9 @@ struct PlaylistView: View {
         }
         .toolbar {
             ToolbarItem {
+                saveButton(details)
+            }
+            ToolbarItem {
                 Menu {
                     Section {
                         Button { model.playNext(tracks) } label: {
@@ -76,6 +81,9 @@ struct PlaylistView: View {
                         Button { model.enqueue(tracks) } label: {
                             Label("menu.addToQueue", systemImage: "text.line.last.and.arrowtriangle.forward")
                         }
+                    }
+                    Button { save(details, link: .append, download: true) } label: {
+                        Label("menu.download", systemImage: "arrow.down.circle")
                     }
                     Button { model.playMix("RDAMPL" + playlistId) } label: {
                         Label("playlist.radio", systemImage: "dot.radiowaves.left.and.right")
@@ -86,6 +94,52 @@ struct PlaylistView: View {
                 } label: {
                     Label("menu.more", systemImage: "ellipsis")
                 }
+            }
+        }
+    }
+}
+
+extension PlaylistView {
+    /// «⊕ Сохранить» — лист со связью (REWRITE §3.8.2); сохранённый — «✓ В библиотеке», нажатие открывает свой плейлист.
+    @ViewBuilder
+    func saveButton(_ details: PlaylistDetails) -> some View {
+        let _ = model.library?.revision
+        let saved = model.library?.library.playlist(browseId: playlistId)
+        Button {
+            if let saved { model.open(.localPlaylist(saved.id)) } else { saveOptions = true }
+        } label: {
+            Label(saved == nil ? "collection.save" : "collection.inLibrary", systemImage: saved == nil ? "plus" : "checkmark")
+        }
+        .accessibilityLabel(Text(saved == nil ? "collection.save" : "collection.inLibrary"))
+        .confirmationDialog(Text("collection.save"), isPresented: $saveOptions) {
+            Button("playlist.save.append") { save(details, link: .append) }
+            Button("playlist.save.mirror") { save(details, link: .mirror) }
+            Button("playlist.save.copy") { save(details, link: nil) }
+        }
+    }
+
+    /// Сохранить только полный список (все продолжения), затем «Сохранено в Библиотеку · Открыть».
+    func save(_ details: PlaylistDetails, link: LibraryPlaylist.YouTubeLink?, download: Bool = false) {
+        let catalog = model.services.catalog
+        let playlistId = playlistId
+        model.toast = Toast(text: String(localized: "playlist.saving"))
+        Task {
+            do {
+                let tracks = try await catalog.playlistTracks(playlistId, max: 5000)
+                let library = model.library?.library
+                let existing = library?.playlist(browseId: playlistId)
+                guard let id = existing?.id ?? library?.createPlaylist(
+                    name: details.playlist.title, tracks: tracks, browseId: link == nil ? nil : playlistId,
+                    thumbnailUrl: details.playlist.thumbnailUrl, link: link
+                ) else { return }
+                if download {
+                    model.services.downloads?.setCollection(.playlist, key: String(id), title: details.playlist.title, downloading: true)
+                }
+                model.toast = Toast(text: String(localized: "playlist.saved"), actionTitle: "common.open") {
+                    model.open(.localPlaylist(id))
+                }
+            } catch {
+                model.toast = Toast(text: String(localized: "playlist.link.incomplete"))
             }
         }
     }

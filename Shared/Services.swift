@@ -21,8 +21,13 @@ final class Services {
     let player: PlayerEngine
     let searchHistory: SearchHistory?
     let network = NetworkStatus()
+    /// Библиотека и загрузки (срез 4); без базы — нет.
+    let library: LibraryStore?
+    let downloads: DownloadManager?
     /// «Обзор» YouTube Music — общий для Трендов и Нового.
     let explore: ExploreStore
+    /// «Для вас» в Новом.
+    let forYou: ForYouStore
 
     init(settings: AppSettings, paths: AppPaths?) {
         self.settings = settings
@@ -51,17 +56,50 @@ final class Services {
             cache = nil
         }
         #endif
-        player = PlayerEngine(catalog: catalog, resolver: resolver, cache: cache)
+        let downloadStore = database.flatMap { database in paths.map { DownloadStore(database: database, directory: $0.downloads) } }
+        let resolver = resolver
+        let downloadManager = downloadStore.map { DownloadManager(store: $0, resolver: resolver) }
+        downloads = downloadManager
+        library = database.map { LibraryStore(library: Library(database: $0), downloads: downloadManager) }
+        player = PlayerEngine(catalog: catalog, resolver: resolver, cache: cache, downloads: downloadStore)
         player.normalization = settings.normalization
         player.autoplayEnabled = settings.autoplay
         player.speed = Float(settings.speed)
         searchHistory = database.map { SearchHistory(database: $0) }
         explore = ExploreStore(catalog: catalog, file: paths?.caches.appendingPathComponent("explore.json"))
-        network.onPathChange = { [resolver] in
+        forYou = ForYouStore(catalog: catalog, file: paths?.caches.appendingPathComponent("foryou.json"))
+        network.onPathChange = { [resolver, downloads] in
             Task { await resolver.invalidateAll() }
+            downloads?.networkChanged()
         }
+        configureLibraryHooks()
         start()
     }
+
+    /// История, скрытые треки и очередь между запусками (срез 4).
+    private func configureLibraryHooks() {
+        guard let library else { return }
+        let settings = settings
+        player.onPlayed = { track, playTimeMs in
+            // «Не сохранять историю» — прослушивания не пишутся (REWRITE §3.2.4).
+            guard !settings.historyPaused else { return }
+            library.library.recordPlay(track, playTimeMs: playTimeMs)
+        }
+        player.isExcluded = { [weak library] track in
+            guard let library else { return false }
+            return library.hiddenIds.contains(track.videoId) || library.notInterestedIds.contains(track.videoId)
+                || (settings.hideExplicit && track.explicit)
+        }
+        player.shouldSkip = { [weak library] track in
+            (library?.hiddenIds.contains(track.videoId) ?? false) || (settings.hideExplicit && track.explicit)
+        }
+        downloads?.wifiOnly = settings.downloadsWifiOnly
+        downloads?.network = { [network] in (network.isOnline, network.isCellular) }
+        queueKeeper = QueueKeeper(player: player, library: library.library)
+    }
+
+    /// Сохраняет очередь и позицию; восстанавливает их при запуске без автостарта.
+    private(set) var queueKeeper: QueueKeeper?
 
     /// Лимит кэша читается из очереди загрузчика — отдельная потокобезопасная копия настройки.
     private var cacheLimitBox: CacheLimitBox?
@@ -77,6 +115,7 @@ final class Services {
         if let cache {
             Task.detached(priority: .utility) { cache.reconcile() }
         }
+        downloads?.start()
         guard let paths else { return }
         let file = paths.root.appendingPathComponent("stream-clients.json")
         if let saved = StreamClients.saved(at: file) {
@@ -111,6 +150,8 @@ nonisolated final class CacheLimitBox: @unchecked Sendable {
 @Observable
 final class NetworkStatus {
     private(set) var isOnline = true
+    /// Сотовая или дорогая сеть: «Только по Wi‑Fi» у загрузок.
+    private(set) var isCellular = false
     @ObservationIgnored var onPathChange: (() -> Void)?
     #if !os(watchOS)
     @ObservationIgnored private let monitor = NWPathMonitor()
@@ -121,16 +162,18 @@ final class NetworkStatus {
         #if !os(watchOS)
         monitor.pathUpdateHandler = { [weak self] path in
             let online = path.status == .satisfied
+            let cellular = path.usesInterfaceType(.cellular) || path.isExpensive
             let interfaces = path.availableInterfaces.map { "\($0.name):\($0.type)" }
-            Task { @MainActor in self?.update(online: online, interfaces: interfaces) }
+            Task { @MainActor in self?.update(online: online, cellular: cellular, interfaces: interfaces) }
         }
         monitor.start(queue: DispatchQueue(label: "app.melogold.network"))
         #endif
     }
 
     #if !os(watchOS)
-    private func update(online: Bool, interfaces: [String]) {
+    private func update(online: Bool, cellular: Bool, interfaces: [String]) {
         if online != isOnline { isOnline = online }
+        if cellular != isCellular { isCellular = cellular }
         if interfaces != lastInterfaces {
             if !lastInterfaces.isEmpty {
                 Log.info("network", "Сеть сменилась — адреса потока сброшены")
@@ -140,4 +183,48 @@ final class NetworkStatus {
         }
     }
     #endif
+}
+
+/// Очередь между запусками (docs/PROMPT.md §4 «Очередь»): после перезапуска очередь и позиция восстанавливаются,
+/// без автостарта. Снимок пишется в `app_state` раз в 5 секунд, если очередь или позиция изменились, и при уходе в фон.
+@MainActor
+final class QueueKeeper {
+    private let player: PlayerEngine
+    private let library: Library
+    private var saved: PlayerEngine.Snapshot?
+    private var timer: Task<Void, Never>?
+    static let key = "queue"
+
+    init(player: PlayerEngine, library: Library) {
+        self.player = player
+        self.library = library
+        restore()
+        timer = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(5))
+                self?.save()
+            }
+        }
+    }
+
+    private func restore() {
+        guard let text = library.state(Self.key), let data = text.data(using: .utf8),
+              let snapshot = try? JSONDecoder().decode(PlayerEngine.Snapshot.self, from: data) else { return }
+        player.restore(snapshot, play: false)
+        saved = snapshot
+        Log.info("player", "Очередь восстановлена: \(snapshot.items.count) треков")
+    }
+
+    /// Записать снимок, если он изменился (позиция — с точностью до секунды).
+    func save() {
+        var snapshot = player.snapshot()
+        if let position = snapshot?.position { snapshot?.position = position.rounded() }
+        guard snapshot != saved else { return }
+        saved = snapshot
+        if let snapshot, let data = try? JSONEncoder().encode(snapshot) {
+            library.setState(Self.key, String(data: data, encoding: .utf8))
+        } else {
+            library.setState(Self.key, nil)
+        }
+    }
 }

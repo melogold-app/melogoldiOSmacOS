@@ -302,6 +302,7 @@ struct WatchTrackRow: View {
     let track: Track
     var number: Int?
     var showsArtwork = true
+    var downloaded = false
     let action: () -> Void
 
     var body: some View {
@@ -318,6 +319,11 @@ struct WatchTrackRow: View {
                     if showsArtwork, let artists = track.artistsText {
                         Text(artists).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                     }
+                }
+                if downloaded {
+                    Spacer(minLength: 0)
+                    Image(systemName: "arrow.down.circle.fill").font(.caption2).foregroundStyle(.secondary)
+                        .accessibilityLabel(Text("badge.downloaded"))
                 }
             }
         }

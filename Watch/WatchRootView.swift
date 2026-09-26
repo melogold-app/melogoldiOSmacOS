@@ -38,6 +38,8 @@ struct WatchRootView: View {
                 case .mood(let mood): WatchMoodView(mood: mood)
                 case .moods: WatchMoodsView()
                 case .newReleases: WatchNewReleasesView()
+                case .library(let page): WatchLibraryPageView(page: page)
+                case .queue: WatchQueueView()
                 }
             }
         }
@@ -53,6 +55,8 @@ struct WatchSectionView: View {
             WatchTrendsView()
         case .new:
             WatchNewView()
+        case .library:
+            WatchLibraryView()
         case .search:
             WatchSearchView()
         case .settings:
@@ -72,6 +76,8 @@ struct WatchSettingsView: View {
             Section {
                 WatchAccountSection()
             }
+            WatchPlaybackSection()
+            WatchStorageSection()
             Section("settings.about") {
                 LabeledContent {
                     Text(verbatim: AppVersion.current)

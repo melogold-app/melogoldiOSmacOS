@@ -8,10 +8,14 @@ struct TrackRow: View {
     var subtitle: String?
     var isCurrent = false
     var cached = false
+    /// Скачан: заполненный значок; «в кэше» — контурный приглушённый (задание 0003).
+    var downloaded = false
     var dimmed = false
     /// Номер в списке: у альбома — вместо обложки, у «Популярного» исполнителя — перед ней.
     var number: Int?
     var showsArtwork = true
+    /// Текст справа вместо длительности: время прослушивания в Истории.
+    var trailing: String?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -51,7 +55,7 @@ struct TrackRow: View {
             }
             Spacer(minLength: 8)
             badges
-            if let duration = track.durationLabel {
+            if let duration = trailing ?? track.durationLabel {
                 Text(duration)
                     .font(.subheadline)
                     .monospacedDigit()
@@ -71,7 +75,11 @@ struct TrackRow: View {
                     .foregroundStyle(.secondary)
                     .accessibilityLabel(Text("badge.explicit"))
             }
-            if cached {
+            if downloaded {
+                Image(systemName: "arrow.down.circle.fill")
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel(Text("badge.downloaded"))
+            } else if cached {
                 Image(systemName: "arrow.down.circle")
                     .foregroundStyle(.tertiary)
                     .accessibilityLabel(Text("badge.cached"))
@@ -180,27 +188,31 @@ struct TrackListRow: View {
     var subtitle: String?
     var number: Int?
     var showsArtwork = true
+    var trailing: String?
     /// Превью 16:9 — выдача YouTube и видео канала.
     var wide = false
     let target: RowTarget?
+    /// Пункт меню «по месту»: «Убрать из плейлиста», «Убрать из истории».
+    var context: TrackMenuContext?
 
     var body: some View {
         let isCurrent = model.services.player.currentTrack?.videoId == track.videoId
         let cached = model.cachedIds.contains(track.videoId)
-        let dimmed = !model.services.network.isOnline && !cached
+        let downloaded = model.library?.isDownloaded(track.videoId) == true
+        let dimmed = !model.services.network.isOnline && !cached && !downloaded
         HStack(spacing: 4) {
             TapTarget(target: target) {
                 if wide {
                     VideoRow(track: track, isCurrent: isCurrent, dimmed: dimmed)
                 } else {
-                    TrackRow(track: track, subtitle: subtitle, isCurrent: isCurrent, cached: cached, dimmed: dimmed,
-                             number: number, showsArtwork: showsArtwork)
+                    TrackRow(track: track, subtitle: subtitle, isCurrent: isCurrent, cached: cached, downloaded: downloaded,
+                             dimmed: dimmed, number: number, showsArtwork: showsArtwork, trailing: trailing)
                 }
             }
             #if !os(macOS)
-            .contextMenu { TrackMenuItems(track: track) }
+            .contextMenu { TrackMenuItems(track: track, context: context) }
             #endif
-            TrackMenuButton(track: track)
+            TrackMenuButton(track: track, context: context)
         }
     }
 }
@@ -230,13 +242,14 @@ struct TapTarget<Label: View>: View {
 /// список: действие и меню у самих строк.
 struct SelectableList<Content: View>: View {
     let target: (String) -> RowTarget?
+    var context: (String) -> TrackMenuContext? = { _ in nil }
     @ViewBuilder let content: () -> Content
     @State private var selection: Set<String> = []
 
     var body: some View {
         #if os(macOS)
         List(selection: $selection, content: content)
-            .rowActions(target)
+            .rowActions(target, context: context)
         #else
         List(content: content)
         #endif

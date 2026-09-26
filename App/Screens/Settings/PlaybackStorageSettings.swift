@@ -109,3 +109,50 @@ enum ByteFormat {
         ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
     }
 }
+
+/// «Библиотека и история» (docs/PROMPT.md §5.9): «Не сохранять историю», «Скрывать треки с пометкой E», «Скрытые».
+struct LibrarySettingsSection: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        @Bindable var settings = model.settings
+        Section("settings.libraryHistory") {
+            Toggle("settings.historyPaused", isOn: $settings.historyPaused)
+            Toggle("settings.hideExplicit", isOn: $settings.hideExplicit)
+            NavigationLink(value: Route.hiddenTracks) {
+                Text("settings.hidden")
+            }
+        }
+    }
+}
+
+/// Загрузки в «Хранилище и данные»: сколько занимают, «Только по Wi‑Fi», «Удалить все загрузки» (REWRITE §4.7.5).
+struct DownloadSettingsSection: View {
+    @Environment(AppModel.self) private var model
+    @State private var confirmRemove = false
+
+    var body: some View {
+        @Bindable var settings = model.settings
+        let _ = model.library?.downloadsRevision
+        let store = model.services.downloads?.store
+        let count = model.library?.counts.downloads ?? 0
+        let bytes = store?.totalBytes() ?? 0
+        Section {
+            LabeledContent {
+                Text(verbatim: "\(String(localized: "library.tracks \(count)")) · \(ByteFormat.string(bytes))")
+            } label: {
+                Text("settings.downloads")
+            }
+            Toggle("settings.downloadsWifiOnly", isOn: $settings.downloadsWifiOnly)
+                .onChange(of: settings.downloadsWifiOnly) { _, value in model.services.downloads?.wifiOnly = value }
+            Button("settings.downloadsRemoveAll", role: .destructive) { confirmRemove = true }
+                .disabled(bytes == 0 && count == 0)
+                .confirmationDialog(Text("settings.downloadsRemoveAll.confirm \(count) \(ByteFormat.string(bytes))"),
+                                    isPresented: $confirmRemove, titleVisibility: .visible) {
+                    Button("settings.downloadsRemoveAll", role: .destructive) { model.services.downloads?.removeAll() }
+                }
+        } footer: {
+            Text("settings.downloadsFooter")
+        }
+    }
+}

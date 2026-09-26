@@ -22,6 +22,16 @@ enum Route: Hashable {
     case newReleases
     /// Полный список полки («Все ›» у альбомов и синглов исполнителя).
     case browse(title: String?, browseId: String, params: String?)
+    /// Библиотека (срез 4, REWRITE §3.2).
+    case favorites
+    case allTracks
+    case downloads
+    case history
+    case playlists
+    case savedAlbums
+    case savedArtists
+    case localPlaylist(Int64)
+    case hiddenTracks
 }
 
 extension Route {

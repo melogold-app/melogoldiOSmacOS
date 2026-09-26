@@ -58,7 +58,19 @@ struct ToastHost: View {
     var body: some View {
         let player = model.services.player
         Group {
-            if let toast = model.toast {
+            if let pending = model.pending {
+                capsule {
+                    HStack(spacing: 12) {
+                        Text(verbatim: pending.text)
+                        Button {
+                            model.undoPending()
+                        } label: {
+                            Text("common.undo").fontWeight(.semibold)
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                }
+            } else if let toast = model.toast {
                 capsule {
                     HStack(spacing: 12) {
                         Text(verbatim: toast.text)
@@ -88,6 +100,7 @@ struct ToastHost: View {
             }
         }
         .animation(.snappy, value: model.toast)
+        .animation(.snappy, value: model.pending?.id)
         .animation(.snappy, value: player.notice)
     }
 

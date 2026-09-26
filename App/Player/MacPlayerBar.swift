@@ -5,7 +5,7 @@ import MelogoldPlayback
 
 /// Панель воспроизведения Mac (docs/PROMPT.md §5.4) — внизу окна во всю ширину, как у Windows:
 /// слева обложка, название и исполнитель (обложка открывает «Сейчас играет»); в центре ⏮ ⏯ ⏭ и ползунок перемотки;
-/// справа AirPlay и громкость. «Текст», «Очередь», ⇄ ⟲ и ♡ добавляются в следующих срезах.
+/// справа AirPlay и громкость. ♡ — у названия, ⇄ и ⟲ — по краям ⏮ ⏯ ⏭. «Текст» и «Очередь» — срезы 6 и 7.
 struct MacPlayerBar: View {
     @Environment(AppModel.self) private var model
 
@@ -23,14 +23,17 @@ struct MacPlayerBar: View {
                         Text(track.title).font(.headline).lineLimit(1)
                         PlayerStatusLine(font: .subheadline)
                     }
+                    LikeButton(size: .body)
                 }
-                .frame(width: 280, alignment: .leading)
+                .frame(width: 300, alignment: .leading)
 
                 VStack(spacing: 2) {
                     HStack(spacing: 20) {
+                        ShuffleToggle()
                         PreviousButton(size: .title3)
                         PlayPauseButton(size: .title)
                         NextButton(size: .title3)
+                        RepeatToggle()
                     }
                     SeekBar()
                         .frame(maxWidth: 520)

@@ -29,8 +29,11 @@ struct ArtistView: View {
     private func artist(_ details: ArtistDetails) -> some View {
         DetailPage(title: details.name, twoColumns: false) {
             CollectionHeader(artworkURL: details.thumbnailUrl, circle: true, title: details.name) {
-                if let subscribers = details.subscribersText {
-                    Text(subscribers).font(.subheadline).foregroundStyle(.secondary)
+                VStack(spacing: 8) {
+                    if let subscribers = details.subscribersText {
+                        Text(subscribers).font(.subheadline).foregroundStyle(.secondary)
+                    }
+                    SubscribeButton(artist: ArtistItem(browseId: details.browseId, name: details.name, thumbnailUrl: details.thumbnailUrl))
                 }
             } actions: {
                 ShuffleButton { page.shuffleSongs(model: model) }
@@ -47,6 +50,18 @@ struct ArtistView: View {
                 }
             }
         } rows: {
+            // «В вашей библиотеке» — лайкнутые треки исполнителя, до 5 (REWRITE §3.7.1).
+            let liked = model.library?.library.likedTracks(ofArtist: details.browseId, name: details.name) ?? []
+            if !liked.isEmpty {
+                ShelfHeader(title: Text("artist.inLibrary"), more: liked.count > 5 ? .favorites : nil,
+                            moreTitle: "library.seeAllCount \(liked.count)")
+                    .listRowSeparator(.hidden)
+                    .padding(.top, 8)
+                ForEach(Array(liked.prefix(5).enumerated()), id: \.element.id) { index, track in
+                    TrackListRow(track: track, target: .list(liked, index))
+                        .tag(RowID.make("l", track.videoId))
+                }
+            }
             ForEach(Array(details.shelves.enumerated()), id: \.offset) { index, shelf in
                 if ArtistPageModel.isSongs(shelf) {
                     ShelfHeader(title: Text(verbatim: shelf.title ?? ""), more: songsRoute(details, shelf))
@@ -67,8 +82,12 @@ struct ArtistView: View {
                     .padding(.top, 8)
             }
         } target: { id in
-            guard let (section, key) = RowID.split(id), section.hasPrefix("s"), let index = Int(section.dropFirst()),
-                  details.shelves.indices.contains(index) else { return nil }
+            guard let (section, key) = RowID.split(id) else { return nil }
+            if section == "l" {
+                let liked = model.library?.library.likedTracks(ofArtist: details.browseId, name: details.name) ?? []
+                return liked.firstIndex { $0.videoId == key }.map { .list(liked, $0) }
+            }
+            guard section.hasPrefix("s"), let index = Int(section.dropFirst()), details.shelves.indices.contains(index) else { return nil }
             let tracks = details.shelves[index].tracks
             return tracks.firstIndex { $0.videoId == key }.map { .list(tracks, $0) }
         }
@@ -98,7 +117,7 @@ struct ArtistView: View {
 
     private func radio(_ details: ArtistDetails, seed: Track) {
         if let playlistId = details.radioPlaylistId {
-            model.services.player.playRadio(playlistId: playlistId, seed: seed)
+            model.playRadio(playlistId: playlistId, seed: seed)
         } else {
             model.startRadio(seed)
         }
@@ -109,8 +128,12 @@ struct ArtistView: View {
     private func channel(_ details: ArtistDetails) -> some View {
         DetailPage(title: details.name, twoColumns: false) {
             CollectionHeader(artworkURL: details.thumbnailUrl, circle: true, title: details.name) {
-                if let subscribers = details.subscribersText {
-                    Text(subscribers).font(.subheadline).foregroundStyle(.secondary)
+                VStack(spacing: 8) {
+                    if let subscribers = details.subscribersText {
+                        Text(subscribers).font(.subheadline).foregroundStyle(.secondary)
+                    }
+                    SubscribeButton(artist: ArtistItem(browseId: details.browseId, name: details.name, thumbnailUrl: details.thumbnailUrl,
+                                                       isChannel: true))
                 }
             } actions: {
                 if !page.videos.isEmpty {
@@ -212,5 +235,24 @@ final class ArtistPageModel {
             let songs = (try? await model.services.catalog.playlist(playlistId).tracks) ?? []
             model.playAll(songs.isEmpty ? popular : songs, shuffled: true)
         }
+    }
+}
+
+/// «⊕ Подписаться / ✓ Вы подписаны» — закладка исполнителя или канала (REWRITE §3.7).
+struct SubscribeButton: View {
+    @Environment(AppModel.self) private var model
+    let artist: ArtistItem
+
+    var body: some View {
+        let subscribed = model.isArtistSaved(artist.browseId)
+        Button {
+            model.setArtistSaved(artist, !subscribed)
+        } label: {
+            Label(subscribed ? "artist.subscribed" : "artist.subscribe", systemImage: subscribed ? "checkmark" : "plus")
+                .font(.subheadline.weight(.semibold))
+        }
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.capsule)
+        .controlSize(.small)
     }
 }

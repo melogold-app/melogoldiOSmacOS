@@ -1,6 +1,6 @@
 # «Все треки» в Библиотеке
 
-Статус: открыто
+Статус: сделано
 
 Дополнение к `docs/PROMPT.md` (§5.6, §5.9), срез 4 — Библиотека. Те же задания: `melogoldAndroid/tasks/0003-all-tracks.md` (сделано, коммит `78d19408`, выйдет в 0.1.5) и `melogoldWindows/tasks/0005-all-tracks.md`. Эталон — Android: `Database.allTracks()` и `allTracksCount()` в `app/src/main/kotlin/app/melogold/android/Database.kt`, `AllTracksScreen` в `ui/screens/library/collections/SongCollections.kt`, тест `AllTracksTest`; REWRITE §3.2.1.
 

@@ -116,6 +116,14 @@ public final class AudioCache: @unchecked Sendable {
         }) ?? false
     }
 
+    /// Треки, лежащие целиком, и сколько они занимают: группа «В кэше · N · X МБ» в «Скачанном».
+    public func completeSizes() -> [(videoId: String, bytes: Int64)] {
+        let rows = (try? database.writer.read { db in
+            try Row.fetchAll(db, sql: "SELECT video_id, cached_bytes FROM audio_cache WHERE complete = 1 ORDER BY last_read_at DESC")
+        }) ?? []
+        return rows.map { ($0["video_id"], $0["cached_bytes"] ?? 0) }
+    }
+
     /// Все треки, лежащие целиком: группа «В кэше» в «Скачанном».
     public func completeVideoIds() -> [String] {
         (try? database.writer.read { db in

@@ -1,5 +1,6 @@
 #if DEBUG
 import Foundation
+import MelogoldCore
 
 /// Только отладочная сборка: параметры запуска для проверки на симуляторе без нажатий.
 ///
@@ -9,7 +10,27 @@ import Foundation
 ///     -MelogoldOpenLink "https://youtu.be/…"             ссылка или текст — как вставка в Поиске
 ///     -MelogoldOpen album:<id>|artist:<id>|playlist:<id>|moods|releases   детальный экран в текущем разделе
 ///     -MelogoldShowNowPlaying YES                      открыть «Сейчас играет», как только появится трек
+///     -MelogoldSeedLibrary YES                          пример библиотеки для снимков: лайки, плейлист, история, альбом
 enum DebugLaunch {
+    /// Пример библиотеки из живого альбома «Группа крови»: лайки, плейлист, прослушивания, сохранённые альбом и
+    /// исполнитель. Повторный запуск ничего не дублирует.
+    @MainActor
+    static func seedLibrary(_ model: AppModel) async {
+        guard let library = model.library?.library, library.counts().likes == 0 else { return }
+        guard let album = try? await model.services.catalog.album("MPREb_OLmD8O5IYNS") else { return }
+        let tracks = album.tracks
+        for track in tracks.prefix(5) { library.setLiked(track, true) }
+        library.createPlaylist(name: "Дорога", tracks: Array(tracks.suffix(6)))
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
+        for (index, track) in tracks.enumerated() {
+            for repeatIndex in 0..<(tracks.count - index) {
+                library.recordPlay(track, playTimeMs: 200_000, endedAt: now - Int64(index * 3_600_000 + repeatIndex * 86_400_000))
+            }
+        }
+        library.setAlbumSaved(album.album, tracks: tracks, true)
+        library.setArtistSaved(ArtistItem(browseId: "UCL9NQ06h7I0CRUcGxPWMtkQ", name: "Кино", thumbnailUrl: nil), true)
+    }
+
     @MainActor
     static func apply(to model: AppModel) {
         let defaults = UserDefaults.standard
@@ -19,6 +40,9 @@ enum DebugLaunch {
         }
         if let text = defaults.string(forKey: "MelogoldOpenLink") {
             model.openLink(text)
+        }
+        if defaults.bool(forKey: "MelogoldSeedLibrary") {
+            Task { await seedLibrary(model) }
         }
         if defaults.bool(forKey: "MelogoldShowNowPlaying") {
             Task {
@@ -36,6 +60,13 @@ enum DebugLaunch {
             case ("playlist", let id?): .playlist(id)
             case ("moods", _): .moods
             case ("releases", _): .newReleases
+            case ("favorites", _): .favorites
+            case ("history", _): .history
+            case ("allTracks", _): .allTracks
+            case ("downloads", _): .downloads
+            case ("albums", _): .savedAlbums
+            case ("artists", _): .savedArtists
+            case ("local", let id?): Int64(id).map(Route.localPlaylist)
             default: nil
             }
             if let route { model.open(route) }

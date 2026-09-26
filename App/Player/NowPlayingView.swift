@@ -58,19 +58,24 @@ struct NowPlayingView: View {
 
     private func controls(_ track: Track) -> some View {
         VStack(spacing: 20) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(track.title)
-                    .font(.title2.weight(.bold))
-                    .lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                PlayerStatusLine(font: .title3)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(track.title)
+                        .font(.title2.weight(.bold))
+                        .lineLimit(2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    PlayerStatusLine(font: .title3)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                LikeButton(size: .title2)
             }
             SeekBar()
-            HStack(spacing: 36) {
+            HStack(spacing: 28) {
+                ShuffleToggle(size: .title3)
                 PreviousButton(size: .title)
                 PlayPauseButton(size: .largeTitle)
                 NextButton(size: .title)
+                RepeatToggle(size: .title3)
             }
             HStack {
                 Spacer()

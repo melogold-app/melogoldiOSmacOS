@@ -11,6 +11,7 @@ struct DetailPage<Header: View, Rows: View>: View {
     @ViewBuilder let header: () -> Header
     @ViewBuilder let rows: () -> Rows
     let target: (String) -> RowTarget?
+    var context: (String) -> TrackMenuContext? = { _ in nil }
 
     @State private var headerVisible = true
 
@@ -39,7 +40,7 @@ struct DetailPage<Header: View, Rows: View>: View {
     }
 
     private func list(includeHeader: Bool) -> some View {
-        SelectableList(target: target) {
+        SelectableList(target: target, context: context) {
             if includeHeader {
                 header()
                     .frame(maxWidth: .infinity)

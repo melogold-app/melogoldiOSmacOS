@@ -15,8 +15,12 @@ import MelogoldInnerTube
 @MainActor
 @Observable
 public final class PlayerEngine {
-    public private(set) var items: [QueueItem] = []
-    public private(set) var index: Int?
+    public private(set) var items: [QueueItem] = [] {
+        didSet { queueRevision &+= 1 }
+    }
+    public private(set) var index: Int? {
+        didSet { if oldValue != index { queueRevision &+= 1 } }
+    }
     public private(set) var phase: PlaybackPhase = .idle
     public private(set) var failure: PlaybackFailure?
     /// Прошедшее время текущего трека, секунды.
@@ -53,6 +57,17 @@ public final class PlayerEngine {
     public var currentTrack: Track? { current?.track }
     public var isPlaying: Bool { wantsToPlay && (phase == .playing || phase == .loading) }
     public var hasNext: Bool { index.map { $0 + 1 < items.count } ?? false }
+    /// Прослушивание трека закончилось (смена трека, пауза, стоп): трек и сколько он звучал, мс. История пишет
+    /// сеансы от 5 с (REWRITE §3.2.4).
+    public var onPlayed: ((Track, Int64) -> Void)?
+    /// Трек не должен попадать в автовоспроизведение: «Не показывать этот трек», «Не интересно», скрытие E.
+    public var isExcluded: ((Track) -> Bool)?
+    /// Трек списка пропускается при переходе: «Не показывать этот трек», скрытие E (REWRITE §4.10.7).
+    public var shouldSkip: ((Track) -> Bool)?
+    /// Растёт при любой правке очереди — для сохранения очереди и экрана «Очередь».
+    public private(set) var queueRevision = 0
+    /// Перемешивание: порядок после текущего трека случайный; выключение возвращает исходный.
+    public private(set) var shuffled = false
     /// Меняется при замене очереди: фоновая дозагрузка списка (плейлист длиннее первой страницы) дописывает треки,
     /// только пока очередь та же (REWRITE §3.8.2).
     public private(set) var queueId = UUID()
@@ -60,6 +75,7 @@ public final class PlayerEngine {
     let catalog: YouTubeMusic
     let resolver: StreamResolver
     let cache: AudioCache?
+    let downloads: DownloadStore?
     let session: URLSession
     let pipeline = RenderPipeline()
     let audioSession = AudioSessionController()
@@ -94,6 +110,12 @@ public final class PlayerEngine {
     private var ticker: Task<Void, Never>?
     private var radio: RadioState?
     private var radioTask: Task<Void, Never>?
+    /// Сеанс прослушивания текущего элемента: сколько звучал и когда тикали в последний раз.
+    private var sessionItem: QueueItem?
+    private var sessionMs: Double = 0
+    private var sessionTickAt: Date?
+    /// Исходный порядок после перемешивания.
+    private var unshuffledOrder: [UUID] = []
     /// Читать вперёд не больше стольких секунд — память и трафик.
     private static let readAhead: Double = 40
     /// Сколько звука нужно в запасе, чтобы начать или продолжить после паузы на загрузку.
@@ -106,10 +128,11 @@ public final class PlayerEngine {
         var loading = false
     }
 
-    public init(catalog: YouTubeMusic, resolver: StreamResolver, cache: AudioCache?) {
+    public init(catalog: YouTubeMusic, resolver: StreamResolver, cache: AudioCache?, downloads: DownloadStore? = nil) {
         self.catalog = catalog
         self.resolver = resolver
         self.cache = cache
+        self.downloads = downloads
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = 20
         configuration.httpMaximumConnectionsPerHost = 4
@@ -211,6 +234,11 @@ public final class PlayerEngine {
             retryCurrent()
             return
         }
+        // Очередь восстановлена после перезапуска: трек ещё не открыт — начать с сохранённой позиции.
+        if currentSegment == nil {
+            startCurrent(tapped: true, from: position)
+            return
+        }
         wantsToPlay = true
         Task {
             guard await audioSession.activate() else {
@@ -231,6 +259,7 @@ public final class PlayerEngine {
     }
 
     public func pause() {
+        flushSession()
         wantsToPlay = false
         pipeline.setRate(0)
         if phase != .failed, phase != .idle { phase = .paused }
@@ -239,6 +268,7 @@ public final class PlayerEngine {
 
     /// Остановить и очистить очередь.
     public func stop() {
+        flushSession()
         wantsToPlay = false
         cancelProducers()
         generation = pipeline.reset(to: .zero)
@@ -256,10 +286,20 @@ public final class PlayerEngine {
         syncNowPlaying()
     }
 
+    /// Следующий элемент, который не пропускается (скрытые и E при «Скрывать E»).
+    private func nextPlayable(after position: Int) -> Int? {
+        var candidate = position + 1
+        while candidate < items.count {
+            if !(shouldSkip?(items[candidate].track) ?? false) { return candidate }
+            candidate += 1
+        }
+        return nil
+    }
+
     public func next() {
         guard let index else { return }
-        if index + 1 < items.count {
-            self.index = index + 1
+        if let following = nextPlayable(after: index) {
+            self.index = following
             startCurrent(tapped: true)
         } else if repeatMode == .all, !items.isEmpty {
             self.index = 0
@@ -309,6 +349,129 @@ public final class PlayerEngine {
         startCurrent(tapped: true)
     }
 
+    // MARK: - Правка очереди
+
+    /// Убрать элемент; текущий — перейти к следующему.
+    public func remove(_ itemId: UUID) {
+        guard let position = items.firstIndex(where: { $0.id == itemId }) else { return }
+        if position == index {
+            if position + 1 < items.count {
+                items.remove(at: position)
+                startCurrent(tapped: true)
+            } else {
+                stop()
+            }
+            return
+        }
+        items.remove(at: position)
+        if let index, position < index { self.index = index - 1 }
+        upcomingChanged()
+    }
+
+    /// Перенести элемент на место `destination` (как `move(fromOffsets:toOffset:)` списка).
+    public func move(fromOffsets source: IndexSet, toOffset destination: Int) {
+        let currentId = current?.id
+        let moving = source.filter { items.indices.contains($0) }.map { items[$0] }
+        var rest = items.enumerated().filter { !source.contains($0.offset) }.map(\.element)
+        let target = min(max(0, destination - source.filter { $0 < destination }.count), rest.count)
+        rest.insert(contentsOf: moving, at: target)
+        items = rest
+        index = currentId.flatMap { id in items.firstIndex { $0.id == id } }
+        upcomingChanged()
+    }
+
+    /// ⇄: перемешать треки после текущего (блок автовоспроизведения — в конце) или вернуть исходный порядок.
+    public func setShuffled(_ on: Bool) {
+        guard on != shuffled else { return }
+        shuffled = on
+        guard let index else { return }
+        let head = Array(items[...index])
+        let tail = Array(items[(index + 1)...])
+        if on {
+            unshuffledOrder = items.map(\.id)
+            items = head + tail.filter { !$0.fromAutoplay }.shuffled() + tail.filter(\.fromAutoplay)
+        } else {
+            let order = Dictionary(uniqueKeysWithValues: unshuffledOrder.enumerated().map { ($1, $0) })
+            items = head + tail.sorted { (order[$0.id] ?? Int.max) < (order[$1.id] ?? Int.max) }
+        }
+        upcomingChanged()
+    }
+
+    /// Очередь, позиция и радио — для сохранения между запусками и для «Отменить» при замене очереди.
+    public struct Snapshot: Codable, Sendable, Equatable {
+        public struct Item: Codable, Sendable, Equatable {
+            public var track: Track
+            public var fromAutoplay: Bool
+        }
+
+        public var items: [Item]
+        public var index: Int
+        public var position: Double
+        public var radioSeed: String?
+        public var radioPlaylistId: String?
+        public var radioContinuation: String?
+    }
+
+    public func snapshot() -> Snapshot? {
+        guard let index, !items.isEmpty else { return nil }
+        return Snapshot(items: items.map { Snapshot.Item(track: $0.track, fromAutoplay: $0.fromAutoplay) }, index: index,
+                        position: position, radioSeed: radio?.seedVideoId, radioPlaylistId: radio?.playlistId,
+                        radioContinuation: radio?.continuation)
+    }
+
+    /// Сколько треков в очереди добавил пользователь (не автовоспроизведение): от двух замена очереди отменяется.
+    public var userItemsCount: Int { items.filter { !$0.fromAutoplay }.count }
+
+    /// Вернуть очередь: после перезапуска — без автостарта (`play: false`), «Отменить» — с той же позиции и играя.
+    public func restore(_ snapshot: Snapshot, play: Bool) {
+        guard snapshot.items.indices.contains(snapshot.index) else { return }
+        radioTask?.cancel()
+        flushSession()
+        items = snapshot.items.map { QueueItem(track: $0.track, fromAutoplay: $0.fromAutoplay) }
+        index = snapshot.index
+        queueId = UUID()
+        radio = snapshot.radioSeed.map { RadioState(seedVideoId: $0, playlistId: snapshot.radioPlaylistId, continuation: snapshot.radioContinuation) }
+        if play {
+            startCurrent(tapped: true, from: snapshot.position)
+        } else {
+            wantsToPlay = false
+            cancelProducers()
+            generation = pipeline.reset(to: .zero)
+            segments = []
+            position = snapshot.position
+            duration = Double(current?.track.durationMs ?? 0) / 1000
+            phase = .paused
+            syncNowPlaying()
+        }
+    }
+
+    // MARK: - Сеанс прослушивания
+
+    private func countSession() {
+        guard wantsToPlay, phase == .playing, let current else {
+            sessionTickAt = nil
+            return
+        }
+        let now = Date()
+        if sessionItem?.id != current.id {
+            flushSession()
+            sessionItem = current
+        }
+        if let last = sessionTickAt { sessionMs += now.timeIntervalSince(last) * 1000 }
+        sessionTickAt = now
+    }
+
+    /// Сеанс закончился: отдать его истории (от 5 с) и начать заново.
+    private func flushSession() {
+        defer {
+            sessionItem = nil
+            sessionMs = 0
+            sessionTickAt = nil
+        }
+        guard let item = sessionItem, sessionMs >= 5000 else { return }
+        onPlayed?(item.track, Int64(sessionMs))
+    }
+
     // MARK: - Старт трека
 
     private var currentSegment: Segment? {
@@ -321,6 +484,7 @@ public final class PlayerEngine {
 
     /// Начать текущий элемент заново: шкала с нуля, первый фрагмент, звук как только он есть.
     private func startCurrent(tapped: Bool, from offset: Double = 0) {
+        flushSession()
         guard let current else { return }
         if tapped { tapTime = Date() }
         wantsToPlay = true
@@ -349,11 +513,12 @@ public final class PlayerEngine {
             guard self.current?.id == current.id else { return }
             produce(segment, from: 0, trimBefore: offset > 0 ? startTime : nil)
             prefetch()
+            maybeExtendRadio()
         }
     }
 
     private func makeSegment(for item: QueueItem, start: CMTime) -> Segment {
-        let source = StreamSource(videoId: item.track.videoId, resolver: resolver, cache: cache, session: session)
+        let source = StreamSource(videoId: item.track.videoId, resolver: resolver, cache: cache, downloads: downloads, session: session)
         return Segment(item: item, reader: TrackReader(source: source), start: start)
     }
 
@@ -412,9 +577,10 @@ public final class PlayerEngine {
     /// Трек подан целиком: подать следующий сразу за ним (не при повторе трека).
     private func segmentFinished(_ segment: Segment) {
         guard repeatMode != .one, let end = segment.end,
-              let position = items.firstIndex(where: { $0.id == segment.item.id }), position + 1 < items.count,
-              !segments.contains(where: { $0.item.id == items[position + 1].id }) else { return }
-        let next = makeSegment(for: items[position + 1], start: end)
+              let position = items.firstIndex(where: { $0.id == segment.item.id }),
+              let following = nextPlayable(after: position),
+              !segments.contains(where: { $0.item.id == items[following].id }) else { return }
+        let next = makeSegment(for: items[following], start: end)
         segments.append(next)
         produce(next, from: 0, trimBefore: nil)
     }
@@ -429,7 +595,7 @@ public final class PlayerEngine {
         guard let segment = currentSegment,
               let position = items.firstIndex(where: { $0.id == segment.item.id }) else { return }
         let stale = segments.filter { $0 !== segment }
-        let expectedNext = position + 1 < items.count ? items[position + 1].id : nil
+        let expectedNext = nextPlayable(after: position).map { items[$0].id }
         if stale.isEmpty {
             if segment.end != nil { segmentFinished(segment) }
             return
@@ -483,7 +649,11 @@ public final class PlayerEngine {
 
     /// Раз в 100 мс: позиция, смена трека на шкале, ожидание данных, конец очереди.
     private func tick() {
-        guard current != nil, phase != .idle, phase != .failed else { return }
+        guard current != nil, phase != .idle, phase != .failed else {
+            sessionTickAt = nil
+            return
+        }
+        countSession()
         let now = pipeline.currentTime
 
         // Шкала перешла на следующий отрезок — сменился текущий трек.
@@ -526,6 +696,7 @@ public final class PlayerEngine {
     }
 
     private func trackChanged(to segment: Segment) {
+        flushSession()
         duration = segment.duration > 0 ? segment.duration : Double(segment.item.track.durationMs ?? 0) / 1000
         position = 0
         playingFromCache = segment.fromCache
@@ -547,9 +718,9 @@ public final class PlayerEngine {
             return
         }
         guard let index else { return }
-        if index + 1 < items.count {
+        if let following = nextPlayable(after: index) {
             // Следующий не успел встать на шкалу (ошибка или очередь выросла) — начать его обычным стартом.
-            self.index = index + 1
+            self.index = following
             startCurrent(tapped: false)
         } else if repeatMode == .all, !items.isEmpty {
             self.index = 0
@@ -635,7 +806,8 @@ public final class PlayerEngine {
                 }
                 guard !Task.isCancelled else { return }
                 let known = Set(items.map(\.track.videoId))
-                let fresh = page.tracks.filter { !known.contains($0.videoId) && !$0.unavailable }.prefix(25)
+                let excluded = self.isExcluded
+                let fresh = page.tracks.filter { !known.contains($0.videoId) && !$0.unavailable && !(excluded?($0) ?? false) }.prefix(25)
                 items.append(contentsOf: fresh.map { QueueItem(track: $0, fromAutoplay: true) })
                 radio?.continuation = page.continuation
                 radio?.playlistId = page.playlistId ?? state.playlistId
@@ -651,7 +823,12 @@ public final class PlayerEngine {
 
     /// Впереди осталось три трека автовоспроизведения или меньше — догрузить (REWRITE §4.10.5).
     private func maybeExtendRadio() {
-        guard let index, radio != nil else { return }
-        if items.count - index - 1 <= 3 { loadRadio() }
+        guard let index, autoplayEnabled, repeatMode == .off else { return }
+        guard items.count - index - 1 <= 3 else { return }
+        // Список кончается: дальше — похожие по последнему треку пользователя (REWRITE §4.10.5).
+        if radio == nil, let seed = items.last(where: { !$0.fromAutoplay })?.track {
+            radio = RadioState(seedVideoId: seed.videoId, playlistId: "RDAMVM" + seed.videoId)
+        }
+        if radio != nil { loadRadio() }
     }
 }

@@ -12,8 +12,8 @@ public struct StreamContent: Sendable, Equatable {
     public var fromCache: Bool
 }
 
-/// Байты трека для плеера (docs/PROMPT.md §4): сначала кэш, недостающее — из googlevideo короткими диапазонами
-/// HTTP Range, и сразу в кэш (как `ChunkedYouTubeDataSource` Android и `HttpRangeReader` Windows).
+/// Байты трека для плеера (docs/PROMPT.md §4): сначала загрузки, затем кэш, недостающее — из googlevideo короткими
+/// диапазонами HTTP Range, и сразу в кэш (как `ChunkedYouTubeDataSource` Android и `HttpRangeReader` Windows).
 ///
 /// - 403, 401, 410 от googlevideo и истёкший адрес — не пропуск: адрес сбрасывается, берётся свежий, и чтение
 ///   повторяется, до двух раз подряд (грабли §9 п. 1);
@@ -23,7 +23,10 @@ public actor StreamSource {
     public nonisolated let videoId: String
     private let resolver: StreamResolver
     private let cache: AudioCache?
+    private let downloads: DownloadStore?
     private let session: URLSession
+    /// Трек скачан целиком: байты — из загрузок, сети не нужно.
+    private var downloaded = false
     private var info: StreamInfo?
     private var generation = 0
     private var refreshes = 0
@@ -36,10 +39,11 @@ public actor StreamSource {
     /// Сколько раз запрашивался адрес потока.
     public private(set) var resolveCount = 0
 
-    public init(videoId: String, resolver: StreamResolver, cache: AudioCache?, session: URLSession) {
+    public init(videoId: String, resolver: StreamResolver, cache: AudioCache?, downloads: DownloadStore? = nil, session: URLSession) {
         self.videoId = videoId
         self.resolver = resolver
         self.cache = cache
+        self.downloads = downloads
         self.session = session
     }
 
@@ -48,6 +52,13 @@ public actor StreamSource {
     /// Длина, тип, длительность. Из индекса кэша — без сети; иначе через адрес потока.
     public func contentInfo() async throws -> StreamContent {
         if let content { return content }
+        if let saved = downloads?.completeInfo(videoId) {
+            let value = StreamContent(length: saved.length, mimeType: saved.mimeType, durationMs: saved.durationMs,
+                                      loudnessDb: saved.loudnessDb, fromCache: true)
+            content = value
+            downloaded = true
+            return value
+        }
         if let entry = cache?.entry(videoId), let length = entry.contentLength {
             let value = StreamContent(length: length, mimeType: entry.mimeType, durationMs: entry.durationMs,
                                       loudnessDb: entry.loudnessDb, fromCache: entry.complete)
@@ -75,6 +86,9 @@ public actor StreamSource {
         let end = min(offset + Int64(length), total)
         guard end > offset else { return Data() }
         let wanted = Int(end - offset)
+        if downloaded, let data = downloads?.read(videoId, offset: offset, length: wanted), data.count == wanted {
+            return data
+        }
         if let cache {
             if let data = cache.read(videoId, offset: offset, length: wanted) { return data }
             let available = cache.available(videoId, from: offset)

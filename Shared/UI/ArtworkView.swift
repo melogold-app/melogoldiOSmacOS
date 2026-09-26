@@ -7,7 +7,7 @@ import MelogoldCore
 /// подложка со значком ноты. Грузит `ArtworkSession` (свой дисковый кэш в `Caches`), в памяти держится последняя
 /// сотня картинок.
 struct ArtworkView: View {
-    enum Shape { case rounded, circle, wide }
+    enum Shape { case rounded, circle, wide, square }
 
     let url: String?
     var size: CGFloat
@@ -52,6 +52,7 @@ struct ArtworkView: View {
         case .circle: AnyShape(Circle())
         case .rounded: AnyShape(RoundedRectangle(cornerRadius: max(4, size * 0.12), style: .continuous))
         case .wide: AnyShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        case .square: AnyShape(Rectangle())
         }
     }
 }

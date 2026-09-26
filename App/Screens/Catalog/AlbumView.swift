@@ -21,10 +21,19 @@ struct AlbumView: View {
         .task { await load() }
     }
 
+    /// Сначала сеть; без сети сохранённый альбом открывается из базы (REWRITE §3.6, §4.11.2).
     private func load(force: Bool = false) async {
         let catalog = model.services.catalog
         let browseId = browseId
-        await loader.load(force: force) { try await catalog.album(browseId) }
+        let library = model.library?.library
+        await loader.load(force: force) {
+            do {
+                return try await catalog.album(browseId)
+            } catch {
+                guard let album = library?.savedAlbum(browseId), let tracks = library?.albumTracks(browseId), !tracks.isEmpty else { throw error }
+                return AlbumDetails(album: album, description: nil, countText: nil, tracks: tracks, shelves: [])
+            }
+        }
     }
 
     private func page(_ details: AlbumDetails) -> some View {
@@ -67,6 +76,20 @@ struct AlbumView: View {
             return .list(tracks, index)
         }
         .toolbar {
+            ToolbarItem {
+                let saved = model.isAlbumSaved(album.browseId)
+                Button {
+                    model.setAlbumSaved(album, tracks: tracks, !saved)
+                } label: {
+                    Label(saved ? "collection.inLibrary" : "collection.save", systemImage: saved ? "checkmark" : "plus")
+                }
+            }
+            ToolbarItem {
+                // «Скачать» у альбома заодно сохраняет его в библиотеку (REWRITE §3.6).
+                CollectionDownloadButton(kind: .album, key: album.browseId, title: album.title) {
+                    model.setAlbumSaved(album, tracks: tracks, true)
+                }
+            }
             ToolbarItem {
                 Menu {
                     Section {

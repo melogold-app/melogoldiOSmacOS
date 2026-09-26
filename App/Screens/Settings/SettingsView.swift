@@ -33,7 +33,9 @@ struct SettingsView: View {
             }
 
             PlaybackSettingsSection()
+            LibrarySettingsSection()
             StorageSettingsSection()
+            DownloadSettingsSection()
 
             Section("settings.about") {
                 LabeledContent {

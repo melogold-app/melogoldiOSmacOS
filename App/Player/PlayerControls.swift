@@ -156,3 +156,71 @@ extension PlaybackFailure {
         }
     }
 }
+
+/// ♡ текущего трека: «В Избранное» и «Убрать из Избранного» сразу (docs/PROMPT.md §5.7).
+struct LikeButton: View {
+    @Environment(AppModel.self) private var model
+    var size: Font = .title3
+
+    var body: some View {
+        if let track = model.services.player.currentTrack, model.library != nil {
+            let liked = model.isLiked(track)
+            Button { model.toggleLike(track) } label: {
+                Image(systemName: liked ? "heart.fill" : "heart")
+                    .font(size)
+                    .foregroundStyle(liked ? AnyShapeStyle(.pink) : AnyShapeStyle(.secondary))
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
+                    .contentTransition(.symbolEffect(.replace))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text(liked ? "menu.unlike" : "menu.like"))
+        }
+    }
+}
+
+/// ⇄: перемешать очередь после текущего трека.
+struct ShuffleToggle: View {
+    @Environment(AppModel.self) private var model
+    var size: Font = .body
+
+    var body: some View {
+        let player = model.services.player
+        Button { player.setShuffled(!player.shuffled) } label: {
+            Image(systemName: "shuffle")
+                .font(size)
+                .foregroundStyle(player.shuffled ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text("player.shuffle"))
+        .accessibilityValue(Text(player.shuffled ? "common.on" : "common.off"))
+    }
+}
+
+/// ⟲: повтор — выкл · все · один.
+struct RepeatToggle: View {
+    @Environment(AppModel.self) private var model
+    var size: Font = .body
+
+    var body: some View {
+        let player = model.services.player
+        Button {
+            player.repeatMode = switch player.repeatMode {
+            case .off: .all
+            case .all: .one
+            case .one: .off
+            }
+        } label: {
+            Image(systemName: player.repeatMode == .one ? "repeat.1" : "repeat")
+                .font(size)
+                .foregroundStyle(player.repeatMode == .off ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tint))
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text("player.repeat"))
+        .accessibilityValue(Text(player.repeatMode == .off ? "player.repeat.off" : player.repeatMode == .all ? "player.repeat.all" : "player.repeat.one"))
+    }
+}

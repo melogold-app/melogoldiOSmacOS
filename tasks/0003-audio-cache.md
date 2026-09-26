@@ -1,6 +1,6 @@
 # Кэш музыки 4 ГБ и «есть без сети»
 
-Статус: в работе
+Статус: сделано
 
 Дополнение к `docs/PROMPT.md` (§4), срез 2. То же задание есть у других клиентов: `melogoldAndroid/tasks/0001-audio-cache.md` (сделано) и `melogoldWindows/tasks/0003-audio-cache.md`.
 

@@ -1,6 +1,7 @@
 import SwiftUI
 import MelogoldCore
 import MelogoldInnerTube
+import MelogoldData
 
 /// «Поиск» (REWRITE §3.1). На iPhone поле встаёт в панель вкладок (вкладка поиска iOS 26), на iPad с боковой панелью
 /// и на Mac — вверху раздела; ⌘F и повторное нажатие на «Поиск» ставят в него курсор.
@@ -26,6 +27,15 @@ struct SearchView: View {
                     } label: {
                         Label(title, systemImage: "link")
                     }
+                }
+                // «В библиотеке» — свои треки по вводу (REWRITE §3.1.2): нажатие — трек и радио.
+                ForEach(model.library?.library.search(model.searchQuery, limit: 3) ?? []) { track in
+                    Button {
+                        model.play(single: track)
+                    } label: {
+                        TrackRow(track: track, subtitle: [String(localized: "search.inLibrary"), track.artistsText].compactMap { $0 }.joined(separator: " · "))
+                    }
+                    .buttonStyle(.plain)
                 }
                 ForEach(search.suggestions, id: \.self) { suggestion in
                     Button {
@@ -87,52 +97,61 @@ private struct SearchContent: View {
 /// Корень Поиска: недавние запросы; пусто — подсказка про два источника (REWRITE §3.1.1).
 private struct SearchRootView: View {
     @Environment(AppModel.self) private var model
+    @State private var recentPlays: [HistoryEntry] = []
 
     var body: some View {
         let search = model.search
-        if search.recent.isEmpty {
-            ContentUnavailableView {
-                Label(AppSection.search.title, systemImage: AppSection.search.systemImage)
-            } description: {
-                Text(model.settings.historyPaused ? "search.historyPaused" : "search.tip")
-            } actions: {
-                PasteLinkButton()
-            }
-        } else {
-            List {
-                Section {
+        Group {
+            if search.recent.isEmpty, recentPlays.isEmpty {
+                ContentUnavailableView {
+                    Label(AppSection.search.title, systemImage: AppSection.search.systemImage)
+                } description: {
+                    Text(model.settings.historyPaused ? "search.historyPaused" : "search.tip")
+                } actions: {
                     PasteLinkButton()
-                        .listRowSeparator(.hidden)
                 }
-                Section {
-                    ForEach(search.recent, id: \.self) { query in
-                        Button {
-                            model.searchQuery = query
-                            search.submit(query)
-                        } label: {
-                            Label(query, systemImage: "clock.arrow.circlepath")
-                                .foregroundStyle(.primary)
-                        }
-                        .swipeActions {
-                            Button(role: .destructive) { search.removeRecent(query) } label: {
-                                Label("search.removeRecent", systemImage: "trash")
+            } else {
+                List {
+                    Section {
+                        PasteLinkButton()
+                            .listRowSeparator(.hidden)
+                    }
+                    if !search.recent.isEmpty {
+                        Section {
+                            ForEach(search.recent, id: \.self) { query in
+                                Button {
+                                    model.searchQuery = query
+                                    search.submit(query)
+                                } label: {
+                                    Label(query, systemImage: "clock.arrow.circlepath")
+                                        .foregroundStyle(.primary)
+                                }
+                                .swipeActions {
+                                    Button(role: .destructive) { search.removeRecent(query) } label: {
+                                        Label("search.removeRecent", systemImage: "trash")
+                                    }
+                                }
+                                .contextMenu {
+                                    Button(role: .destructive) { search.removeRecent(query) } label: {
+                                        Label("search.removeRecent", systemImage: "trash")
+                                    }
+                                }
                             }
-                        }
-                        .contextMenu {
-                            Button(role: .destructive) { search.removeRecent(query) } label: {
-                                Label("search.removeRecent", systemImage: "trash")
+                        } header: {
+                            HStack {
+                                Text("search.recent")
+                                Spacer()
+                                Button("search.clearRecent") { search.clearRecent() }
+                                    .font(.subheadline)
                             }
                         }
                     }
-                } header: {
-                    HStack {
-                        Text("search.recent")
-                        Spacer()
-                        Button("search.clearRecent") { search.clearRecent() }
-                            .font(.subheadline)
-                    }
+                    RecentlyPlayedSection(entries: recentPlays)
                 }
             }
+        }
+        .task(id: model.library?.revision) {
+            recentPlays = model.settings.historyPaused ? [] : model.library?.library.recentHistory(limit: 10) ?? []
         }
     }
 }
@@ -347,6 +366,23 @@ private struct UnavailableSourceRow: View {
                 .foregroundStyle(.secondary)
             Spacer()
             Button("common.retry", action: retry)
+        }
+    }
+}
+
+/// «Недавно игравшие» в корне Поиска (REWRITE §3.1.1): последние 10 треков, нажатие — трек и радио.
+private struct RecentlyPlayedSection: View {
+    let entries: [HistoryEntry]
+
+    var body: some View {
+        if !entries.isEmpty {
+            Section {
+                ForEach(entries, id: \.track.id) { entry in
+                    TrackListRow(track: entry.track, target: .single(entry.track), context: .history)
+                }
+            } header: {
+                Text("search.recentlyPlayed")
+            }
         }
     }
 }

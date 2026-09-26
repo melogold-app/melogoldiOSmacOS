@@ -44,6 +44,21 @@ final class AppModel {
     /// Плашка над мини-плеером: «Играет следующим: …», «Эта ссылка пока не поддерживается».
     var toast: Toast?
 
+    /// Отложенное разрушающее действие (5 с, «Отменить», docs/PROMPT.md §5.10).
+    var pending: PendingChange?
+    @ObservationIgnored var pendingTask: Task<Void, Never>?
+    /// `UndoManager` окна: ⌘Z и встряхивание отменяют отложенное действие.
+    @ObservationIgnored weak var undoManager: UndoManager?
+
+    /// Лист «Добавить в плейлист…» для этих треков.
+    var playlistPicker: PlaylistPickerRequest?
+
+    /// «Сохранить файлом» на iPhone и iPad: готовый файл для системного окна сохранения.
+    var exportedFile: ExportedAudio?
+
+    /// «Переименовать» свой плейлист.
+    var renameRequest: LibraryPlaylist?
+
     /// Открыт «Сейчас играет».
     var showNowPlaying = false
 
@@ -75,17 +90,19 @@ final class AppModel {
     /// Одиночный трек из выдачи: трек и радио (REWRITE §2.3). Без сети трек не из кэша не играет — «Нет сети».
     func play(single track: Track) {
         guard canPlay(track) else { return }
-        services.player.playSingle(track)
+        replaceQueue { services.player.playSingle(track) }
     }
 
     /// Трек из списка: очередь — весь список с этого трека.
     func play(_ tracks: [Track], startAt index: Int) {
         guard tracks.indices.contains(index), canPlay(tracks[index]) else { return }
-        services.player.play(tracks: tracks, startAt: index)
+        replaceQueue { services.player.play(tracks: tracks, startAt: index) }
     }
 
-    private func canPlay(_ track: Track) -> Bool {
-        if services.network.isOnline || cachedIds.contains(track.videoId) { return true }
+    func canPlay(_ track: Track) -> Bool {
+        if services.network.isOnline || cachedIds.contains(track.videoId) || services.library?.isDownloaded(track.videoId) == true {
+            return true
+        }
         notice = Notice(title: "notice.offline", message: nil)
         return false
     }

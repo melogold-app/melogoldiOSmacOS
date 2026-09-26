@@ -213,6 +213,8 @@ struct TrackGrid: View {
     let tracks: [Track]
     var numbered = true
     var rows = 4
+    /// «Не интересно» — только в «Для вас».
+    var notInterested: ((Track) -> Void)?
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -260,7 +262,12 @@ struct TrackGrid: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .contextMenu { TrackMenuItems(track: track) }
+            .contextMenu {
+                TrackMenuItems(track: track)
+                if let notInterested {
+                    Button { notInterested(track) } label: { Label("new.notInterested", systemImage: "hand.thumbsdown") }
+                }
+            }
             .accessibilityElement(children: .combine)
             TrackMenuButton(track: track)
         }

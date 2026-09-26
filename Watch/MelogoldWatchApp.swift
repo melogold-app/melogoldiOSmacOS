@@ -1,6 +1,7 @@
 import SwiftUI
 import MelogoldCore
 import MelogoldData
+import MelogoldPlayback
 import MelogoldServer
 
 /// Melogold для Apple Watch — самостоятельное приложение (docs/PROMPT.md §5.6): свой вход, поиск, поток,
@@ -41,6 +42,13 @@ struct MelogoldWatchApp: App {
                         model.pendingQuery = query
                         model.path = [.section(.search)]
                     }
+                    // -MelogoldSeedLibrary YES — пример библиотеки для снимков (как в приложении).
+                    if defaults.bool(forKey: "MelogoldSeedLibrary"), let library = model.services.library?.library,
+                       library.counts().likes == 0, let album = try? await model.services.catalog.album("MPREb_OLmD8O5IYNS") {
+                        for track in album.tracks.prefix(5) { library.setLiked(track, true) }
+                        for track in album.tracks { library.recordPlay(track, playTimeMs: 120_000) }
+                        library.createPlaylist(name: "Дорога", tracks: Array(album.tracks.suffix(4)))
+                    }
                     // -MelogoldPlayVideo <id> — видео по id (кадр видео в корне и «Сейчас играет», задание 0008).
                     if let videoId = defaults.string(forKey: "MelogoldPlayVideo") {
                         model.services.player.playSingle(Track(videoId: videoId, title: videoId, videoType: VideoType.video))
@@ -54,11 +62,18 @@ struct MelogoldWatchApp: App {
                         case ("album", let id?): model.path = [.album(id)]
                         case ("artist", let id?): model.path = [.artist(id)]
                         case ("playlist", let id?): model.path = [.playlist(id)]
+                        case ("library", _): model.path = [.section(.library)]
+                        case ("allTracks", _): model.path = [.section(.library), .library(.allTracks)]
+                        case ("settings", _): model.path = [.section(.settings)]
                         default: break
                         }
                     }
                 }
                 #endif
+        }
+        // Загрузки часов — фоновая сессия URLSession: система будит приложение, когда куски докачаны (§5.6).
+        .backgroundTask(.urlSession(BackgroundDownloads.identifier)) {
+            await BackgroundDownloads.waitForEvents()
         }
     }
 }
@@ -73,6 +88,8 @@ enum WatchRoute: Hashable {
     case mood(MoodItem)
     case moods
     case newReleases
+    case library(WatchLibraryPage)
+    case queue
 }
 
 /// Состояние приложения часов.
@@ -104,6 +121,10 @@ final class WatchModel {
         guard tracks.indices.contains(index) else { return }
         services.player.play(tracks: tracks, startAt: index)
         path.append(.nowPlaying)
+    }
+
+    func download(_ track: Track) {
+        services.downloads?.download(track)
     }
 
     /// «Слушать» и «Перемешать» коллекции.

@@ -125,5 +125,48 @@ enum LibraryMigrations {
                 CREATE INDEX audio_cache_lru ON audio_cache(last_read_at);
                 """)
         },
+        DatabaseMigration("library-v2") { db in
+            // Срез 4: загрузки (REWRITE §4.7) — строка на трек и коллекции для сверки по плану (§4.7.3); треки
+            // сохранённых альбомов (альбом без сети и его загрузка); связь своего плейлиста с YouTube (§3.8.1).
+            try db.execute(sql: """
+                CREATE TABLE downloads (
+                    video_id TEXT PRIMARY KEY,
+                    state TEXT NOT NULL,
+                    wait_reason TEXT,
+                    failure TEXT,
+                    manual INTEGER NOT NULL DEFAULT 0,
+                    itag INTEGER,
+                    mime_type TEXT,
+                    content_length INTEGER,
+                    duration_ms INTEGER,
+                    loudness_db REAL,
+                    ranges TEXT NOT NULL DEFAULT '',
+                    downloaded_bytes INTEGER NOT NULL DEFAULT 0,
+                    attempts INTEGER NOT NULL DEFAULT 0,
+                    created_at INTEGER NOT NULL,
+                    completed_at INTEGER
+                );
+                CREATE INDEX downloads_state ON downloads(state);
+
+                CREATE TABLE download_collections (
+                    kind TEXT NOT NULL,
+                    key TEXT NOT NULL,
+                    title TEXT,
+                    created_at INTEGER NOT NULL,
+                    PRIMARY KEY (kind, key)
+                );
+
+                CREATE TABLE album_tracks (
+                    album_id TEXT NOT NULL,
+                    video_id TEXT NOT NULL,
+                    position INTEGER NOT NULL,
+                    PRIMARY KEY (album_id, video_id)
+                );
+
+                ALTER TABLE playlists ADD COLUMN yt_link_mode TEXT;
+                ALTER TABLE playlists ADD COLUMN yt_synced_at INTEGER;
+                ALTER TABLE playlists ADD COLUMN yt_snapshot TEXT;
+                """)
+        },
     ]
 }

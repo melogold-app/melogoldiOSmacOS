@@ -75,7 +75,7 @@ extension AppModel {
             do {
                 let page = try await services.catalog.next(videoId: nil, playlistId: playlistId)
                 guard let first = page.tracks.first else { return }
-                services.player.playRadio(playlistId: playlistId, seed: first)
+                replaceQueue { services.player.playRadio(playlistId: playlistId, seed: first) }
             } catch {
                 notice = Notice(title: "error.offline", message: nil)
             }
@@ -149,14 +149,11 @@ extension AppModel {
         let next = try? await catalog.next(videoId: videoId, playlistId: playlistId)
         let track = next?.tracks.first { $0.videoId == videoId } ?? Track(videoId: videoId, title: videoId)
         if let list = playlistId, list.hasPrefix("RD"), !list.hasPrefix("RDCLAK") {
-            services.player.playRadio(playlistId: list, seed: track)
+            replaceQueue { services.player.playRadio(playlistId: list, seed: track) }
             return
         }
-        guard services.network.isOnline || cachedIds.contains(videoId) else {
-            notice = Notice(title: "notice.offline", message: nil)
-            return
-        }
-        services.player.playSingle(track, from: Double(startMs ?? 0) / 1000)
+        guard canPlay(track) else { return }
+        replaceQueue { services.player.playSingle(track, from: Double(startMs ?? 0) / 1000) }
     }
 
     /// Плейлист по ссылке; `OLAK5uy_…` — плейлист альбома: открывается альбом по первому треку.
