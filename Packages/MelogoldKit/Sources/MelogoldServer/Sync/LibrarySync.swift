@@ -76,9 +76,13 @@ public struct SyncTiming: Sendable {
 /// выигрывает у того, что устройство видело, и сравнивается по времени с тем, чего не видело. Сервер отвечает текущими
 /// строками всех ключей, которых коснулись ops, поэтому проигравшая правка сразу приходит победителем.
 ///
+/// Правка, сделанная здесь, пока шёл запрос, ответом не затирается: ключ, который не совпал с библиотекой на момент
+/// построения ops, получает от сервера только снимок, а правка уходит следующим проходом (`SyncApply.rows`).
+///
 /// Синхронизации идут по одной: при входе и запуске, через 2 с после правки библиотеки, по SSE (`system.connected`,
-/// `sync.changed`, `lyrics.changed`), при выходе на передний план и по «Синхронизировать сейчас». Сети заранее не
-/// проверяются (на часах Network framework нет, TN3135): неответ сервера — статус «Нет связи» и повтор с паузой.
+/// `sync.changed`, `lyrics.changed`), при выходе на передний план, при возврате сети (`networkReturned`, кроме часов)
+/// и по «Синхронизировать сейчас». Перед запросом сеть не проверяется (на часах Network framework нет, TN3135):
+/// неответ сервера — статус «Нет связи» и повтор с паузой.
 @MainActor
 @Observable
 public final class LibrarySync {
@@ -118,6 +122,9 @@ public final class LibrarySync {
     /// Поток событий ждёт паузы перед переподключением.
     @ObservationIgnored private var liveWaiting = false
     @ObservationIgnored private var observation: SyncObservation?
+    /// Ops, которые сервер не принимает даже по одной (`413`, `400 invalid_request`): не отправляются, пока здесь не
+    /// изменится то, о чём они (DESIGN §3.9 `client_bug`), — иначе каждый проход упирался бы в них.
+    @ObservationIgnored private var skipped: Set<PendingOp> = []
 
     nonisolated static let streams = ["library", "history"]
     nonisolated static let maxOps = 500
@@ -183,6 +190,17 @@ public final class LibrarySync {
         enqueue(.full)
     }
 
+    /// Сеть вернулась (iPhone, iPad, Mac, Vision — `NWPathMonitor`; DESIGN §3.13.6 «появление сети»): синхронизация
+    /// и живой поток сразу, а не после паузы повтора (до 5 мин).
+    public func networkReturned() {
+        guard binding != nil else { return }
+        retry?.cancel()
+        retry = nil
+        retryCount = 0
+        if followsLiveEvents && (live == nil || liveWaiting) { startLive() }
+        enqueue(.full)
+    }
+
     /// Уход в фон: правки, которые ждут паузы 2 с, уходят сразу.
     public func flush() {
         guard binding != nil, let pending = debounce else { return }
@@ -241,6 +259,7 @@ public final class LibrarySync {
         lastSyncAt = nil
         lastCursor = nil
         lastFullSync = nil
+        skipped.removeAll()
     }
 
     /// Правка Избранного, плейлистов, закладок, своих текстов или истории уходит через 2 с. Свои записи синка тоже
@@ -346,6 +365,32 @@ public final class LibrarySync {
     }
 
     private func syncOnce(_ request: Request, store: SyncStore, binding: String) async throws {
+        var request = request
+        do {
+            try await syncPass(request, store: store, binding: binding)
+        } catch let error as APIError where error.status == 410 && error.code == "cursor_invalid" {
+            // Сервер восстановлен из копии или сменил epoch (API §2.2, DESIGN §3.15 п. 6): тихое слияние (§3.14) —
+            // снимок забыт, всё здешнее уходит заново без base, свои прослушивания — только в историю, время —
+            // play.baseline atLeast. Иначе то, что сервер потерял, а снимок помнит, не ушло бы никогда.
+            Log.info("sync", "Курсор отвергнут (cursor_invalid) — тихое слияние")
+            try ensureBinding(binding)
+            try await store.write { tx in
+                try tx.forgetServerCopy()
+                try tx.setState(SyncStateKey.cursor, "")
+                try tx.setState(SyncStateKey.needsMerge, "1")
+                try tx.setState(SyncStateKey.historyMerge, "1")
+                try tx.setState(SyncStateKey.historyReplay, "1")
+                try tx.setState(SyncStateKey.lyricsRev, nil)
+            }
+            request = .full
+            try await syncPass(request, store: store, binding: binding)
+        }
+        // Тексты — после библиотеки, в том же цикле (задание 0001 §3.3)
+        try await syncLyrics(force: request.force, store: store, binding: binding)
+    }
+
+    /// Библиотека и история: слияние, если нужно, ops по разнице со снимком и ответ сервера.
+    private func syncPass(_ request: Request, store: SyncStore, binding: String) async throws {
         try await store.write { tx in
             guard try tx.state(SyncStateKey.binding) != binding else { return }
             // Другой аккаунт или сервер: здесь с ним ничего не синхронизировано, уходит (и сливается) всё
@@ -359,23 +404,34 @@ public final class LibrarySync {
             try await planMerge(store: store, binding: binding)
         }
 
-        let ops = try await store.write { [builder = makeBuilder()] tx in try builder.build(tx) }
-        if !ops.isEmpty || (request.force && !request.lyricsOnly) {
+        let built = try await build(store: store)
+        if !built.ops.isEmpty || (request.force && !request.lyricsOnly) {
             beginNetwork()
-            try await syncLibrary(ops, store: store, binding: binding)
+            try await syncLibrary(built, store: store, binding: binding)
             // После всех прослушиваний первой синхронизации — накопленное время (`play.baseline`): раньше нельзя,
             // иначе отложенные лимитом play.add прибавились бы к нему ещё раз
-            if !ops.isEmpty, try await store.state(SyncStateKey.historyMerge) == "1" {
-                let more = try await store.write { [builder = makeBuilder()] tx in try builder.build(tx) }
-                if !more.isEmpty { try await syncLibrary(more, store: store, binding: binding) }
+            if !built.ops.isEmpty, try await store.state(SyncStateKey.historyMerge) == "1" {
+                let more = try await build(store: store)
+                if !more.ops.isEmpty { try await syncLibrary(more, store: store, binding: binding) }
             }
         }
-        // Тексты — после библиотеки, в том же цикле (задание 0001 §3.3)
-        try await syncLyrics(force: request.force, store: store, binding: binding)
     }
 
-    private func makeBuilder() -> SyncOpBuilder {
-        SyncOpBuilder(mergeUploadMax: account.serverInfo?.limits?.history?.mergeUploadMax)
+    /// Ops по разнице со снимком, кроме тех, что сервер не принимает (`skipped`).
+    private func build(store: SyncStore) async throws -> SyncBuild {
+        let builder = SyncOpBuilder(mergeUploadMax: account.serverInfo?.limits?.history?.mergeUploadMax)
+        var built = try await store.write { tx in try builder.build(tx) }
+        if !skipped.isEmpty { built.ops.removeAll { skipped.contains($0.content) } }
+        return built
+    }
+
+    /// Op больше бюджета работы запроса уходит без метаданных треков: они необязательны (API §4.8), а `videoIds`
+    /// одни помещаются (плейлист — не больше 10 000 треков).
+    nonisolated static func fitted(_ op: PendingOp, maxWork: Int = LibrarySync.maxWork) -> PendingOp {
+        guard op.work > maxWork, op.op.tracks != nil else { return op }
+        var fitted = op
+        fitted.op.tracks = nil
+        return fitted
     }
 
     /// Пакет: не больше `maxOps` ops и бюджета работы запроса, но хотя бы одна op.
@@ -390,36 +446,54 @@ public final class LibrarySync {
         return Array(ops.prefix(count))
     }
 
-    private func syncLibrary(_ ops: [PendingOp], store: SyncStore, binding: String) async throws {
+    /// Ops пакетами и pull до конца. Пакет, который сервер не принял целиком, делится: `413` — вдвое, `400
+    /// invalid_request` — бисекцией (DESIGN §3.9); одна op без метаданных треков или та, что не проходит и одна,
+    /// откладывается (`skipped`), а остальные ops и pull идут дальше — синк на ней не встаёт.
+    private func syncLibrary(_ built: SyncBuild, store: SyncStore, binding: String) async throws {
         var cursor = try await store.state(SyncStateKey.cursor) ?? ""
-        var pending = ops
+        var pending = built.ops.map { Self.fitted($0) }
+        var image = built.image
         var restarted = false
-        var maxOps = min(max(account.serverInfo?.limits?.sync?.maxOpsPerRequest ?? Self.maxOps, 1), Self.maxOps)
+        let limit = min(max(account.serverInfo?.limits?.sync?.maxOpsPerRequest ?? Self.maxOps, 1), Self.maxOps)
+        var maxOps = limit
         while true {
             let batch = Self.batch(pending, maxOps: maxOps)
             let body = SyncRequest(cursor: cursor, limit: nil, streams: Self.streams, ops: batch.map(\.op))
             let response: SyncResponse
             do {
                 response = try await account.authorized { api, token in try await api.sync(token: token, body) }
-            } catch let error as APIError where error.status == 410 && !restarted {
-                // Сервер восстановлен из копии или забыл курсор: прочитать всё заново (API §4.8, 410)
+            } catch let error as APIError where error.status == 410 && error.code != "cursor_invalid" && !restarted {
+                // Сервер забыл курсор (cursor_expired): прочитать всё заново (API §4.8, 410). cursor_invalid — тихое
+                // слияние (syncOnce)
                 Log.info("sync", "Курсор отвергнут (\(error.code)) — синхронизация с начала")
                 restarted = true
                 cursor = ""
                 continue
-            } catch let error as APIError where error.status == 413 && batch.count > 1 {
-                maxOps = max(1, batch.count / 2)
+            } catch let error as APIError where !batch.isEmpty && (error.status == 413 || (error.status == 400 && error.code == "invalid_request")) {
+                if batch.count > 1 {
+                    maxOps = max(1, batch.count / 2)
+                } else if error.status == 413, pending[0].op.tracks != nil {
+                    pending[0].op.tracks = nil
+                } else {
+                    Log.warning("sync", "Сервер не принимает op \(batch[0].kind) (\(batch[0].key)): \(error.code) — отложена")
+                    skipped.insert(batch[0].content)
+                    pending.removeFirst()
+                    maxOps = limit
+                }
                 continue
             }
             try ensureBinding(binding)
             pending.removeFirst(batch.count)
             let now = EpochMs.now()
-            let retryAfter = try await store.write { tx in
+            let remaining = pending
+            let (retryAfter, applied) = try await store.write { [image] tx in
+                var image = image
                 let retry = try SyncApply.results(tx, batch: batch, results: response.results, now: now)
-                try SyncApply.rows(tx, response, now: now)
+                try SyncApply.rows(tx, response, image: &image, pending: remaining, now: now)
                 try tx.setState(SyncStateKey.cursor, response.cursor)
-                return retry
+                return (retry, image)
             }
+            image = applied
             lastCursor = response.cursor
             if let retryAfter {
                 // Больше 2000 прослушиваний в час (op_rate_limited): остальные — после паузы, которую назвал сервер
@@ -447,7 +521,8 @@ public final class LibrarySync {
         }
     }
 
-    /// Первая синхронизация с аккаунтом: свои плейлисты занимают серверных двойников, а не задваивают их (API §4.7).
+    /// Первая синхронизация с аккаунтом и тихое слияние: свои плейлисты занимают серверных двойников, а не задваивают
+    /// их; удалённые на сервере удаляются и здесь (API §4.7).
     private func planMerge(store: SyncStore, binding: String) async throws {
         let locals = try await store.read { try $0.playlists() }
         guard !locals.isEmpty else { return }
@@ -457,9 +532,19 @@ public final class LibrarySync {
         let plan = try await account.authorized { api, token in try await api.mergePlan(token: token, body) }
         try ensureBinding(binding)
         try await store.write { tx in
-            for entry in plan.plan where entry.action == "merge" || entry.action == "create" {
+            for entry in plan.plan {
                 guard let id = Int64(entry.localKey) else { continue }
-                try tx.setPlaylistSyncId(id, entry.playlistId)
+                switch entry.action {
+                case "merge", "create":
+                    try tx.setPlaylistSyncId(id, entry.playlistId)
+                case "deleted":
+                    // Удалён на другом устройстве (API §4.7 п. 2): удалить и здесь — import в удалённый плейлист
+                    // вернул бы его копией «(восстановлено)» на всех устройствах
+                    try tx.deletePlaylist(id)
+                    try tx.deleteSyncedPlaylist(entry.playlistId)
+                default:
+                    break
+                }
             }
         }
     }

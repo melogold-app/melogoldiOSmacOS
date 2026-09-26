@@ -43,6 +43,19 @@ struct ModelsTests {
         #expect(IsoTime.date("2026-09-23T10:00:00Z") == date)
     }
 
+    /// Каждая миллисекунда секунды туда и обратно — ровно она же (через `Double` половина уходила на 1 мс раньше).
+    @Test func isoTimeKeepsEveryMillisecond() {
+        for ms in Int64(1_790_157_600_000) ..< 1_790_157_601_000 {
+            let text = IsoTime.string(epochMs: ms)
+            #expect(text.hasSuffix(String(format: ".%03dZ", Int(ms % 1000))), "\(ms) → \(text)")
+            #expect(IsoTime.epochMs(text) == ms, "\(ms) → \(text)")
+        }
+        #expect(IsoTime.string(epochMs: 1_790_157_600_001) == "2026-09-23T10:00:00.001Z")
+        #expect(IsoTime.string(epochMs: 0) == "1970-01-01T00:00:00.000Z")
+        #expect(IsoTime.string(epochMs: -1) == "1969-12-31T23:59:59.999Z")
+        #expect(IsoTime.string(Date(timeIntervalSince1970: 1_790_157_600.001)) == "2026-09-23T10:00:00.001Z")
+    }
+
     @Test func renameEncodesNullName() throws {
         let json = String(decoding: try JSONEncoder().encode(RenameDeviceRequest(name: nil, password: nil)), as: UTF8.self)
         #expect(json == #"{"name":null}"#)

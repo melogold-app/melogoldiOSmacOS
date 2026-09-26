@@ -15,6 +15,7 @@ final class AppModel {
     /// Синк библиотеки, истории и своих текстов с аккаунтом (срез 5).
     let sync: LibrarySync
     @ObservationIgnored private var lifecycle: [any NSObjectProtocol] = []
+    @ObservationIgnored private var wasOnline = true
     var settings: AppSettings { services.settings }
     var paths: AppPaths? { services.paths }
 
@@ -83,6 +84,24 @@ final class AppModel {
         refreshCached()
         sync.start()
         lifecycle = SyncLifecycle.observe(sync)
+        wasOnline = services.network.isOnline
+        observeNetwork()
+    }
+
+    /// Сеть вернулась — синк и живой поток сразу, а не после паузы повтора (DESIGN §3.13.6 «появление сети»).
+    /// Смотрит `isOnline`, а не смену интерфейсов: та молчит, когда до этого сети не было вовсе.
+    private func observeNetwork() {
+        withObservationTracking {
+            _ = services.network.isOnline
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                let online = self.services.network.isOnline
+                if online && !self.wasOnline { self.sync.networkReturned() }
+                self.wasOnline = online
+                self.observeNetwork()
+            }
+        }
     }
 
     func refreshCached() {

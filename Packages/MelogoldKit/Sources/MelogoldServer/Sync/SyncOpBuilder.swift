@@ -4,7 +4,7 @@ import MelogoldData
 
 /// Op `POST /sync` и то, о чём она: ключ сущности (`like:`, `pl:`, `bm:`, `play:`, `hop:`, `stat:batch`) нужен,
 /// чтобы разобрать результат.
-struct PendingOp: Sendable, Equatable {
+struct PendingOp: Sendable, Hashable {
     let key: String
     var op: SyncOp
 
@@ -12,6 +12,23 @@ struct PendingOp: Sendable, Equatable {
 
     /// Бюджет работы запроса (API §1.9): `videoIds` + `entries` + `tracks`.
     var work: Int { (op.videoIds?.count ?? 0) + (op.entries?.count ?? 0) + (op.tracks?.count ?? 0) }
+
+    /// То, о чём op, — одинаково в следующих проходах, пока здесь ничего не изменилось: без `opId`, `at` и `base`,
+    /// которые меняются от прохода к проходу, и без необязательных метаданных треков.
+    var content: PendingOp {
+        var op = op
+        op.opId = ""
+        op.at = ""
+        op.base = nil
+        op.tracks = nil
+        return PendingOp(key: key, op: op)
+    }
+}
+
+/// Ops прохода и библиотека, по которой их построили (`SyncApply.rows` сверяет с ней ответ сервера).
+struct SyncBuild: Sendable {
+    var ops: [PendingOp]
+    var image: LibraryImage
 }
 
 /// Ключи `sync_state` (как у Windows `LibrarySync.cs`).
@@ -23,6 +40,9 @@ enum SyncStateKey {
     static let lyricsRev = "lyricsRev"
     static let historyMerge = "historyMerge"
     static let historyRetryAt = "historyRetryAt"
+    /// Свои прослушивания уходят ещё раз после восстановления сервера (тихое слияние, DESIGN §3.14): только в историю,
+    /// время — `play.baseline atLeast`, иначе оно задвоится.
+    static let historyReplay = "historyReplay"
 }
 
 /// Что изменилось здесь с прошлой синхронизации — ops (вариант со снимком, REWRITE §4.12a; Windows `BuildOps`).
@@ -45,10 +65,11 @@ struct SyncOpBuilder {
         if let mergeUploadMax, mergeUploadMax > 0 { self.mergeUploadMax = mergeUploadMax }
     }
 
-    func build(_ tx: SyncTx) throws -> [PendingOp] {
+    func build(_ tx: SyncTx) throws -> SyncBuild {
         let cursor = try tx.state(SyncStateKey.cursor)
         let base = cursor?.isEmpty == false ? cursor : nil
         var ops: [PendingOp] = []
+        var image = LibraryImage()
 
         func make(_ kind: String, _ key: String, at: Int64, opId: String? = nil, _ fill: (inout SyncOp) throws -> Void) rethrows {
             var op = SyncOp(opId: opId ?? makeId(), kind: kind, at: IsoTime.string(epochMs: at), base: base)
@@ -59,6 +80,7 @@ struct SyncOpBuilder {
         // Избранное
         let liked = try tx.likes()
         let likedIds = Set(liked.map(\.track.videoId))
+        image.likes = Dictionary(liked.map { ($0.track.videoId, $0.likedAt) }, uniquingKeysWith: { first, _ in first })
         let syncedLikes = try tx.syncedLikes()
         for like in liked where !syncedLikes.contains(like.track.videoId) {
             make("like.set", "like:\(like.track.videoId)", at: like.likedAt) {
@@ -80,12 +102,15 @@ struct SyncOpBuilder {
         let playlists = try tx.playlists()
         for playlist in playlists {
             let songs = try tx.playlistVideoIds(playlist.id)
+            image.playlists[playlist.id] = PlaylistImage(name: playlist.name, thumbnailUrl: playlist.thumbnailUrl, videoIds: songs)
             guard let syncId = playlist.syncId else {
                 let newId = makeId()
                 try tx.setPlaylistSyncId(playlist.id, newId)
+                image.syncIds[newId] = playlist.id
                 try make("playlist.create", "pl:\(newId)", at: now) { try Self.fillPlaylist(&$0, tx, newId, playlist, songs) }
                 continue
             }
+            image.syncIds[syncId] = playlist.id
             guard let previous = synced[syncId] else {
                 // Занят по плану слияния или создан и ещё не подтверждён: import сливает
                 try make("playlist.import", "pl:\(syncId)", at: now) { try Self.fillPlaylist(&$0, tx, syncId, playlist, songs) }
@@ -134,6 +159,7 @@ struct SyncOpBuilder {
         // Сохранённые альбомы, исполнители и каналы
         let bookmarks = try tx.bookmarks()
         let bookmarkKeys = Set(bookmarks.map(\.key))
+        image.bookmarks = Dictionary(bookmarks.map { ($0.key, $0.bookmarkedAt) }, uniquingKeysWith: { first, _ in first })
         let syncedBookmarks = try tx.syncedBookmarks()
         for bookmark in bookmarks where !syncedBookmarks.contains(bookmark.key) {
             make("bookmark.set", "bm:\(bookmark.key.type):\(bookmark.key.browseId)", at: now) {
@@ -158,6 +184,7 @@ struct SyncOpBuilder {
 
         // История (задание 0002 §3.2)
         let merge = try tx.state(SyncStateKey.historyMerge) == "1"
+        let replay = try merge && tx.state(SyncStateKey.historyReplay) == "1"
         let retryAt = try tx.state(SyncStateKey.historyRetryAt).flatMap { Int64($0) } ?? 0
         var plays = try tx.unsentPlays()
         if retryAt <= now {
@@ -173,7 +200,7 @@ struct SyncOpBuilder {
                     $0.playedAt = IsoTime.string(epochMs: play.playedAt)
                     $0.playTimeMs = min(max(play.playTimeMs, 1), Self.maxPlayTimeMs)
                     $0.history = true
-                    $0.playtime = true
+                    $0.playtime = !replay
                     $0.tracks = track.flatMap { Self.tracks([$0]) }
                 }
             }
@@ -191,7 +218,10 @@ struct SyncOpBuilder {
             // Накопленное время — только когда все прослушивания уже на сервере: отложенные лимитом play.add иначе
             // прибавились бы к нему ещё раз
             let totals = try tx.playTotals()
-            if totals.isEmpty { try tx.setState(SyncStateKey.historyMerge, "0") }
+            if totals.isEmpty {
+                try tx.setState(SyncStateKey.historyMerge, "0")
+                try tx.setState(SyncStateKey.historyReplay, nil)
+            }
             var start = 0
             while start < totals.count {
                 let chunk = totals[start ..< min(start + Self.baselineChunk, totals.count)]
@@ -202,7 +232,7 @@ struct SyncOpBuilder {
                 start += Self.baselineChunk
             }
         }
-        return ops
+        return SyncBuild(ops: ops, image: image)
     }
 
     private static func fillPlaylist(_ op: inout SyncOp, _ tx: SyncTx, _ syncId: String, _ playlist: SyncPlaylistRecord, _ songs: [String]) throws {

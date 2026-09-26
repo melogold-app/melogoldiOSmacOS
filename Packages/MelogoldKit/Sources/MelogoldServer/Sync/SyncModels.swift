@@ -3,7 +3,7 @@ import Foundation
 // Синхронизация (API §4.7, §4.8) и тексты (§4.10). Op — плоская схема с полем `kind`: полиморфизма в API нет (§1.3).
 // Ответы читаются терпимо: отсутствующий массив — пустой, неизвестные поля пропускаются.
 
-public struct ArtistRefDto: Codable, Sendable, Equatable {
+public struct ArtistRefDto: Codable, Sendable, Hashable {
     public let id: String?
     public let name: String
 
@@ -51,7 +51,7 @@ public struct TrackDto: Decodable, Sendable, Equatable {
 }
 
 /// Метаданные трека в op: другие устройства смогут его показать. Разбор на сервере мягкий (DESIGN §3.9).
-public struct TrackInput: Encodable, Sendable, Equatable {
+public struct TrackInput: Encodable, Sendable, Hashable {
     public var videoId: String
     public var title: String?
     public var artistsText: String?
@@ -69,13 +69,13 @@ public struct TrackInput: Encodable, Sendable, Equatable {
     }
 }
 
-public struct BaselineEntry: Codable, Sendable, Equatable {
+public struct BaselineEntry: Codable, Sendable, Hashable {
     public let videoId: String
     public let totalMs: Int64
 }
 
 /// Одна op `POST /sync`. Поля без значения не пишутся.
-public struct SyncOp: Encodable, Sendable, Equatable {
+public struct SyncOp: Encodable, Sendable, Hashable {
     public var opId: String
     public var kind: String
     public var at: String

@@ -41,6 +41,35 @@ struct SyncStoreTests {
         #expect(byTable["synced_bookmarks"] == ["type", "browse_id"])
     }
 
+    /// Сервер восстановлен из копии: снимок забыт, `sync_id` остаются, свои прослушивания снова неотправленные,
+    /// отвергнутый сервером текст остаётся отвергнутым.
+    @Test func forgetServerCopyKeepsSyncIdsAndRejectedLyrics() async throws {
+        try await store.write { tx in
+            try tx.upsertTrack(self.track("aaaaaaaaaaa"))
+            try tx.setLike("aaaaaaaaaaa", likedAt: 1000)
+            try tx.setBookmark(SyncBookmarkKey(type: "album", browseId: "MPREb_1"), bookmarkedAt: 1000, title: "A", subtitle: nil, thumbnailUrl: nil, year: nil)
+            let id = try tx.insertPlaylist(name: "Дорога", browseId: nil, thumbnailUrl: nil, syncId: "p1", createdAt: 1)
+            try tx.upsertItem(id, videoId: "aaaaaaaaaaa", sortKey: "a0", addedAt: 1)
+            try tx.reorder(id)
+            try tx.insertPlay(eventId: "e-own", videoId: "aaaaaaaaaaa", playedAt: 10, playTimeMs: 1000, deviceId: nil)
+            try tx.insertPlay(eventId: "e-other", videoId: "aaaaaaaaaaa", playedAt: 20, playTimeMs: 1000, deviceId: "phone")
+            try tx.setSyncedLyrics("aaaaaaaaaaa", rev: 2, hash: "h")
+            try tx.setSyncedLyrics("bbbbbbbbbbb", rev: LyricsSnapshot.rejected, hash: "h2")
+        }
+
+        try await store.write { try $0.forgetServerCopy() }
+
+        #expect(try await strings("SELECT video_id FROM synced_likes").isEmpty)
+        #expect(try await strings("SELECT browse_id FROM synced_bookmarks").isEmpty)
+        #expect(try await strings("SELECT sync_id FROM synced_playlists").isEmpty)
+        #expect(try await strings("SELECT video_id FROM synced_lyrics") == ["bbbbbbbbbbb"])
+        #expect(try await strings("SELECT sync_id FROM playlists") == ["p1"])
+        #expect(try await strings("SELECT video_id FROM playlist_items WHERE sort_key IS NOT NULL").isEmpty)
+        #expect(try await strings("SELECT liked_at FROM tracks") == ["1000"])
+        #expect(try await store.read { try $0.unsentPlays() }.map(\.eventId) == ["e-own"])
+        #expect(try await strings("SELECT event_id FROM play_events ORDER BY event_id") == ["e-other", "e-own"])
+    }
+
     @Test func forgetBindingKeepsOwnPlaysAndDropsForeignOnes() async throws {
         try await store.write { tx in
             try tx.upsertTrack(self.track("aaaaaaaaaaa"))

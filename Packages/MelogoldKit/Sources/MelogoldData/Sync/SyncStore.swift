@@ -79,6 +79,17 @@ public struct SyncedPlaylist: Equatable, Sendable {
     }
 }
 
+/// Трек плейлиста этого устройства: ключ порядка сервера, если сервер этот трек уже знает.
+public struct SyncItemRecord: Equatable, Sendable {
+    public let videoId: String
+    public let sortKey: String?
+
+    public init(videoId: String, sortKey: String?) {
+        self.videoId = videoId
+        self.sortKey = sortKey
+    }
+}
+
 /// Ключ закладки: `album` или `artist` (исполнитель и канал).
 public struct SyncBookmarkKey: Hashable, Sendable {
     public let type: String
@@ -265,6 +276,21 @@ public struct SyncTx {
             """)
     }
 
+    /// Сервер восстановлен из копии (`410 cursor_invalid`, DESIGN §3.14 «Тихое слияние», §3.15 п. 6): снимок забыт,
+    /// `sync_id` остаются. Библиотека уходит заново `import`/`set` без `base`, свои прослушивания — ещё раз (сервер узнаёт
+    /// их по `eventId`), свои тексты — `PUT` (то же содержимое `rev` не меняет), тексты с сервера — с начала. Тексты,
+    /// которые сервер отверг, остаются отвергнутыми.
+    public func forgetServerCopy() throws {
+        try db.execute(sql: """
+            DELETE FROM synced_likes;
+            DELETE FROM synced_playlists;
+            DELETE FROM synced_bookmarks;
+            DELETE FROM synced_lyrics WHERE rev <> ?;
+            UPDATE playlist_items SET sort_key = NULL WHERE sort_key IS NOT NULL;
+            UPDATE play_events SET synced = 0 WHERE device_id IS NULL AND synced <> 0;
+            """, arguments: [LyricsSnapshot.rejected])
+    }
+
     // MARK: - Треки
 
     public func track(_ videoId: String) throws -> SyncTrackRecord? {
@@ -356,6 +382,32 @@ public struct SyncTx {
         try String.fetchAll(db, sql: "SELECT video_id FROM playlist_items WHERE playlist_id = ? ORDER BY position, rowid", arguments: [playlistId])
     }
 
+    /// Треки плейлиста в порядке этого устройства с ключами сервера.
+    public func playlistItems(_ playlistId: Int64) throws -> [SyncItemRecord] {
+        try Row.fetchAll(db, sql: "SELECT video_id, sort_key FROM playlist_items WHERE playlist_id = ? ORDER BY position, rowid", arguments: [playlistId])
+            .map { SyncItemRecord(videoId: $0["video_id"], sortKey: $0["sort_key"]) }
+    }
+
+    public func playlist(id: Int64) throws -> SyncPlaylistRecord? {
+        try Row.fetchOne(db, sql: "SELECT id, sync_id, name, browse_id, thumbnail_url FROM playlists WHERE id = ?", arguments: [id])
+            .map(Self.readPlaylist)
+    }
+
+    public func playlistExists(_ playlistId: Int64) throws -> Bool {
+        try playlist(id: playlistId) != nil
+    }
+
+    /// Время лайка этого устройства; `nil` — не лайкнут (или трека нет).
+    public func likedAt(_ videoId: String) throws -> Int64? {
+        try Int64.fetchOne(db.cachedStatement(sql: "SELECT liked_at FROM tracks WHERE video_id = ?"), arguments: [videoId])
+    }
+
+    /// Время закладки этого устройства; `nil` — закладки нет.
+    public func bookmarkedAt(_ key: SyncBookmarkKey) throws -> Int64? {
+        let table = key.type == "album" ? "albums" : "artists"
+        return try Int64.fetchOne(db, sql: "SELECT bookmarked_at FROM \(table) WHERE browse_id = ?", arguments: [key.browseId])
+    }
+
     public func bookmarks() throws -> [SyncBookmarkRecord] {
         let albums = try Row.fetchAll(db, sql: "SELECT browse_id, bookmarked_at, title, artists_text, thumbnail_url, year FROM albums WHERE bookmarked_at IS NOT NULL ORDER BY bookmarked_at")
             .map {
@@ -392,14 +444,23 @@ public struct SyncTx {
     public func syncedPlaylists() throws -> [String: SyncedPlaylist] {
         var result: [String: SyncedPlaylist] = [:]
         for row in try Row.fetchAll(db, sql: "SELECT sync_id, name, thumbnail_url, video_ids FROM synced_playlists") {
-            let text: String = row["video_ids"] ?? ""
-            let playlist = SyncedPlaylist(
-                syncId: row["sync_id"], name: row["name"], thumbnailUrl: row["thumbnail_url"],
-                videoIds: text.isEmpty ? [] : text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-            )
+            let playlist = Self.readSyncedPlaylist(row)
             result[playlist.syncId] = playlist
         }
         return result
+    }
+
+    public func syncedPlaylist(_ syncId: String) throws -> SyncedPlaylist? {
+        try Row.fetchOne(db, sql: "SELECT sync_id, name, thumbnail_url, video_ids FROM synced_playlists WHERE sync_id = ?", arguments: [syncId])
+            .map(Self.readSyncedPlaylist)
+    }
+
+    private static func readSyncedPlaylist(_ row: Row) -> SyncedPlaylist {
+        let text: String = row["video_ids"] ?? ""
+        return SyncedPlaylist(
+            syncId: row["sync_id"], name: row["name"], thumbnailUrl: row["thumbnail_url"],
+            videoIds: text.isEmpty ? [] : text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        )
     }
 
     public func upsertSyncedPlaylist(_ playlist: SyncedPlaylist) throws {
@@ -467,10 +528,23 @@ public struct SyncTx {
         try upsertSyncedPlaylist(SyncedPlaylist(syncId: syncId, name: playlist["name"], thumbnailUrl: playlist["thumbnail_url"], videoIds: keyed.map(\.videoId)))
     }
 
+    /// Места и ключи треков плейлиста — по порядку `items`; треки уже в плейлисте.
+    public func placeItems(_ playlistId: Int64, _ items: [SyncItemRecord]) throws {
+        let statement = try db.cachedStatement(sql: "UPDATE playlist_items SET position = ?, sort_key = ? WHERE playlist_id = ? AND video_id = ?")
+        for (index, item) in items.enumerated() {
+            try statement.execute(arguments: [index, item.sortKey, playlistId, item.videoId])
+        }
+    }
+
     /// Лайк с сервера: время лайка — серверное, снятый лайк — снятие. Трек должен уже быть в `tracks`.
     public func setLike(_ videoId: String, likedAt: Int64?) throws {
         try db.execute(sql: "UPDATE tracks SET liked_at = ? WHERE video_id = ?", arguments: [likedAt, videoId])
-        if likedAt != nil {
+        try setSyncedLike(videoId, liked: likedAt != nil)
+    }
+
+    /// Только снимок: лайк на сервере, а здесь его правили, пока шёл запрос.
+    public func setSyncedLike(_ videoId: String, liked: Bool) throws {
+        if liked {
             try db.execute(sql: "INSERT OR IGNORE INTO synced_likes (video_id) VALUES (?)", arguments: [videoId])
         } else {
             try db.execute(sql: "DELETE FROM synced_likes WHERE video_id = ?", arguments: [videoId])
@@ -493,7 +567,12 @@ public struct SyncTx {
             }
             try db.execute(sql: "UPDATE artists SET bookmarked_at = ? WHERE browse_id = ?", arguments: [bookmarkedAt, key.browseId])
         }
-        if bookmarkedAt != nil {
+        try setSyncedBookmark(key, bookmarked: bookmarkedAt != nil)
+    }
+
+    /// Только снимок: закладка на сервере, а здесь её правили, пока шёл запрос.
+    public func setSyncedBookmark(_ key: SyncBookmarkKey, bookmarked: Bool) throws {
+        if bookmarked {
             try db.execute(sql: "INSERT OR IGNORE INTO synced_bookmarks (type, browse_id) VALUES (?, ?)", arguments: [key.type, key.browseId])
         } else {
             try db.execute(sql: "DELETE FROM synced_bookmarks WHERE type = ? AND browse_id = ?", arguments: [key.type, key.browseId])
@@ -534,9 +613,13 @@ public struct SyncTx {
             .map { (videoId: $0["video_id"], totalMs: $0["total_play_ms"]) }
     }
 
-    /// Общее время трека с сервера (`playStats`): уже по всем устройствам.
-    public func setPlayTotal(_ videoId: String, totalMs: Int64) throws {
-        try db.execute(sql: "UPDATE tracks SET total_play_ms = ? WHERE video_id = ?", arguments: [totalMs, videoId])
+    /// Общее время трека с сервера (`playStats`): уже по всем устройствам. `atLeast` — не меньше здешнего: пока
+    /// накопленное время не ушло `play.baseline atLeast`, здешнее — его источник.
+    public func setPlayTotal(_ videoId: String, totalMs: Int64, atLeast: Bool = false) throws {
+        let sql = atLeast
+            ? "UPDATE tracks SET total_play_ms = MAX(total_play_ms, ?) WHERE video_id = ?"
+            : "UPDATE tracks SET total_play_ms = ? WHERE video_id = ?"
+        try db.execute(sql: sql, arguments: [totalMs, videoId])
     }
 
     /// Прослушивание с сервера: новое вставляется отправленным, своё вернувшееся (тот же `eventId`) не задваивается.

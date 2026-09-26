@@ -68,6 +68,38 @@ struct LiveSyncTests {
         }
     }
 
+    /// Сервер восстановлен из копии (курсор чужой эпохи → `410 cursor_invalid`): тихое слияние возвращает на сервер то,
+    /// что он потерял, а плейлисты, прослушивания и время ничего не задваивают.
+    @Test func restoredServerIsRefilledWithoutDuplicates() async throws {
+        let mac = try Device(name: "Test Mac", platform: "macos")
+        let watch = try Device(name: "Test Watch", platform: "watchos")
+        try await withAccount(mac, watch) {
+            try mac.track("dQw4w9WgXcQ", liked: true)
+            try mac.track("kJQP7kiw5Fk")
+            try mac.sql("INSERT INTO playlists (name, created_at) VALUES ('Дорога', 1)")
+            try mac.sql("INSERT INTO playlist_items (playlist_id, video_id, position, added_at) VALUES (1, 'kJQP7kiw5Fk', 0, 1)")
+            try await SyncStore(database: mac.database).recordPlay(SyncTrackRecord(videoId: "dQw4w9WgXcQ", title: "Song dQw4w9WgXcQ"), playTimeMs: 60_000)
+            await mac.engine.sync()
+
+            // Лайк, который снимок Mac считает отправленным, а «восстановленный» сервер не знает
+            try mac.track("9bZkp7q19f0", liked: true)
+            try mac.sql("INSERT INTO synced_likes (video_id) VALUES ('9bZkp7q19f0')")
+            try mac.sql("UPDATE sync_state SET value = '00000000.1.1' WHERE key = 'cursor'")
+            await mac.engine.sync()
+            guard case .idle = mac.engine.status else {
+                Issue.record("status \(mac.engine.status)")
+                return
+            }
+
+            await watch.engine.sync()
+            #expect(try watch.strings("SELECT video_id FROM tracks WHERE liked_at IS NOT NULL ORDER BY video_id") == ["9bZkp7q19f0", "dQw4w9WgXcQ"])
+            #expect(try watch.strings("SELECT name FROM playlists") == ["Дорога"])
+            #expect(try watch.strings("SELECT video_id FROM playlist_items") == ["kJQP7kiw5Fk"])
+            #expect(try watch.strings("SELECT CAST(COUNT(*) AS TEXT) FROM play_events") == ["1"])
+            #expect(try watch.strings("SELECT CAST(total_play_ms AS TEXT) FROM tracks WHERE video_id = 'dQw4w9WgXcQ'") == ["60000"])
+        }
+    }
+
     /// Аккаунт на два устройства; в конце тестовый аккаунт удаляется в любом случае.
     private func withAccount(_ first: Device, _ second: Device, _ body: () async throws -> Void) async throws {
         let login = "synctest\(UUID().uuidString.prefix(8).lowercased())"
