@@ -31,6 +31,7 @@ struct WatchAccountSection: View {
                     Image(systemName: "person.crop.circle.fill")
                 }
             }
+            .accessibilityIdentifier("account.overview")
         case .authRequired(let login):
             NavigationLink {
                 WatchSignInView(initialLogin: login)
@@ -324,6 +325,7 @@ struct WatchAccountView: View {
             }
             Section {
                 Button("account.signOut", role: .destructive) { confirmingSignOut = true }
+                    .accessibilityIdentifier("account.signOut")
             } footer: {
                 Text("account.signOut.footer")
             }

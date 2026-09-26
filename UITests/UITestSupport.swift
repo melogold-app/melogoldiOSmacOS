@@ -52,6 +52,22 @@ extension XCTestCase {
         _ = app.buttons["account.signIn"].waitForExistence(timeout: 10)
     }
 
+    /// Вход в готовый аккаунт на экране «Настройки»: пароль — отладочной подстановкой (`-MelogoldUITestPassword` при
+    /// запуске), логин — набором.
+    @MainActor
+    func signIn(_ app: XCUIApplication, login: String) {
+        signOutIfNeeded(app)
+        app.buttons["account.signIn"].tap()
+        let loginField = app.textFields["Логин"]
+        XCTAssertTrue(loginField.waitForExistence(timeout: 5))
+        loginField.tap()
+        loginField.typeText(login)
+        XCTAssertEqual(loginField.value as? String, login, "симулятор потерял символы логина")
+        app.buttons["account.signIn.submit"].tap()
+        dismissSavePassword(app)
+        XCTAssertTrue(app.buttons["account.overview"].waitForExistence(timeout: 20), "вход не прошёл")
+    }
+
     @MainActor
     func saveScreenshot(_ name: String) {
         let shot = XCUIScreen.main.screenshot()
@@ -98,11 +114,13 @@ struct TestDevice: Sendable {
         SHA256.hash(data: Data(UUID().uuidString.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
-    /// Прослушивания этого устройства за последние минуты: `play.add` с метаданными треков.
-    func play(_ tracks: [(videoId: String, title: String, artist: String)]) async throws {
+    /// Прослушивания этого устройства за последние минуты: `play.add` с метаданными треков через `spacing` секунд, последнее —
+    /// `spacing` назад. Возвращает курсор потока истории после них — с него `changes(since:)` читает, что пришло потом.
+    @discardableResult
+    func play(_ tracks: [(videoId: String, title: String, artist: String)], spacing: TimeInterval = 300) async throws -> String {
         let now = Date()
         let ops: [[String: Any]] = tracks.enumerated().map { index, track in
-            let at = Self.iso(now.addingTimeInterval(-Double(tracks.count - index) * 300))
+            let at = Self.iso(now.addingTimeInterval(-Double(tracks.count - index) * spacing))
             return [
                 "opId": UUID().uuidString.lowercased(), "kind": "play.add", "at": at, "videoId": track.videoId, "playedAt": at,
                 "playTimeMs": 200_000, "history": true, "playtime": true,
@@ -113,18 +131,54 @@ struct TestDevice: Sendable {
         let response = try await sync(ops: ops)
         let statuses = (response["results"] as? [[String: Any]] ?? []).compactMap { $0["status"] as? String }
         XCTAssertEqual(statuses, Array(repeating: "applied", count: tracks.count))
+        return try XCTUnwrap(response["cursor"] as? String)
     }
 
-    /// Сколько прослушиваний аккаунта сейчас на сервере: поток истории с начала.
-    func playCount() async throws -> Int {
+    /// «Убрать из истории» на этом устройстве (`history.forget`): события трека до сейчас и его общее время — на всех
+    /// устройствах аккаунта.
+    func forget(_ videoId: String) async throws {
+        let now = Self.iso(Date())
+        let response = try await sync(ops: [[
+            "opId": UUID().uuidString.lowercased(), "kind": "history.forget", "at": now, "videoId": videoId,
+            "eventsBefore": now, "resetTotal": true,
+        ]])
+        let statuses = (response["results"] as? [[String: Any]] ?? []).compactMap { $0["status"] as? String }
+        XCTAssertEqual(statuses, ["applied"])
+    }
+
+    /// Вход нового устройства по коду (API §4.6, режим `request`): это устройство находит привязку по коду, который
+    /// показывает новое, и получает три числа на выбор.
+    func resolveLink(userCode: String) async throws -> (linkId: String, choices: [String]) {
+        let details = try await Self.call(server, "POST", "/auth/me/links/resolve", token: token, body: ["userCode": userCode])
+        return (try XCTUnwrap(details["linkId"] as? String), details["verifyChoices"] as? [String] ?? [])
+    }
+
+    /// Одобрить вход числом, которое показывает новое устройство.
+    func approveLink(_ linkId: String, verifyCode: String) async throws {
+        let decision = try await Self.call(server, "POST", "/auth/me/links/\(linkId)/approve", token: token, body: ["verifyCode": verifyCode])
+        XCTAssertEqual(decision["status"] as? String, "approved")
+    }
+
+    /// Изменения истории после `cursor` (API §4.8): `plays`, `playStats`, `playForgets` и новый курсор.
+    func changes(since cursor: String) async throws -> [String: Any] {
+        try await sync(ops: [], cursor: cursor)
+    }
+
+    /// Какие треки сейчас в истории аккаунта на сервере: поток истории с начала.
+    func playedVideoIds() async throws -> [String] {
         var cursor = ""
-        var count = 0
+        var ids: [String] = []
         while true {
             let page = try await sync(ops: [], cursor: cursor)
-            count += (page["plays"] as? [Any])?.count ?? 0
+            ids += (page["plays"] as? [[String: Any]] ?? []).compactMap { $0["videoId"] as? String }
             cursor = page["cursor"] as? String ?? ""
-            if page["hasMore"] as? Bool != true { return count }
+            if page["hasMore"] as? Bool != true { return ids }
         }
+    }
+
+    /// Сколько прослушиваний аккаунта сейчас на сервере.
+    func playCount() async throws -> Int {
+        try await playedVideoIds().count
     }
 
     func deleteAccount(password: String) async throws {

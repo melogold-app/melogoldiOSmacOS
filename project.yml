@@ -162,6 +162,23 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         GENERATE_INFOPLIST_FILE: YES
 
+  MelogoldWatchUITests:
+    type: bundle.ui-testing
+    platform: watchOS
+    sources:
+      - path: WatchUITests
+      # Общие приёмы UI-тестов и управляемое по API устройство — те же, что у iPhone
+      - path: UITests/UITestSupport.swift
+    dependencies:
+      - target: Melogold Watch
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.melogold.MelogoldWatchUITests
+        CODE_SIGN_IDENTITY: $(MELOGOLD_SIGN_IDENTITY)
+        TEST_TARGET_NAME: Melogold Watch
+        TARGETED_DEVICE_FAMILY: "4"
+        GENERATE_INFOPLIST_FILE: YES
+
 schemes:
   Melogold:
     build:
@@ -181,5 +198,9 @@ schemes:
         Melogold Watch: all
     run:
       config: Debug
+    test:
+      config: Debug
+      targets:
+        - MelogoldWatchUITests
     archive:
       config: Release

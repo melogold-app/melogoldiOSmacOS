@@ -10,6 +10,7 @@
   - `xcodebuild -scheme Melogold -destination 'generic/platform=iOS Simulator' build` — iPhone, iPad и встроенные часы;
   - `-destination 'platform=macOS'`, `'generic/platform=visionOS Simulator'`; схема `Melogold Watch` — `'generic/platform=watchOS Simulator'`.
 - UI-тесты iPhone: `TEST_RUNNER_MELOGOLD_SHOTS_DIR=<папка> xcodebuild test -scheme Melogold -destination 'platform=iOS Simulator,id=<UDID>'` — нажатия и снимки экрана.
+- UI-тесты часов: то же со схемой `Melogold Watch` и `-destination 'platform=watchOS Simulator,id=<UDID>'` (`MelogoldWatchUITests`, общие приёмы — `UITests/UITestSupport.swift`).
 - Симуляторы: iPhone 18 Pro `0FAF8790-…`, iPad Pro 13 `AB782A98-…`, Apple Watch Series 12 46 мм `4BC3A3E8-…`, Apple Vision Pro `DC9E9E35-…`.
   Параметры запуска: `-shell.lastTab <раздел>`, `-AppleLanguages "(ru)"`, `-MelogoldOpenURL <ссылка>`.
 - Mac: пока экран заблокирован, системный снимок чёрный; отладочная сборка снимает своё окно сама
@@ -49,7 +50,7 @@
 ### Срез 1. Каркас
 
 Сделано:
-- `project.yml` → `Melogold.xcodeproj`: таргет `Melogold` (iOS, macOS, visionOS — одно приложение), `Melogold Watch` (самостоятельное приложение watchOS, встроено в iOS), `MelogoldUITests`; версия в `Config/Version.xcconfig` (0.1.0, сборка 100), `scripts/set-version.sh` и `scripts/check-version.sh`.
+- `project.yml` → `Melogold.xcodeproj`: таргет `Melogold` (iOS, macOS, visionOS — одно приложение), `Melogold Watch` (самостоятельное приложение watchOS, встроено в iOS), `MelogoldUITests`, `MelogoldWatchUITests`; версия в `Config/Version.xcconfig` (0.1.0, сборка 100), `scripts/set-version.sh` и `scripts/check-version.sh`.
 - Пакет `MelogoldKit`: `MelogoldCore` (разделы, ключи настроек Android, `ServerAddressPolicy`, ссылки `melogold://`, журнал, MetricKit, версия), `MelogoldData` (папки `Application Support/Melogold` с `isExcludedFromBackup` у кэша и загрузок, настройки на `UserDefaults`), заготовки `MelogoldInnerTube`, `MelogoldServer`, `MelogoldPlayback`.
 - Оболочка: iPhone и Vision — `TabView` с `Tab(role: .search)` (iOS 26: поле поиска внизу, в панели вкладок); iPad в широком окне и Mac — `NavigationSplitView` с одной `NavigationStack` в колонке детали; повторное нажатие на раздел — к корню; последний раздел при запуске; Mac — одно окно, ⌘1…⌘5, ⌘F, ⌘, и ⌘[.
 - Настройки: «работает без аккаунта», «Сервер Melogold» (адрес по `ServerAddressPolicy`, «Незащищённое соединение» для http), тема, язык, версия.
@@ -276,6 +277,8 @@
   - Mac и часы: «Очистить историю», удалённый текст; правка по SSE меньше чем за секунду; `410 cursor_invalid` — потерянный сервером лайк возвращается, плейлист, прослушивание и время не задваиваются.
 - Время в ops — из целых миллисекунд (`IsoTime.string(epochMs:)`): через `Double` половина значений уходила на 1 мс раньше.
 - UI-тест `HistoryUITests` на iPhone 18 Pro Max с локальным сервером (снимки `apple-shots/history/`): «Pixel 9» (android) — устройство, которым тест управляет по API (регистрация с PoW, два `play.add`); iPhone входит в тот же аккаунт, его прослушивания Pixel приходят синком; фильтр «Все устройства · Это устройство · Pixel 9», подзаголовок, «Это устройство» в «Чаще всего»; «Очистить историю…» с подписью «на всех устройствах аккаунта», плашка с «Отменить», через 5 с у Pixel на сервере история пуста. Свои прослушивания — `-MelogoldSeedPlays` (без плеера и звука). `AccountUITests` теперь удаляет свой аккаунт.
+- Второй тест `HistoryUITests` (снимки `apple-shots/history-pixel/`): «Pixel тест» — два `play.add` через 10 минут; фильтр «Все устройства · Это устройство · Pixel тест»; «Убрать из истории» из «…» строки — плашка с «Отменить», через 5 с Pixel синхронизируется со своего курсора и получает `playForgets` трека с `totalBefore` (общее время обнулено), в истории аккаунта трека нет.
+- UI-тест часов `WatchHistoryUITests` на Apple Watch Ultra 4 (снимки `apple-shots/watch-history/`): вход по коду — часы показывают код, «Pixel тест» по API находит привязку и одобряет число, которое часы показывают следом; История часов показывает прослушивания Pixel; `history.forget` с Pixel убирает трек с открытых часов (событие сервера); выход. Тестовый аккаунт удаляется.
 - Сборка: iOS Simulator (с часами), macOS, visionOS — без новых предупреждений (в коде часов из среза 4 остались старые: `DownloadManager` — захват `start`, `contextMenu` на watchOS, `default` в `WatchRootView`).
 
 Не сделано:

@@ -1,9 +1,10 @@
 import XCTest
 
 /// История через сервер (задание 0002): прослушивания другого устройства аккаунта приходят синком, фильтр по устройствам
-/// показывает их по имени устройства, «Очистить историю» доходит до сервера. Другое устройство — «Pixel 9» (android) —
-/// работает прямо из теста по API: регистрация с proof-of-work, `play.add`. iPhone входит в тот же аккаунт; свои
-/// прослушивания — отладочный `-MelogoldSeedPlays` (без плеера, звук не нужен). Тестовый аккаунт в конце удаляется.
+/// показывает их по имени устройства, «Очистить историю» и «Убрать из истории» доходят до сервера. Другое устройство
+/// (android) работает прямо из теста по API: регистрация с proof-of-work, `play.add`, синк со своего курсора. iPhone
+/// входит в тот же аккаунт; свои прослушивания — отладочный `-MelogoldSeedPlays` (без плеера, звук не нужен). Тестовый
+/// аккаунт в конце удаляется.
 ///
 /// Нужен сервер Melogold: `TEST_RUNNER_MELOGOLD_TEST_SERVER=http://127.0.0.1:8787`. Без переменной тест пропускается.
 final class HistoryUITests: XCTestCase {
@@ -31,16 +32,7 @@ final class HistoryUITests: XCTestCase {
         // Вход в тот же аккаунт; пароль — отладочной подстановкой, логин — набором
         var app = launchApp(section: "settings", language: "ru",
                             arguments: ["-server.url", server, "-MelogoldUITestPassword", password, "-MelogoldSeedPlays", "YES"])
-        signOutIfNeeded(app)
-        app.buttons["account.signIn"].tap()
-        let loginField = app.textFields["Логин"]
-        XCTAssertTrue(loginField.waitForExistence(timeout: 5))
-        loginField.tap()
-        loginField.typeText(login)
-        XCTAssertEqual(loginField.value as? String, login, "симулятор потерял символы логина")
-        app.buttons["account.signIn.submit"].tap()
-        dismissSavePassword(app)
-        XCTAssertTrue(app.buttons["account.overview"].waitForExistence(timeout: 20), "вход не прошёл")
+        signIn(app, login: login)
         app.terminate()
 
         // История: прослушивания Pixel 9 приходят синком, фильтр появляется
@@ -86,6 +78,95 @@ final class HistoryUITests: XCTestCase {
             if remaining == 0 { break }
         }
         XCTAssertEqual(remaining, 0, "history.clear не дошёл до сервера")
+
+        // Выход: устройство уходит из аккаунта, аккаунт удаляет teardown
+        app.terminate()
+        app = launchApp(section: "settings", language: "ru", arguments: ["-server.url", server])
+        signOutIfNeeded(app)
+        XCTAssertTrue(app.buttons["account.signIn"].waitForExistence(timeout: 10))
+        app.terminate()
+    }
+
+    /// Прослушивания «Pixel тест» (10 минут между ними) приходят на iPhone; фильтр — «Все устройства», «Pixel тест»,
+    /// «Это устройство». «Убрать из истории» на iPhone после «Отменить» (5 с) доходит до Pixel: следующий синк с его
+    /// курсора приносит `playForgets` трека с обнулённым общим временем, и в истории аккаунта трека больше нет.
+    @MainActor
+    func testPlaysFromOtherDeviceAndRemoveFromHistory() async throws {
+        let server = ProcessInfo.processInfo.environment["MELOGOLD_TEST_SERVER"] ?? ""
+        try XCTSkipIf(server.isEmpty, "Нужен сервер: TEST_RUNNER_MELOGOLD_TEST_SERVER")
+        let login = "hist\(Int.random(in: 10_000_000 ... 99_999_999))"
+        let password = "h-\(UUID().uuidString.lowercased())"
+        let pixel = try await TestDevice.register(server: server, login: login, password: password, name: "Pixel тест", platform: "android")
+        addTeardownBlock { try? await pixel.deleteAccount(password: password) }
+        let removed = "JGwWNGJdvx8"
+        let cursor = try await pixel.play([
+            (removed, "Shape of You", "Ed Sheeran"),
+            ("OPf0YbXqDm0", "Uptown Funk", "Mark Ronson"),
+        ], spacing: 600)
+
+        var app = launchApp(section: "settings", language: "ru",
+                            arguments: ["-server.url", server, "-MelogoldUITestPassword", password, "-MelogoldSeedPlays", "YES"])
+        signIn(app, login: login)
+        app.terminate()
+
+        // История: прослушивания Pixel тест приходят синком
+        app = launchApp(section: "library", language: "ru", arguments: ["-server.url", server, "-MelogoldOpen", "history"])
+        let devices = app.buttons["history.devices"]
+        XCTAssertTrue(devices.waitForExistence(timeout: 30), "нет фильтра по устройствам")
+        let shape = app.cells.containing(label("Shape of You")).firstMatch
+        XCTAssertTrue(shape.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.cells.containing(label("Uptown Funk")).firstMatch.exists)
+        XCTAssertTrue(app.cells.containing(label("Bohemian Rhapsody")).firstMatch.exists)
+        saveScreenshot("history-pixel/01-all-devices")
+
+        devices.tap()
+        let pixelItem = app.buttons["Pixel тест"].firstMatch
+        XCTAssertTrue(pixelItem.waitForExistence(timeout: 5), "нет устройства в меню")
+        XCTAssertTrue(app.buttons["Все устройства"].firstMatch.exists)
+        XCTAssertTrue(app.buttons["Это устройство"].firstMatch.exists)
+        saveScreenshot("history-pixel/02-menu")
+        pixelItem.tap()
+        XCTAssertTrue(app.cells.containing(label("Bohemian Rhapsody")).firstMatch.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(shape.exists)
+        XCTAssertTrue(app.cells.containing(label("Uptown Funk")).firstMatch.exists)
+        saveScreenshot("history-pixel/03-pixel")
+
+        devices.tap()
+        app.buttons["Это устройство"].firstMatch.tap()
+        XCTAssertTrue(shape.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.cells.containing(label("Bohemian Rhapsody")).firstMatch.exists)
+        XCTAssertFalse(app.cells.containing(label("Uptown Funk")).firstMatch.exists)
+        saveScreenshot("history-pixel/04-this-device")
+
+        devices.tap()
+        app.buttons["Все устройства"].firstMatch.tap()
+        XCTAssertTrue(shape.waitForExistence(timeout: 5))
+
+        // «Убрать из истории» из «…» строки (нажатие по самой строке включило бы трек): плашка с «Отменить»
+        shape.buttons["Ещё"].tap()
+        app.buttons["Убрать из истории"].firstMatch.tap()
+        let undo = app.staticTexts.containing(label("Убрано из истории на всех устройствах")).firstMatch
+        XCTAssertTrue(undo.waitForExistence(timeout: 5))
+        XCTAssertTrue(shape.waitForNonExistence(timeout: 5))
+        saveScreenshot("history-pixel/05-removed-undo")
+        XCTAssertTrue(undo.waitForNonExistence(timeout: 15), "плашка «Отменить» не ушла")
+        saveScreenshot("history-pixel/06-after-remove")
+
+        // Pixel тест синхронизируется со своего курсора: приходит playForgets трека, общее время обнулено (resetTotal)
+        var forget: [String: Any]?
+        var next = cursor
+        for _ in 0 ..< 30 where forget == nil {
+            try await Task.sleep(for: .seconds(1))
+            let page = try await pixel.changes(since: next)
+            next = page["cursor"] as? String ?? next
+            forget = (page["playForgets"] as? [[String: Any]] ?? []).first { $0["videoId"] as? String == removed }
+        }
+        let row = try XCTUnwrap(forget, "history.forget не дошёл до Pixel тест")
+        XCTAssertNotNil(row["eventsBefore"] as? String)
+        XCTAssertNotNil(row["totalBefore"] as? String, "общее время трека не обнулено (resetTotal)")
+        let played = try await pixel.playedVideoIds()
+        XCTAssertFalse(played.contains(removed), "трек остался в истории аккаунта")
+        XCTAssertTrue(played.contains("OPf0YbXqDm0"))
 
         // Выход: устройство уходит из аккаунта, аккаунт удаляет teardown
         app.terminate()
