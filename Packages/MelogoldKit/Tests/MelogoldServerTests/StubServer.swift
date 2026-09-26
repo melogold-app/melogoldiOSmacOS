@@ -72,7 +72,7 @@ final class StubProtocol: URLProtocol, @unchecked Sendable {
             method: request.httpMethod ?? "GET",
             path: url.path(),
             headers: request.allHTTPHeaderFields ?? [:],
-            body: request.httpBody ?? readStream(request.httpBodyStream)
+            body: request.httpBody ?? Self.readStream(request.httpBodyStream)
         )
         let (status, text) = server.handle(stub)
         if status < 0 {
@@ -87,7 +87,8 @@ final class StubProtocol: URLProtocol, @unchecked Sendable {
 
     override func stopLoading() {}
 
-    private func readStream(_ stream: InputStream?) -> Data {
+    /// Тело запроса: URLSession отдаёт его протоколу потоком.
+    static func readStream(_ stream: InputStream?) -> Data {
         guard let stream else { return Data() }
         stream.open()
         defer { stream.close() }
