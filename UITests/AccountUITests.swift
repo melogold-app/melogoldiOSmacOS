@@ -1,6 +1,7 @@
 import XCTest
 
-/// Аккаунт на iPhone (срез 5): регистрация с proof-of-work, код восстановления, аккаунт с устройствами, выход.
+/// Аккаунт на iPhone (срез 5): регистрация с proof-of-work, код восстановления, аккаунт с устройствами, выход. Тестовый
+/// аккаунт в конце удаляется.
 ///
 /// Нужен сервер Melogold: `TEST_RUNNER_MELOGOLD_TEST_SERVER=http://127.0.0.1:8787` (локальный, `npm start` в
 /// melogoldServer). На живом сервере тест аккаунты не создаёт: без переменной он пропускается.
@@ -13,7 +14,8 @@ final class AccountUITests: XCTestCase {
     func testRegisterRecoveryCodeAccountAndSignOut() throws {
         let server = ProcessInfo.processInfo.environment["MELOGOLD_TEST_SERVER"] ?? ""
         try XCTSkipIf(server.isEmpty, "Нужен сервер: TEST_RUNNER_MELOGOLD_TEST_SERVER")
-        let app = launchApp(section: "settings", language: "ru", arguments: ["-server.url", server, "-MelogoldUITestPassword", "longpassword2026"])
+        let password = "longpassword2026"
+        let app = launchApp(section: "settings", language: "ru", arguments: ["-server.url", server, "-MelogoldUITestPassword", password])
         signOutIfNeeded(app)
         saveScreenshot("account/01-settings-signed-out")
 
@@ -25,6 +27,8 @@ final class AccountUITests: XCTestCase {
         loginField.typeText(login)
         // Под нагрузкой симулятор теряет нажатия: дальше — то, что реально в поле
         let typed = loginField.value as? String ?? login
+        // Тестовый аккаунт в конце удаляется (вход по API новым устройством)
+        addTeardownBlock { try? await TestDevice.signIn(server: server, login: typed, password: password).deleteAccount(password: password) }
         saveScreenshot("account/02-register")
         app.buttons["account.register.submit"].tap()
 
@@ -60,32 +64,6 @@ final class AccountUITests: XCTestCase {
         app.buttons["account.signOut"].tap()
         app.buttons["Выйти"].firstMatch.tap()
         XCTAssertTrue(app.buttons["account.signIn"].waitForExistence(timeout: 10))
-    }
-
-    /// После регистрации iOS предлагает сохранить пароль в «Пароли»: окно системы закрывает экран.
-    @MainActor
-    private func dismissSavePassword(_ app: XCUIApplication) {
-        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-        for label in ["Not Now", "Не сейчас"] {
-            for candidate in [app.buttons[label], springboard.buttons[label]] where candidate.waitForExistence(timeout: 6) {
-                candidate.tap()
-                // Окно уезжает с анимацией: пока оно на экране, нажатия попадают в него
-                _ = candidate.waitForNonExistence(timeout: 5)
-                sleep(1)
-                return
-            }
-        }
-    }
-
-    /// После прошлого запуска мог остаться вход: сеанс лежит в Keychain симулятора.
-    @MainActor
-    private func signOutIfNeeded(_ app: XCUIApplication) {
-        let overview = app.buttons["account.overview"]
-        guard overview.waitForExistence(timeout: 3) else { return }
-        overview.tap()
-        app.buttons["account.signOut"].tap()
-        app.buttons["Выйти"].firstMatch.tap()
-        _ = app.buttons["account.signIn"].waitForExistence(timeout: 10)
     }
 }
 

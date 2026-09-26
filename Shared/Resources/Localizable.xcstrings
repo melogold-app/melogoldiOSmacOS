@@ -3165,6 +3165,24 @@
         }
       }
     },
+    "history.clear.action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Очистить"
+          }
+        }
+      },
+      "comment" : "Кнопка подтверждения «Очистить историю…»"
+    },
     "history.clear.confirm %lld" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3182,6 +3200,24 @@
         }
       }
     },
+    "history.clear.confirmEverywhere %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete all listens (%lld) on every device of the account?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Удалить все прослушивания (%lld) на всех устройствах аккаунта?"
+          }
+        }
+      },
+      "comment" : "С аккаунтом история общая"
+    },
     "history.clear.message" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3198,6 +3234,78 @@
           }
         }
       }
+    },
+    "history.device.all" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All devices"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Все устройства"
+          }
+        }
+      },
+      "comment" : "Фильтр Истории"
+    },
+    "history.device.choose" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Whose plays to show"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Чьи прослушивания показать"
+          }
+        }
+      },
+      "comment" : "Меню фильтра Истории по устройствам (задание 0002)"
+    },
+    "history.device.other" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Another device"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Другое устройство"
+          }
+        }
+      },
+      "comment" : "Устройства уже нет в аккаунте"
+    },
+    "history.device.this" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Это устройство"
+          }
+        }
+      },
+      "comment" : "Фильтр Истории"
     },
     "history.empty" : {
       "extractionState" : "manual",
@@ -3760,6 +3868,24 @@
         }
       }
     },
+    "library.historyClearedEverywhere" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "History cleared on all devices"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "История очищена на всех устройствах"
+          }
+        }
+      },
+      "comment" : "Плашка с «Отменить», с аккаунтом"
+    },
     "library.newPlaylist" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3878,6 +4004,24 @@
           }
         }
       }
+    },
+    "library.removedFromHistoryEverywhere" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Removed from History on all devices"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Убрано из истории на всех устройствах"
+          }
+        }
+      },
+      "comment" : "Плашка с «Отменить», с аккаунтом"
     },
     "library.removedFromPlaylist" : {
       "extractionState" : "manual",

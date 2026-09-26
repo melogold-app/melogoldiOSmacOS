@@ -1,6 +1,6 @@
 # История прослушиваний через сервер: задание для клиента Apple
 
-Статус: открыто
+Статус: сделано
 
 Дополнение к `docs/PROMPT.md` (порядок работы — `tasks/README.md`), срез 5. Сервер уже умеет всё нужное — это поток `history` в `POST /sync`. Android сделал это в 0.1.2 (REWRITE §4.12a, «История»), Windows делает по тому же заданию (`melogoldWindows/tasks/0002-history-sync.md`). Контракт не меняй. Если чего-то не хватает, скажи пользователю.
 
@@ -91,15 +91,13 @@
   - трек, прослушанный на часах при выключенном iPhone, уходит с часов на сервер и потом появляется в Истории iPhone и Mac с именем часов.
 - Тестовые аккаунты после проверки удалить (`POST /auth/me/delete`).
 
-## 5. Что уже есть для экрана Истории (срез 5, ветка `apple/account`)
+## 5. Как сделано в клиенте Apple (срез 5, ветка `apple/account`)
 
-Синк истории сделан в срезе 5: `play.add` (opId = eventId, `tracks`), `mergeUploadMax` и `play.baseline atLeast` после всех прослушиваний, `history.forget`/`history.clear`, `deferred op_rate_limited` → `historyRetryAt`, строки `plays`/`playStats`/`playForgets`, смена аккаунта. Экран Истории (срез 4) и запись событий плеером — за сессией среза 4; им нужно только это:
+Синк истории — в `LibrarySync` (срез 5): `play.add` (opId = eventId, `tracks`), `mergeUploadMax` и `play.baseline atLeast` после всех прослушиваний, `history.forget`/`history.clear`, `deferred op_rate_limited` → `historyRetryAt`, строки `plays`/`playStats`/`playForgets`, смена аккаунта. Прослушивания и действия с историей пишет один владелец — `MelogoldData.Library`; у `SyncStore` своих записей истории нет.
 
-- **Запись события** — `SyncStore(database:).recordPlay(SyncTrackRecord(track), playTimeMs:, playedAt:)` (`MelogoldData/Sync/SyncStore.swift`): `eventId` — новый UUID в нижнем регистре, `device_id` пустой, `synced = 0`, `tracks.total_play_ms` растёт. Порог 5 с и «Не сохранять историю» — у вызывающего (плеер). Отправка — сама: синк замечает новую строку `play_events` и отправляет через 2 с.
-- **«Убрать из истории»** — `SyncStore.forgetFromHistory(videoId:)`, **«Очистить историю»** — `SyncStore.clearHistory()`: удаляют события здесь и ставят `history.forget`/`history.clear` в `history_ops`; общее время трека остаётся (`resetTotal: false`). Отложенное выполнение с «Отменить» (§3.4) — на экране: вызвать эти методы, когда отсчёт кончился.
-- **Фильтр по устройствам** — `model.sync` (`LibrarySync`, есть и в `AppModel`, и в `WatchModel`):
-  - `await sync.historyDevices()` → `[HistoryDevice]` (`id`, `name`, `platform`) — другие устройства, чьи события лежат здесь, с именами из `GET /auth/me/devices`; `name == nil` — «Другое устройство». Пусто (нет аккаунта или событий с других устройств) — фильтр не показывать;
-  - `sync.currentDeviceId` — «Это устройство»: `device_id IS NULL OR device_id = :currentDeviceId`; другое устройство — `device_id = :id`; «Все устройства» — без условия;
-  - перечитывать список на `sync.devicesRevision` (растёт на SSE `devices.updated`), например `.task(id: model.sync.devicesRevision)`;
-  - «Чаще всего» за «Всё время» для «Все устройства» — `tracks.total_play_ms` (сервер присылает общее время по всем устройствам); иначе — сумма `play_events.play_time_ms` выбранного устройства за период.
-- Список событий обновляется сам: синк пишет в `play_events`, экран наблюдает таблицу (GRDB `ValueObservation`).
+- **Запись события** — только `Library.recordPlay(_:playTimeMs:endedAt:)`, её зовёт плеер (`Services`): сеанс от 5 с, `eventId` — новый UUID в нижнем регистре, `device_id` пустой, `synced = 0`, `tracks.total_play_ms` растёт — одной транзакцией; возвращает `eventId`. «Не сохранять историю» — у плеера. Отправка — сама: синк замечает новую строку `play_events` и отправляет через 2 с.
+- **«Убрать из истории» и «Очистить историю»** — только `Library.removeFromHistory(_:at:)` и `Library.clearHistory(at:)`: удаляют события здесь и той же транзакцией ставят ровно одну op `history.forget`/`history.clear` в `history_ops`. Запись в очередь ставит `LibrarySync` при создании (`LibrarySync(account:library:)` → `SyncStore.queueHistoryOps(of:)` → `SyncTx.enqueueHistoryOp`), поэтому в `AppModel` и `WatchModel` путь один. Общее время трека остаётся (`resetTotal: false`).
+- **Экран** — `AppModel.removeFromHistory`/`clearHistory`: действие выполняется через 5 с, плашка с «Отменить», ⌘Z и встряхивание (§3.4); «Очистить историю…» — после подтверждения с числом прослушиваний. С аккаунтом подписи говорят, что действие — для всех устройств: «Удалить все прослушивания (N) на всех устройствах аккаунта?», «Убрано из истории на всех устройствах», «История очищена на всех устройствах». «Убрать из истории» без отдельного окна подтверждения — как «Убрать из плейлиста», Android и Windows.
+- **Очередь при выходе и смене аккаунта** — как на Android и Windows: действие пишется в `history_ops` и без аккаунта; после выхода и входа в тот же аккаунт оно уходит. Первый вход, другой аккаунт или сервер очередь сбрасывают (`SyncTx.forgetBinding`, вместе со снимком): действие, сделанное до входа, историю нового аккаунта на других устройствах не стирает.
+- **Фильтр по устройствам** — `HistoryView` (iPhone, iPad, Mac, Vision): `Menu` с `Picker` в панели инструментов, «Все устройства · Это устройство · <имя>…», виден при аккаунте и событиях других устройств (`LibrarySync.historyDevices()`; имена из `GET /auth/me/devices` запрашиваются заново только при `devicesRevision` или другом сеансе, без связи — прошлый список). Выбранное устройство — подзаголовок экрана (на Vision подзаголовка нет — в кнопке). Запросы — `Library.recentHistory(device:)`, `mostPlayed(since:device:)`, `playCount(device:)` с `HistoryDeviceFilter`: `.all`, `.thisDevice(currentDeviceId:)` (`device_id IS NULL OR device_id = :current`), `.device(id)`; «Чаще всего» за «Всё время» у «Все устройства» — `tracks.total_play_ms`.
+- **Часы** — История только «Недавние», без периода и фильтра, с прослушиваниями всех устройств аккаунта; свои события часы отправляют сами.

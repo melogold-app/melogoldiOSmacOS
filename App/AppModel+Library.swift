@@ -139,16 +139,21 @@ extension AppModel {
 
     // MARK: - История
 
+    /// «Убрать из истории» — с «Отменить», как «Убрать из плейлиста». С аккаунтом история общая: трек уходит из Истории
+    /// на всех устройствах (задание 0002 §3.4) — плашка так и говорит.
     func removeFromHistory(_ track: Track) {
         guard let library else { return }
-        deferChange(String(localized: "library.removedFromHistory"), hides: [PendingKey.history(track.videoId)]) {
+        let text = account.isSignedIn ? String(localized: "library.removedFromHistoryEverywhere") : String(localized: "library.removedFromHistory")
+        deferChange(text, hides: [PendingKey.history(track.videoId)]) {
             library.library.removeFromHistory(track.videoId)
         }
     }
 
+    /// «Очистить историю» после подтверждения на экране Истории — с «Отменить»; с аккаунтом — на всех устройствах.
     func clearHistory() {
         guard let library else { return }
-        deferChange(String(localized: "library.historyCleared"), hides: [PendingKey.allHistory]) {
+        let text = account.isSignedIn ? String(localized: "library.historyClearedEverywhere") : String(localized: "library.historyCleared")
+        deferChange(text, hides: [PendingKey.allHistory]) {
             library.library.clearHistory()
         }
     }

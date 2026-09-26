@@ -1,6 +1,7 @@
 #if DEBUG
 import SwiftUI
 import MelogoldCore
+import MelogoldData
 
 /// Только отладочная сборка: параметры запуска для проверки на симуляторе без нажатий.
 ///
@@ -14,6 +15,7 @@ import MelogoldCore
 ///     -MelogoldShowQueue YES, -MelogoldSleep <мин>       очередь и таймер сна
 ///     -MelogoldSeedLibrary YES                          пример библиотеки для снимков: лайки, плейлист, история, альбом
 ///     -MelogoldMiniPlayer YES                            Mac: открыть и окно мини-плеера
+///     -MelogoldSeedPlays YES                            два своих прослушивания без сети — История и её фильтр
 enum DebugLaunch {
     /// Пример библиотеки из живого альбома «Группа крови»: лайки, плейлист, прослушивания, сохранённые альбом и
     /// исполнитель. Повторный запуск ничего не дублирует.
@@ -34,6 +36,20 @@ enum DebugLaunch {
         library.setArtistSaved(ArtistItem(browseId: "UCL9NQ06h7I0CRUcGxPWMtkQ", name: "Кино", thumbnailUrl: nil), true)
     }
 
+    /// Два прослушивания этого устройства без сети и без плеера (звук не нужен) — для Истории и фильтра по устройствам
+    /// в UI-тестах. Если свои прослушивания уже есть, ничего не пишет.
+    @MainActor
+    static func seedPlays(_ model: AppModel) {
+        guard let library = model.library?.library, library.playCount(device: .thisDevice(currentDeviceId: nil)) == 0 else { return }
+        let now = EpochMs.now()
+        let tracks = [("fJ9rUzIMcZQ", "Bohemian Rhapsody", "Queen"), ("hTWKbfoikeg", "Smells Like Teen Spirit", "Nirvana")]
+        for (index, (videoId, title, artist)) in tracks.enumerated() {
+            let track = Track(videoId: videoId, title: title, artistsText: artist, durationMs: 300_000,
+                              thumbnailUrl: "https://i.ytimg.com/vi/\(videoId)/hqdefault.jpg", videoType: VideoType.video)
+            library.recordPlay(track, playTimeMs: 240_000, endedAt: now - Int64(index + 1) * 20 * 60_000)
+        }
+    }
+
     @MainActor
     static func apply(to model: AppModel) {
         let defaults = UserDefaults.standard
@@ -47,6 +63,7 @@ enum DebugLaunch {
         if defaults.bool(forKey: "MelogoldSeedLibrary") {
             Task { await seedLibrary(model) }
         }
+        if defaults.bool(forKey: "MelogoldSeedPlays") { seedPlays(model) }
         if defaults.bool(forKey: "MelogoldShowNowPlaying") || defaults.bool(forKey: "MelogoldShowQueue") {
             Task {
                 for _ in 0..<300 where model.services.player.currentTrack == nil {

@@ -46,6 +46,7 @@
 		5AD7EAADB632942F3B269CA3 /* SectionStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ED1959497A998519DFBAEC6 /* SectionStyle.swift */; };
 		5C7F337ACE5ED707155C3DE3 /* AppModel+Library.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDB65AED585E3C7F98B61195 /* AppModel+Library.swift */; };
 		5E5D0BABC82C190CEFD9C686 /* LibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C1C5BF53E858EA65C44D329 /* LibraryStore.swift */; };
+		61014204235DA4E4E0269242 /* HistoryUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECF11684D63D68687931A590 /* HistoryUITests.swift */; };
 		61BF2F42F34A5F6DBCBDCDAE /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9039475AE7ED4067FC4BB3B1 /* Assets.xcassets */; };
 		647B78E2A8C972AE571345D1 /* SearchModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC8171812B4C4F41481F1303 /* SearchModel.swift */; };
 		67B5305E5D263A1E61CE33D2 /* NowPlayingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71E0614E21C5CA15E4B6BFF3 /* NowPlayingView.swift */; };
@@ -231,6 +232,7 @@
 		E7276233A1B85EC99AD83FB4 /* AccountSettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSettingsSection.swift; sourceTree = "<group>"; };
 		E968415E6F0B73C9B137C4A2 /* CarPlaySceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarPlaySceneDelegate.swift; sourceTree = "<group>"; };
 		EA63165E83727DB40E4E2B0A /* LyricsSearchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsSearchSheet.swift; sourceTree = "<group>"; };
+		ECF11684D63D68687931A590 /* HistoryUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryUITests.swift; sourceTree = "<group>"; };
 		F1B51C8ABF1BCB381E829D6C /* LibraryScreens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryScreens.swift; sourceTree = "<group>"; };
 		F1D156A776E7F72E0757C991 /* AccountOverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountOverviewView.swift; sourceTree = "<group>"; };
 		F35CC0B73BA7B96B4B82E927 /* MelogoldUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MelogoldUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -339,6 +341,7 @@
 			children = (
 				D95213D23BAB220EC09658AC /* AccountUITests.swift */,
 				571D3D5AAD367DD65A477BF3 /* CatalogUITests.swift */,
+				ECF11684D63D68687931A590 /* HistoryUITests.swift */,
 				88A1BA2E6F1DE9B1CB7537AA /* LibraryUITests.swift */,
 				8283257DCBDBDAFFA51CE3F2 /* LyricsUITests.swift */,
 				5D36BEB67142D8EF879DBCC5 /* PlaybackUITests.swift */,
@@ -714,6 +717,7 @@
 			files = (
 				C73857BC34055399DAC03757 /* AccountUITests.swift in Sources */,
 				76AF7E56D0A746CD7C2D6B70 /* CatalogUITests.swift in Sources */,
+				61014204235DA4E4E0269242 /* HistoryUITests.swift in Sources */,
 				93A6977A8AC785AAC66B41FC /* LibraryUITests.swift in Sources */,
 				0E84339350F8EEB82DDE49BA /* LyricsUITests.swift in Sources */,
 				E1F098D49490EF6BC4A3B7BE /* PlaybackUITests.swift in Sources */,
