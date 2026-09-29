@@ -1,6 +1,7 @@
 # Выпуск для Mac (задание 0004): DMG и appcast Sparkle в GitHub Releases. По тегу vX.Y.Z — сборка и публикация;
 # вручную — сборка, а публикация, только если отмечено «publish». Шаги — в scripts/release-macos.sh.
-# Без секретов подписи DMG подписан ad-hoc и не нотаризован; итог выпуска говорит, каких секретов не хватило.
+# Без Developer ID DMG подписан постоянным самоподписанным сертификатом Melogold (или ad-hoc, если нет и его) и не
+# нотаризован; итог выпуска говорит, каких секретов не хватило.
 name: Release macOS
 
 on:
@@ -44,6 +45,8 @@ jobs:
           ASC_API_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
           ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
           SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+          MACOS_SELF_SIGNED_P12_BASE64: ${{ secrets.MACOS_SELF_SIGNED_P12_BASE64 }}
+          MACOS_SELF_SIGNED_P12_PASSWORD: ${{ secrets.MACOS_SELF_SIGNED_P12_PASSWORD }}
           GH_TOKEN: ${{ github.token }}
           MELOGOLD_PUBLISH: ${{ inputs.publish && '1' || '0' }}
           MELOGOLD_BUILD_DIR: ${{ runner.temp }}/melogold-release
