@@ -35,8 +35,10 @@ final class AppUpdater {
         controller.updater.automaticallyChecksForUpdates = false
         #endif
         canCheck = controller.updater.canCheckForUpdates
-        observation = controller.updater.observe(\.canCheckForUpdates, options: [.new]) { [weak self] updater, _ in
-            let value = updater.canCheckForUpdates
+        // Новое значение берётся из самого уведомления: обращаться к `updater` из замыкания KVO (оно не на главном акторе)
+        // нельзя
+        observation = controller.updater.observe(\.canCheckForUpdates, options: [.new]) { [weak self] _, change in
+            let value = change.newValue ?? false
             Task { @MainActor in self?.canCheck = value }
         }
     }

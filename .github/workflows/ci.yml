@@ -30,7 +30,10 @@ jobs:
         run: scripts/check-version.sh
 
       - name: Строки на двух языках
-        run: python3 scripts/strings.py --check Shared/Resources/Localizable.xcstrings
+        run: |
+          python3 scripts/strings.py --check Shared/Resources/Localizable.xcstrings
+          python3 scripts/strings.py --check App/Resources/InfoPlist.xcstrings
+          python3 scripts/strings.py --check Watch/Resources/InfoPlist.xcstrings
 
       - name: Кэш XcodeGen
         uses: actions/cache@v4
@@ -72,3 +75,12 @@ jobs:
           set -o pipefail
           xcodebuild -project Melogold.xcodeproj -scheme "Melogold Watch" -destination 'generic/platform=watchOS Simulator' \
             CODE_SIGNING_ALLOWED=NO build | xcbeautify
+
+      # Сборка сама не должна менять каталоги строк: Xcode дописывает в них ключи из `Text("\(число)")` и из
+      # Info.plist, если их нет в каталоге, — такие правки видны здесь, а не остаются в чужом рабочем каталоге
+      - name: Сборка не изменила каталоги строк
+        run: |
+          if ! git diff --exit-code -- '*.xcstrings'; then
+            echo "::error::Сборка изменила *.xcstrings — добавьте ключи в каталог или используйте Text(verbatim:)"
+            exit 1
+          fi

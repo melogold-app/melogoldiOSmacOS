@@ -41,7 +41,7 @@ struct WatchLibraryView: View {
         HStack {
             Label(title, systemImage: symbol)
             Spacer()
-            Text("\(count)").font(.footnote).monospacedDigit().foregroundStyle(.secondary)
+            Text(verbatim: "\(count)").font(.footnote).monospacedDigit().foregroundStyle(.secondary)
         }
     }
 }

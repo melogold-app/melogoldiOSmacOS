@@ -309,7 +309,7 @@ struct WatchTrackRow: View {
         Button(action: action) {
             HStack(spacing: 8) {
                 if let number {
-                    Text("\(number)").font(.footnote).monospacedDigit().foregroundStyle(.secondary)
+                    Text(verbatim: "\(number)").font(.footnote).monospacedDigit().foregroundStyle(.secondary)
                 }
                 if showsArtwork {
                     ArtworkView(url: track.artworkURL, size: 32)

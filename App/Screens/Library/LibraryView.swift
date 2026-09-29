@@ -133,7 +133,7 @@ struct LibraryView: View {
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
-                Text(count.map { "\($0)" } ?? " ")
+                Text(verbatim: count.map { "\($0)" } ?? " ")
                     .font(.footnote)
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
@@ -149,7 +149,7 @@ struct LibraryView: View {
 
     private func countRow(_ title: LocalizedStringResource, systemImage: String, count: Int) -> some View {
         LabeledContent {
-            Text("\(count)").monospacedDigit()
+            Text(verbatim: "\(count)").monospacedDigit()
         } label: {
             Label(title, systemImage: systemImage)
         }

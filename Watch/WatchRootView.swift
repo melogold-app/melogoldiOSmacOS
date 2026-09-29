@@ -63,11 +63,6 @@ struct WatchSectionView: View {
             WatchSearchView()
         case .settings:
             WatchSettingsView()
-        default:
-            ContentUnavailableView {
-                Label(section.title, systemImage: section.systemImage)
-            }
-            .navigationTitle(Text(section.title))
         }
     }
 }

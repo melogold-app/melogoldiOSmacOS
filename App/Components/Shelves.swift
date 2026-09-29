@@ -240,7 +240,7 @@ struct TrackGrid: View {
             } label: {
                 HStack(spacing: 10) {
                     if numbered {
-                        Text("\(index + 1)")
+                        Text(verbatim: "\(index + 1)")
                             .font(.headline)
                             .monospacedDigit()
                             .foregroundStyle(.secondary)

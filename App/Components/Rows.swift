@@ -20,7 +20,7 @@ struct TrackRow: View {
     var body: some View {
         HStack(spacing: 12) {
             if let number {
-                Text("\(number)")
+                Text(verbatim: "\(number)")
                     .font(.body)
                     .monospacedDigit()
                     .foregroundStyle(isCurrent ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))

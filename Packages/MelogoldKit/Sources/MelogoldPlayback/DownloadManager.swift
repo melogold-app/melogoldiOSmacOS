@@ -309,17 +309,22 @@ public final class BackgroundDownloads: NSObject, URLSessionDownloadDelegate, @u
 
     @MainActor
     func enqueue(videoId: String, info: StreamInfo, length: Int64, missing: Range<Int64>?) {
-        guard let url = URL(string: info.url), var start = missing?.lowerBound else { return }
+        guard let url = URL(string: info.url), let first = missing?.lowerBound else { return }
+        // Всё, что нужно замыканию, — значения, снятые здесь, на главном акторе: замыкание идёт в очереди сессии и
+        // не должно ни мутировать общее `start`, ни читать данные главного актора
+        let chunk = Int64(DownloadManager.chunk)
+        let userAgent = info.userAgent
         session.getAllTasks { [weak self] tasks in
             guard let self else { return }
             let running = Set(tasks.compactMap(\.taskDescription))
+            var start = first
             while start < length {
-                let end = min(start + Int64(DownloadManager.chunk), length)
+                let end = min(start + chunk, length)
                 let description = "\(videoId)|\(start)|\(end)"
                 if !running.contains(description) {
                     var request = URLRequest(url: url)
                     request.setValue("bytes=\(start)-\(end - 1)", forHTTPHeaderField: "Range")
-                    if let userAgent = info.userAgent { request.setValue(userAgent, forHTTPHeaderField: "User-Agent") }
+                    if let userAgent { request.setValue(userAgent, forHTTPHeaderField: "User-Agent") }
                     let task = self.session.downloadTask(with: request)
                     task.taskDescription = description
                     task.resume()
