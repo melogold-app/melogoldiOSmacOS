@@ -3250,6 +3250,23 @@
         }
       }
     },
+    "editor.trackChanged" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A different track is playing: marking is unavailable. You can still save the text."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Играет другой трек: разметка недоступна. Текст можно сохранить."
+          }
+        }
+      }
+    },
     "editor.undo" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5300,6 +5317,57 @@
         }
       }
     },
+    "lyrics.replace.confirm" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replace"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заменить"
+          }
+        }
+      }
+    },
+    "lyrics.replace.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You typed or imported your own lyrics for this track. The one you pick will replace them on all your devices."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вы набрали или импортировали свой текст для этого трека. Выбранный заменит его на всех ваших устройствах."
+          }
+        }
+      }
+    },
+    "lyrics.replace.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replace your lyrics?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заменить ваш текст?"
+          }
+        }
+      }
+    },
     "lyrics.searchAgain" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5347,6 +5415,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Играет с этой строки"
+          }
+        }
+      }
+    },
+    "lyrics.tooLarge" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The lyrics are too large for the server: they stay on this device only"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Текст слишком большой для сервера: он останется только на этом устройстве"
           }
         }
       }

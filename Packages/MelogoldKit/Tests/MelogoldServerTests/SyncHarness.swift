@@ -140,8 +140,10 @@ enum SyncFixtures {
         #"{"playlistId":"\#(playlistId)","videoId":"\#(videoId)","present":\#(present),"sortKey":"\#(key)","addedAt":"2026-09-25T10:00:00.000Z"}"#
     }
 
-    static func myLyrics(_ videoId: String, rev: Int, deleted: Bool = false, synced: String? = nil) -> String {
-        let text = synced.map { #"{"plain":null,"plainSource":null,"synced":"\#($0)","syncedFormat":"lrc","syncedSource":"user","startTimeMs":null,"language":null}"# } ?? "null"
+    static func myLyrics(_ videoId: String, rev: Int, deleted: Bool = false, synced: String? = nil, source: String = "user", startTimeMs: Int? = nil) -> String {
+        let text = synced.map {
+            #"{"plain":null,"plainSource":null,"synced":"\#($0)","syncedFormat":"lrc","syncedSource":"\#(source)","startTimeMs":\#(startTimeMs.map(String.init) ?? "null"),"language":null}"#
+        } ?? "null"
         return #"{"id":"00000000-0000-4000-8000-00000000000\#(rev % 10)","videoId":"\#(videoId)","rev":\#(rev),"deleted":\#(deleted),"text":\#(text),"updatedAt":"2026-09-25T12:00:00.000Z"}"#
     }
 }

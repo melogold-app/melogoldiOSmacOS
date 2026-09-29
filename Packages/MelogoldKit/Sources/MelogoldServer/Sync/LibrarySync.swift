@@ -647,19 +647,33 @@ public final class LibrarySync {
         }
     }
 
-    /// Своя версия с сервера: записать с источниками как есть и обновить снимок. Надгробие удаляет свой текст, только
-    /// если он не менялся с прошлого синка; изменённый уйдёт на сервер следующей отправкой.
+    /// Своя версия с сервера: записать с источниками как есть, выбранной (задание 0011: с любым источником она своя, и
+    /// следующая отправка её не удалит), и обновить снимок. Надгробие удаляет свой текст, только если он не менялся с
+    /// прошлого синка; изменённый уйдёт на сервер следующей отправкой.
+    ///
+    /// Своё, изменённое здесь после прошлого синка (хэш не равен снимку), версия с сервера не затирает: снимок
+    /// обновляется, а здешний текст остаётся и уйдёт следующим `PUT` — побеждает последний, как у Android
+    /// (`changedHere`). Так и эхо собственной отправки не отменяет правку, сделанную между `PUT` и загрузкой.
     nonisolated static func applyLyrics(_ tx: SyncTx, _ item: MyLyrics) throws {
+        let local = try tx.lyrics(item.videoId)
+        let snapshot = try tx.syncedLyrics(item.videoId)
         guard !item.deleted, let text = item.text else {
-            if LyricsSyncRules.deleteOnTombstone(try tx.lyrics(item.videoId), try tx.syncedLyrics(item.videoId)) {
-                try tx.deleteLyrics(item.videoId)
-            }
+            if LyricsSyncRules.deleteOnTombstone(local, snapshot) { try tx.deleteLyrics(item.videoId) }
             try tx.forgetSyncedLyrics(item.videoId)
             return
         }
         let stored = LyricsSyncRules.stored(text.payload)
-        if !LyricsSyncRules.sameContent(try tx.lyrics(item.videoId), stored) { try tx.saveLyrics(item.videoId, stored) }
         try tx.setSyncedLyrics(item.videoId, rev: item.rev, hash: LyricsSyncRules.hash(LyricsSyncRules.payload(stored)))
+        if let local, LyricsSyncRules.isOwn(local) {
+            let changedHere = LyricsSyncRules.hash(LyricsSyncRules.payload(local)) != snapshot?.hash
+            if changedHere { return }
+        }
+        if LyricsSyncRules.sameContent(local, stored) {
+            // Найденное здесь автоматически совпало с версией пользователя: теперь оно выбрано; свой сдвиг остаётся
+            if let local, !LyricsSyncRules.isOwn(local) { try tx.markLyricsChosen(item.videoId) }
+        } else {
+            try tx.saveLyrics(item.videoId, stored)
+        }
     }
 
     /// Текст с сервера для цепочки поиска (задание 0001 §3.5), когда провайдеры не нашли синхронный: своя версия (ещё

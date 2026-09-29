@@ -75,10 +75,14 @@ final class AppModel {
     /// Открыт «Сейчас играет».
     var showNowPlaying = false
 
-    /// В «Сейчас играет» показан текст (срез 6); лист «Найти текст» и редактор текста.
+    /// В «Сейчас играет» показан текст (срез 6); лист «Найти текст» и редактор текста. Открытый лист помнит трек, для
+    /// которого открыт: пока он открыт, играть может уже другой трек, а правка должна лечь в тот, что редактировался.
     var lyricsVisible = false
-    var lyricsSearch = false
-    var lyricsEditor = false
+    var lyricsSearch: Track?
+    var lyricsEditor: Track?
+
+    func openLyricsSearch() { lyricsSearch = services.player.currentTrack }
+    func openLyricsEditor() { lyricsEditor = services.player.currentTrack }
 
     /// Очередь: на iPhone — лист, на iPad и Mac — колонка справа (срез 7).
     var queueVisible = false
@@ -106,6 +110,24 @@ final class AppModel {
         lifecycle = SyncLifecycle.observe(sync)
         wasOnline = services.network.isOnline
         observeNetwork()
+        observeRejectedLyrics()
+    }
+
+    /// Сервер не принял свой текст как слишком большой (413, задание 0001 §3.7): сказать человеку, что текст остался
+    /// только на этом устройстве.
+    private func observeRejectedLyrics() {
+        withObservationTracking {
+            _ = sync.rejectedLyrics
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                if self.sync.rejectedLyrics != nil {
+                    self.toast = Toast(text: String(localized: "lyrics.tooLarge"))
+                    self.sync.dismissRejectedLyrics()
+                }
+                self.observeRejectedLyrics()
+            }
+        }
     }
 
     /// Сеть вернулась — синк и живой поток сразу, а не после паузы повтора (DESIGN §3.13.6 «появление сети»).

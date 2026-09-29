@@ -47,10 +47,15 @@ struct WatchLyricsView: View {
             } else if lyrics.state == .loading {
                 ProgressView()
             } else {
-                Text(lyrics.state == .offline ? "lyrics.offline" : "lyrics.notFound")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                VStack(spacing: 8) {
+                    Text(lyrics.state == .offline ? "lyrics.offline" : "lyrics.notFound")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                    if lyrics.state == .offline {
+                        Button("common.retry") { lyrics.retry() }
+                    }
+                }
             }
         }
         .safeAreaInset(edge: .bottom) {

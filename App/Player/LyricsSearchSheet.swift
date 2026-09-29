@@ -2,12 +2,17 @@ import SwiftUI
 import UniformTypeIdentifiers
 import MelogoldCore
 import MelogoldInnerTube
+import MelogoldLyrics
 
-/// «Найти текст» (docs/PROMPT.md §5.7): поиск по LRCLIB — выбор результата своим текстом не считается и на сервер не
-/// уходит; «Импорт из файла» (`.lrc`, `.ttml`, текст) — свой текст, источник `file`.
+/// «Найти текст» (docs/PROMPT.md §5.7): поиск по LRCLIB — выбранный результат становится своим текстом трека (задание
+/// 0011: свой для синка, источник остаётся `lrclib`) и переезжает на другие устройства; «Импорт из файла» (`.lrc`,
+/// `.ttml`, текст) — свой текст, источник `file`. Лист открыт для трека `track`, а не для того, что играет сейчас:
+/// выбор и импорт пишутся именно в него.
 struct LyricsSearchSheet: View {
+    let track: Track
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @State private var pending: LrcLibTrack?
     @State private var query = ""
     @State private var results: [LrcLibTrack] = []
     @State private var searching = false
@@ -28,8 +33,7 @@ struct LyricsSearchSheet: View {
                 Section {
                     ForEach(results) { result in
                         Button {
-                            model.services.lyrics.use(result)
-                            dismiss()
+                            choose(result)
                         } label: {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(verbatim: result.trackName).lineLimit(1)
@@ -73,7 +77,7 @@ struct LyricsSearchSheet: View {
                 let access = url.startAccessingSecurityScopedResource()
                 defer { if access { url.stopAccessingSecurityScopedResource() } }
                 guard let data = try? Data(contentsOf: url), let text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .utf16),
-                      model.services.lyrics.importFile(text) else {
+                      model.services.lyrics.importFile(text, for: track.videoId) else {
                     model.toast = Toast(text: String(localized: "lyrics.import.failed"))
                     return
                 }
@@ -81,12 +85,16 @@ struct LyricsSearchSheet: View {
                 dismiss()
             }
         }
+        .confirmationDialog(Text("lyrics.replace.title"), isPresented: Binding(get: { pending != nil }, set: { if !$0 { pending = nil } }),
+                            titleVisibility: .visible, presenting: pending) { result in
+            Button("lyrics.replace.confirm", role: .destructive) { choose(result, replacingTyped: true) }
+        } message: { _ in
+            Text("lyrics.replace.message")
+        }
         .onAppear {
-            if let track = model.services.player.currentTrack {
-                let clean = TitleCleaner.clean(title: track.title, channel: track.artistsText, videoType: track.videoType)
-                query = [clean.artist, clean.title].compactMap { $0 }.joined(separator: " ")
-                search()
-            }
+            let clean = TitleCleaner.clean(title: track.title, channel: track.artistsText, videoType: track.videoType)
+            query = [clean.artist, clean.title].compactMap { $0 }.joined(separator: " ")
+            search()
         }
         #if os(macOS)
         .frame(minWidth: 460, minHeight: 480)
@@ -96,6 +104,15 @@ struct LyricsSearchSheet: View {
     private static let types: [UTType] = [
         UTType(filenameExtension: "lrc") ?? .plainText, UTType(filenameExtension: "ttml") ?? .xml, .xml, .plainText,
     ]
+
+    /// Выбранный результат заменяет текст трека; набранный или импортированный текст — только после подтверждения.
+    private func choose(_ result: LrcLibTrack, replacingTyped: Bool = false) {
+        switch model.services.lyrics.use(synced: result.syncedLyrics?.nilIfBlank, plain: result.plainLyrics?.nilIfBlank,
+                                         for: track.videoId, replacingTyped: replacingTyped) {
+        case .applied: dismiss()
+        case .needsConfirmation: pending = result
+        }
+    }
 
     private func search() {
         let text = query.trimmingCharacters(in: .whitespaces)

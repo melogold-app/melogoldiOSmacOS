@@ -1,5 +1,6 @@
 import SwiftUI
 import MelogoldCore
+import MelogoldLyrics
 import MelogoldPlayback
 
 /// Текст в «Сейчас играет» (docs/PROMPT.md §5.7, `spec/lyrics.md` «Отображение»): текущая строка яркая, прошедшие
@@ -20,10 +21,14 @@ struct LyricsPanel: View {
                 ContentUnavailableView {
                     Label("lyrics.notFound", systemImage: "text.quote")
                 } actions: {
-                    Button("lyrics.find") { model.lyricsSearch = true }
+                    Button("lyrics.find") { model.openLyricsSearch() }
                 }
             case .offline where !lyrics.hasAny:
-                ContentUnavailableView { Label("lyrics.offline", systemImage: "wifi.slash") }
+                ContentUnavailableView {
+                    Label("lyrics.offline", systemImage: "wifi.slash")
+                } actions: {
+                    Button("common.retry") { lyrics.retry() }
+                }
             default:
                 if lyrics.showingSynced {
                     SyncedLyricsView()
@@ -68,9 +73,9 @@ struct LyricsMenu: View {
                     }
                 }
             }
-            Button { model.lyricsSearch = true } label: { Label("lyrics.find", systemImage: "magnifyingglass") }
+            Button { model.openLyricsSearch() } label: { Label("lyrics.find", systemImage: "magnifyingglass") }
             #if !os(visionOS)
-            Button { model.lyricsEditor = true } label: { Label("lyrics.edit", systemImage: "pencil") }
+            Button { model.openLyricsEditor() } label: { Label("lyrics.edit", systemImage: "pencil") }
             #endif
             if lyrics.showingSynced {
                 Menu {
@@ -272,7 +277,9 @@ private struct LyricRowView: View {
     /// Слова загораются по времени; текущее — по мере звучания.
     private func words(_ words: [SyncedWord], font: Font) -> Text {
         let position = model.services.lyrics.lyricsPosition(model.services.player.livePosition())
-        return words.reduce(Text(verbatim: "")) { text, word in
+        // Одна `AttributedString` со своим шрифтом и цветом у каждого слова: `Text + Text` в iOS 26 устарел
+        var line = AttributedString()
+        for word in words {
             let fill: Double = if position >= word.endMs {
                 1
             } else if position <= word.startMs {
@@ -280,8 +287,12 @@ private struct LyricRowView: View {
             } else {
                 Double(position - word.startMs) / Double(max(1, word.endMs - word.startMs))
             }
-            return text + Text(verbatim: word.text).font(font).foregroundStyle(Color.primary.opacity(0.35 + 0.65 * fill))
+            var run = AttributedString(word.text)
+            run.font = font
+            run.foregroundColor = Color.primary.opacity(0.35 + 0.65 * fill)
+            line.append(run)
         }
+        return Text(line)
     }
 }
 

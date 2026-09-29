@@ -2,6 +2,7 @@ import Foundation
 import MelogoldCore
 import MelogoldData
 import MelogoldInnerTube
+import MelogoldLyrics
 import MelogoldPlayback
 #if !os(watchOS)
 import Network
@@ -79,7 +80,7 @@ final class Services {
             Task { await resolver.invalidateAll() }
             downloads?.networkChanged()
         }
-        lyrics = LyricsModel(fetcher: lyricsFetcher, store: lyricsStore, player: player)
+        lyrics = LyricsModel(fetcher: lyricsFetcher, store: lyricsStore, playerDurationMs: { [player] in Int64(player.duration * 1000) })
         configureLibraryHooks()
         start()
     }

@@ -13,7 +13,9 @@ public enum LyricsSources {
 }
 
 /// Строка таблицы `lyrics`: синхронная и обычная стороны со своими источниками (`source` — синхронной),
-/// сдвиг синхронного текста и язык. Пустая сторона — «искали, нет».
+/// сдвиг синхронного текста и язык. Пустая сторона — «искали, нет». `chosen` — пользователь выбрал этот текст вместо
+/// найденного автоматически («Найти текст») или он пришёл с сервера как его версия: такой текст свой, каким бы ни был
+/// источник (задание 0011).
 public struct StoredLyrics: Equatable, Sendable {
     public var synced: String?
     public var plain: String?
@@ -21,14 +23,19 @@ public struct StoredLyrics: Equatable, Sendable {
     public var plainSource: String?
     public var offsetMs: Int64
     public var language: String?
+    public var chosen: Bool
 
-    public init(synced: String?, plain: String?, syncedSource: String?, plainSource: String?, offsetMs: Int64 = 0, language: String? = nil) {
+    public init(
+        synced: String?, plain: String?, syncedSource: String?, plainSource: String?, offsetMs: Int64 = 0, language: String? = nil,
+        chosen: Bool = false
+    ) {
         self.synced = synced
         self.plain = plain
         self.syncedSource = syncedSource
         self.plainSource = plainSource
         self.offsetMs = offsetMs
         self.language = language
+        self.chosen = chosen
     }
 }
 
@@ -80,9 +87,11 @@ public enum LyricsSend: Equatable, Sendable {
     case forget(videoId: String)
 }
 
-/// Правила синхронизации текстов (задание 0001 §3), одинаковые с Android и Windows (`LyricsSyncRules.cs`).
-/// Свой текст — строка, у которой хотя бы одна сторона из источника `user` или `file`; он уходит на сервер целиком,
-/// обеими сторонами. Найденные провайдерами тексты и общий текст сообщества (`melogold`) своими не считаются.
+/// Правила синхронизации текстов (задание 0001 §3, 0011), одинаковые с Android и Windows (`LyricsSyncRules.cs`).
+/// Свой текст — строка, у которой хотя бы одна сторона из источника `user` или `file` либо стоит флаг «выбран»
+/// (`chosen`, текст не пустой); он уходит на сервер целиком, обеими сторонами, со своими настоящими источниками
+/// (выбранный из LRCLIB — `lrclib`). Найденные провайдерами тексты и общий текст сообщества (`melogold`) своими не
+/// считаются.
 public enum LyricsSyncRules {
     /// Лимиты сервера (API §4.10), в единицах UTF-16.
     public static let plainMax = 50_000
@@ -108,6 +117,15 @@ public enum LyricsSyncRules {
     }
 
     public static func isOwn(_ lyrics: StoredLyrics) -> Bool {
+        let hasSynced = text(lyrics.synced) != nil
+        let hasPlain = text(lyrics.plain) != nil
+        return (isOwnSource(lyrics.syncedSource) && hasSynced) || (isOwnSource(lyrics.plainSource) && hasPlain)
+            || (lyrics.chosen && (hasSynced || hasPlain))
+    }
+
+    /// Пользователь сам набрал или импортировал текст (`user`, `file`): такой нельзя заменить молча, в отличие от
+    /// найденного и выбранного из результатов поиска.
+    public static func hasTypedText(_ lyrics: StoredLyrics) -> Bool {
         (isOwnSource(lyrics.syncedSource) && text(lyrics.synced) != nil) || (isOwnSource(lyrics.plainSource) && text(lyrics.plain) != nil)
     }
 
@@ -143,7 +161,8 @@ public enum LyricsSyncRules {
         return hash(payload(local)) == hash(payload(incoming))
     }
 
-    /// Версия с сервера — как строка здесь: отсутствующая сторона пустая, источники как есть.
+    /// Версия с сервера — как строка здесь: отсутствующая сторона пустая, источники как есть. Это своя версия
+    /// пользователя с любым источником (§2.3 задания 0011), поэтому строка «выбрана» и остаётся своей на этом устройстве.
     public static func stored(_ payload: LyricsPayload) -> StoredLyrics {
         StoredLyrics(
             synced: payload.synced ?? "",
@@ -151,7 +170,8 @@ public enum LyricsSyncRules {
             syncedSource: payload.synced == nil ? nil : payload.syncedSource,
             plainSource: payload.plain == nil ? nil : payload.plainSource,
             offsetMs: -(payload.startTimeMs ?? 0),
-            language: payload.language
+            language: payload.language,
+            chosen: true
         )
     }
 

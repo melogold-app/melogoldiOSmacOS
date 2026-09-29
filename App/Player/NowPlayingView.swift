@@ -71,7 +71,7 @@ struct NowPlayingView: View {
             .accessibilityLabel(Text("common.collapse"))
             .keyboardShortcut(.cancelAction)
         }
-        .sheet(isPresented: $model.lyricsSearch) { LyricsSearchSheet() }
+        .sheet(item: $model.lyricsSearch) { LyricsSearchSheet(track: $0) }
         #if os(iOS)
         // iPhone: очередь — лист; iPad с боковой панелью — колонка справа в окне (`SplitShell`).
         .sheet(isPresented: $model.queueVisible) {
@@ -84,9 +84,9 @@ struct NowPlayingView: View {
         }
         #endif
         #if os(macOS)
-        .sheet(isPresented: $model.lyricsEditor) { LyricsEditorView() }
+        .sheet(item: $model.lyricsEditor) { LyricsEditorView(track: $0) }
         #elseif os(iOS)
-        .fullScreenCover(isPresented: $model.lyricsEditor) { LyricsEditorView() }
+        .fullScreenCover(item: $model.lyricsEditor) { LyricsEditorView(track: $0) }
         #endif
     }
 

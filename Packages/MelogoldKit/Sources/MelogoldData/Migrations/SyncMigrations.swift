@@ -37,5 +37,20 @@ enum SyncMigrations {
                 CREATE INDEX play_events_device ON play_events(device_id, video_id, played_at, play_time_ms);
                 """)
         },
+        DatabaseMigration("lyrics-chosen-v1") { db in
+            // Выбранный текст (задание 0011): выбор в «Найти текст» и версия с сервера — свой текст с любым источником
+            // (`lrclib`, `kugou`, `youtube_music`), он уходит на сервер и не стирается. Тексты в таблице сохраняются;
+            // версии, которые сервер уже знает (снимок `synced_lyrics`), а здесь лежат как найденные, — прежние сборки
+            // принимали такие с сервера несвоими и удаляли с него следующей отправкой — становятся выбранными.
+            try db.execute(sql: """
+                ALTER TABLE lyrics ADD COLUMN chosen INTEGER NOT NULL DEFAULT 0;
+
+                UPDATE lyrics SET chosen = 1
+                WHERE video_id IN (SELECT video_id FROM synced_lyrics WHERE rev >= 0)
+                  AND (COALESCE(synced, '') <> '' OR COALESCE(plain, '') <> '')
+                  AND COALESCE(source, '') NOT IN ('user', 'file')
+                  AND COALESCE(plain_source, '') NOT IN ('user', 'file');
+                """)
+        },
     ]
 }

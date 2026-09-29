@@ -1,13 +1,17 @@
 import SwiftUI
 import MelogoldCore
+import MelogoldLyrics
 import MelogoldPlayback
 
 /// Редактор текста (docs/PROMPT.md §5.7, `spec/lyrics.md` «Редактор», Android `lyricseditor`, модель `LyricsDraft`):
 /// «Текст» — строка на строку, скобки в конце — подпевка; «Разметка» — нажатие «Отметить» во время воспроизведения
 /// задаёт начало строки (или слова) под курсором, «Конец строки» оставляет паузу; сдвиг строки ±0,1 с, сторона дуэта,
 /// «Отменить». Позиция — минус 150 мс на реакцию. Сохранение — TTML и обычный текст рядом, источник «свой».
-/// iPhone, iPad и Mac.
+/// iPhone, iPad и Mac. Редактор открыт для трека `track` и пишет только в него: пока он открыт, очередь может уйти к
+/// следующему треку, и правка не должна лечь туда.
 struct LyricsEditorView: View {
+    let track: Track
+
     enum Mode: String, CaseIterable, Identifiable {
         case text, marks
         var id: String { rawValue }
@@ -140,19 +144,30 @@ struct LyricsEditorView: View {
     }
 
     private func wordsLine(_ line: DraftLine) -> Text {
-        line.words.enumerated().reduce(Text(verbatim: "")) { result, item in
+        // Одна `AttributedString`: `Text + Text` в iOS 26 устарел
+        var result = AttributedString()
+        for item in line.words.enumerated() {
             let marked = item.offset < line.wordStarts.count && line.wordStarts[item.offset] != nil
             let current = item.offset == draft.wordCursor
-            let word = Text(verbatim: item.element + " ")
-                .fontWeight(current ? .bold : .regular)
-                .foregroundStyle(marked ? Color.primary : (current ? Color.accentColor : Color.secondary))
-            return result + word
+            var word = AttributedString(item.element + " ")
+            word.font = .body.weight(current ? .bold : .regular)
+            word.foregroundColor = marked ? Color.primary : (current ? Color.accentColor : Color.secondary)
+            result.append(word)
         }
+        return Text(result)
     }
+
+    /// Играет уже другой трек: время отмечать не по чему.
+    private var trackChanged: Bool { model.services.player.currentTrack?.videoId != track.videoId }
 
     private var controls: some View {
         let player = model.services.player
         return VStack(spacing: 10) {
+            if trackChanged {
+                Label { Text("editor.trackChanged") } icon: { Image(systemName: "exclamationmark.triangle") }
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
             HStack(spacing: 20) {
                 Button { player.seek(to: max(0, player.position - 5)) } label: {
                     Image(systemName: "gobackward.5").font(.title2)
@@ -165,7 +180,7 @@ struct LyricsEditorView: View {
                 Button { change(draft.markEnd(position())) } label: {
                     Label("editor.lineEnd", systemImage: "pause.circle").font(.subheadline)
                 }
-                .disabled(draft.cursor == 0)
+                .disabled(draft.cursor == 0 || trackChanged)
             }
             .buttonStyle(.borderless)
             if let selected, draft.lines.indices.contains(selected) {
@@ -188,7 +203,7 @@ struct LyricsEditorView: View {
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
-            .disabled(draft.cursor >= draft.lines.count)
+            .disabled(draft.cursor >= draft.lines.count || trackChanged)
             .keyboardShortcut(.return, modifiers: [])
         }
         .padding()
@@ -220,13 +235,14 @@ struct LyricsEditorView: View {
     private func load() {
         guard !loaded else { return }
         loaded = true
-        let lyrics = model.services.lyrics
-        if let synced = lyrics.synced {
+        // Текст своего трека из базы, а не тот, что показан: показан может быть уже другой трек
+        let content = LyricsContent(model.services.lyrics.stored(for: track.videoId))
+        if let synced = content.synced {
             // Сдвиг трека становится временем текста: редактор правит то, что звучит.
-            draft = LyricsDraft.from(synced).shifted(by: -lyrics.offsetMs)
+            draft = LyricsDraft.from(synced).shifted(by: -content.offsetMs)
             mode = .marks
         } else {
-            draft = LyricsDraft.fromText(lyrics.plain ?? "")
+            draft = LyricsDraft.fromText(content.plain ?? "")
             mode = .text
         }
         text = draft.toText()
@@ -236,9 +252,10 @@ struct LyricsEditorView: View {
         let final = currentDraft
         let lyrics = model.services.lyrics
         if let synced = final.toSyncedLyrics() {
-            lyrics.saveOwn(synced: TtmlFormat.write(synced), plain: final.toText(), source: LyricsSources.user, language: final.language)
+            lyrics.saveOwn(videoId: track.videoId, synced: TtmlFormat.write(synced), plain: final.toText(), source: LyricsSources.user,
+                           language: final.language)
         } else {
-            lyrics.saveOwn(synced: nil, plain: final.toText(), source: LyricsSources.user, language: final.language)
+            lyrics.saveOwn(videoId: track.videoId, synced: nil, plain: final.toText(), source: LyricsSources.user, language: final.language)
         }
         model.toast = Toast(text: String(localized: "editor.saved"))
         dismiss()

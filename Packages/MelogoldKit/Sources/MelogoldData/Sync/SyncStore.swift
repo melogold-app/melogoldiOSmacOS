@@ -224,7 +224,7 @@ public struct SyncTx {
     let db: Database
 
     private static let trackColumns = "video_id, title, artists_text, artists_json, album_id, album_title, duration_ms, duration_text, thumbnail_url, explicit, video_type, metadata_stub"
-    private static let lyricsColumns = "synced, plain, source, plain_source, offset_ms, language"
+    private static let lyricsColumns = "synced, plain, source, plain_source, offset_ms, language, chosen"
 
     // MARK: - Состояние
 
@@ -625,12 +625,14 @@ public struct SyncTx {
 
     // MARK: - Тексты (задание 0001)
 
-    /// Свои тексты: хотя бы одна сторона из источника `user` или `file`.
+    /// Свои тексты: хотя бы одна сторона из источника `user` или `file` либо выбранный текст (задание 0011) с любым
+    /// источником; пустой выбранный текст своим не считается.
     public func ownLyrics() throws -> [String: StoredLyrics] {
         var result: [String: StoredLyrics] = [:]
         for row in try Row.fetchAll(db, sql: """
             SELECT video_id, \(Self.lyricsColumns) FROM lyrics
             WHERE (source IN ('user', 'file') AND COALESCE(synced, '') <> '') OR (plain_source IN ('user', 'file') AND COALESCE(plain, '') <> '')
+               OR (chosen = 1 AND (COALESCE(synced, '') <> '' OR COALESCE(plain, '') <> ''))
             """) {
             result[row["video_id"]] = Self.readLyrics(row)
         }
@@ -643,17 +645,23 @@ public struct SyncTx {
 
     private static func readLyrics(_ row: Row) -> StoredLyrics {
         StoredLyrics(synced: row["synced"], plain: row["plain"], syncedSource: row["source"], plainSource: row["plain_source"],
-                     offsetMs: row["offset_ms"] ?? 0, language: row["language"])
+                     offsetMs: row["offset_ms"] ?? 0, language: row["language"], chosen: (row["chosen"] as Int64? ?? 0) != 0)
     }
 
     public func saveLyrics(_ videoId: String, _ lyrics: StoredLyrics) throws {
         try db.execute(
             sql: """
-                INSERT OR REPLACE INTO lyrics (video_id, synced, plain, source, plain_source, offset_ms, language, fetched_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT OR REPLACE INTO lyrics (video_id, synced, plain, source, plain_source, offset_ms, language, chosen, fetched_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-            arguments: [videoId, lyrics.synced, lyrics.plain, lyrics.syncedSource, lyrics.plainSource, lyrics.offsetMs, lyrics.language, EpochMs.now()]
+            arguments: [videoId, lyrics.synced, lyrics.plain, lyrics.syncedSource, lyrics.plainSource, lyrics.offsetMs, lyrics.language,
+                        lyrics.chosen ? 1 : 0, EpochMs.now()]
         )
+    }
+
+    /// Найденный автоматически текст совпал с пришедшей своей версией: он становится выбранным (задание 0011 §2.3).
+    public func markLyricsChosen(_ videoId: String) throws {
+        try db.execute(sql: "UPDATE lyrics SET chosen = 1 WHERE video_id = ?", arguments: [videoId])
     }
 
     public func deleteLyrics(_ videoId: String) throws {

@@ -65,6 +65,63 @@ struct LyricsSyncRulesTests {
         #expect(LyricsSyncRules.hash(LyricsSyncRules.payload(stored)) == LyricsSyncRules.hash(payload))
     }
 
+    // MARK: - Выбранный текст (задание 0011)
+
+    let chosenLrcLib = StoredLyrics(synced: lrc, plain: "Я вернусь", syncedSource: LyricsSources.lrclib, plainSource: LyricsSources.lrclib, chosen: true)
+
+    @Test func chosenTextIsOwnWhateverItsSource() {
+        #expect(LyricsSyncRules.isOwn(chosenLrcLib))
+        #expect(chosenLrcLib.isOwn)
+        // Тот же текст, найденный автоматически, — не свой
+        var found = chosenLrcLib
+        found.chosen = false
+        #expect(!LyricsSyncRules.isOwn(found))
+        // Пустой выбранный текст своим не считается
+        #expect(!LyricsSyncRules.isOwn(StoredLyrics(synced: "", plain: "", syncedSource: nil, plainSource: nil, chosen: true)))
+        // Набранный и импортированный — «набраны», выбранный — нет
+        #expect(!chosenLrcLib.hasTypedText)
+        #expect(own.hasTypedText)
+        #expect(!LyricsSyncRules.hasTypedText(StoredLyrics(synced: "", plain: nil, syncedSource: "user", plainSource: nil)))
+    }
+
+    @Test func chosenLrcLibGoesUpAsLrcLibAndFoundOneDoesNot() {
+        let payload = LyricsSyncRules.payload(chosenLrcLib)
+        #expect(payload.syncedSource == "lrclib")
+        #expect(payload.plainSource == "lrclib")
+        let hash = LyricsSyncRules.hash(payload)
+        #expect(LyricsSyncRules.planSends(own: ["v1": chosenLrcLib], snapshot: [:]) == [.put(videoId: "v1", payload: payload, hash: hash)])
+        // Тот же текст без флага (найден автоматически) не свой: на сервер не уходит, своим набором `own` не бывает
+        var found = chosenLrcLib
+        found.chosen = false
+        #expect(!LyricsSyncRules.isOwn(found))
+        #expect(LyricsSyncRules.planSends(own: [:], snapshot: [:]).isEmpty)
+    }
+
+    @Test func serverVersionWithLrcLibIsChosenAndNotDeleted() {
+        // Windows 0.1.10 и Android отправляют выбранный текст с `lrclib`: версия с сервера становится выбранной строкой
+        let payload = LyricsSyncRules.payload(chosenLrcLib)
+        let stored = LyricsSyncRules.stored(payload)
+        #expect(stored.chosen)
+        #expect(stored.syncedSource == "lrclib")
+        #expect(LyricsSyncRules.isOwn(stored))
+        let snapshot = LyricsSnapshot(rev: 7, hash: LyricsSyncRules.hash(payload))
+        // Своё есть, в снимке есть, хэш тот же — ни PUT, ни DELETE
+        #expect(LyricsSyncRules.planSends(own: ["v1": stored], snapshot: ["v1": snapshot]).isEmpty)
+        // Раньше (без флага) строка не считалась своей, и следующая отправка стирала версию на сервере
+        var unflagged = stored
+        unflagged.chosen = false
+        #expect(LyricsSyncRules.planSends(own: [:], snapshot: ["v1": snapshot]) == [.delete(videoId: "v1")])
+        #expect(!LyricsSyncRules.isOwn(unflagged))
+    }
+
+    @Test func tombstoneDeletesUnchangedChosenText() {
+        let snapshot = LyricsSnapshot(rev: 3, hash: LyricsSyncRules.hash(LyricsSyncRules.payload(chosenLrcLib)))
+        #expect(LyricsSyncRules.deleteOnTombstone(chosenLrcLib, snapshot))
+        var edited = chosenLrcLib
+        edited.plain = "Другое"
+        #expect(!LyricsSyncRules.deleteOnTombstone(edited, snapshot))
+    }
+
     @Test func tooLargeByUtf16() {
         let big = LyricsPayload(plain: String(repeating: "я", count: LyricsSyncRules.plainMax + 1), plainSource: "user", synced: nil,
                                 syncedFormat: nil, syncedSource: nil, startTimeMs: nil, language: nil)

@@ -238,6 +238,31 @@ public struct LyricsFetchResult: Sendable {
     public var syncedSource: String?
     public var offsetMs: Int64?
     public var language: String?
+    /// Текст взят из своей версии пользователя на сервере (`mine`): он выбран и остаётся своим (задание 0011 §2.3).
+    public var chosen: Bool = false
+
+    public init(
+        plain: String? = nil, synced: String? = nil, anyFailure: Bool = false, plainSource: String? = nil, syncedSource: String? = nil,
+        offsetMs: Int64? = nil, language: String? = nil, chosen: Bool = false
+    ) {
+        self.plain = plain
+        self.synced = synced
+        self.anyFailure = anyFailure
+        self.plainSource = plainSource
+        self.syncedSource = syncedSource
+        self.offsetMs = offsetMs
+        self.language = language
+        self.chosen = chosen
+    }
+
+    /// Найденное в форме для записи в базу (`LyricsRules.mergeFetched`): «искали, не нашли» — пустая строка стороны,
+    /// «сеть не ответила» — `nil`.
+    public var found: FoundLyrics {
+        FoundLyrics(
+            synced: synced ?? (anyFailure ? nil : ""), plain: plain ?? (anyFailure ? nil : ""),
+            syncedSource: syncedSource, plainSource: plainSource, offsetMs: offsetMs, language: language, chosen: chosen
+        )
+    }
 }
 
 /// Цепочка источников текста (docs/PROMPT.md §5.7, Android `LyricsFetcher.kt`, Windows `LyricsFetcher.cs`). Название
@@ -347,24 +372,34 @@ public final class LyricsFetcher: @unchecked Sendable {
                 syncedSource = found.source
             }
         }
+        var chosen = false
         if synced == nil, let community {
             do {
-                if let found = try await community(track.videoId), let text = found.payload.synced {
-                    // Своя версия остаётся своей, общая помечается «сообщество Melogold» и своей не становится
-                    synced = text
-                    syncedSource = found.mine ? found.payload.syncedSource : LyricsSources.melogold
-                    if plain == nil, let communityPlain = found.payload.plain {
+                if let found = try await community(track.videoId) {
+                    // Своя версия остаётся своей (и выбранной, с любым источником), общая помечается «сообщество Melogold»
+                    // и своей не становится
+                    let text = found.payload.synced?.isEmpty == false ? found.payload.synced : nil
+                    let communityPlain = found.payload.plain?.isEmpty == false ? found.payload.plain : nil
+                    if let text {
+                        synced = text
+                        syncedSource = found.mine ? found.payload.syncedSource : LyricsSources.melogold
+                        offset = -(found.payload.startTimeMs ?? 0)
+                        language = found.payload.language
+                        chosen = found.mine
+                    }
+                    // Общий текст без синхронной стороны — только обычный — тоже показывается
+                    if plain == nil, let communityPlain {
                         plain = communityPlain
                         plainSource = found.mine ? found.payload.plainSource : LyricsSources.melogold
+                        language = language ?? found.payload.language
+                        chosen = chosen || found.mine
                     }
-                    offset = -(found.payload.startTimeMs ?? 0)
-                    language = found.payload.language
                 }
             } catch {
                 anyFailure = true
             }
         }
         return LyricsFetchResult(plain: plain, synced: synced, anyFailure: anyFailure, plainSource: plainSource,
-                                 syncedSource: syncedSource, offsetMs: offset, language: language)
+                                 syncedSource: syncedSource, offsetMs: offset, language: language, chosen: chosen)
     }
 }

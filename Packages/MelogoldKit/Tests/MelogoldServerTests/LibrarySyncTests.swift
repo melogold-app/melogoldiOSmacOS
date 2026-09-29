@@ -715,6 +715,158 @@ struct LibrarySyncTests {
         #expect(h.server.requests("PUT", "/lyrics/t1").count == 1)
     }
 
+    // MARK: - Выбранный текст (задание 0011) и гонки (audit 4.2)
+
+    /// Выбранный в «Найти текст» LrcLib-текст — свой: уходит с настоящим источником. Найденный такой же — нет.
+    @Test func chosenLrcLibTextGoesUpAsLrcLibAndFoundOneStays() async throws {
+        let h = try SyncHarness()
+        try h.sql("INSERT INTO lyrics (video_id, synced, plain, source, plain_source, offset_ms, language, fetched_at, chosen) VALUES ('t1', '[00:01.00]Hi', '', 'lrclib', NULL, 0, NULL, 0, 1)")
+        try h.sql("INSERT INTO lyrics (video_id, synced, plain, source, plain_source, offset_ms, language, fetched_at, chosen) VALUES ('t2', '[00:01.00]Yo', '', 'lrclib', NULL, 0, NULL, 0, 0)")
+        h.server.on("POST", "/sync") { request in (200, SyncFixtures.response(request)) }
+        h.server.on("PUT", "/lyrics/t1") { _ in (200, SyncFixtures.myLyrics("t1", rev: 3, synced: "[00:01.00]Hi", source: "lrclib")) }
+
+        await h.engine.sync()
+
+        let put = try #require(h.server.requests("PUT", "/lyrics/t1").first)
+        #expect(put.json["synced"] as? String == "[00:01.00]Hi")
+        #expect(put.json["syncedSource"] as? String == "lrclib")
+        #expect(put.json["plain"] == nil)
+        #expect(h.server.requests("PUT", "/lyrics/t2").isEmpty)
+        #expect(try h.strings("SELECT video_id || ':' || rev FROM synced_lyrics") == ["t1:3"])
+    }
+
+    /// Windows 0.1.10 и Android присылают выбранный текст с `lrclib`: он остаётся здесь выбранным и следующей
+    /// отправкой с сервера не удаляется (раньше `planSends` видел «в снимке есть, среди своих нет» и слал `DELETE`).
+    @Test func chosenVersionFromServerIsKeptAndNeverDeletedByTheNextCycle() async throws {
+        let h = try SyncHarness()
+        h.server.on("POST", "/sync") { request in (200, SyncFixtures.response(request)) }
+        h.server.on("POST", "/auth/me/lyrics/changes") { request in
+            (request.json["after"] as? Int) == 0
+                ? (200, #"{"items":[\#(SyncFixtures.myLyrics("t1", rev: 7, synced: "[00:01.00]Hi", source: "lrclib"))],"rev":7,"more":false}"#)
+                : (200, #"{"items":[],"rev":7,"more":false}"#)
+        }
+
+        await h.engine.sync()
+
+        #expect(try h.strings("SELECT synced || ' · ' || source || ' · ' || chosen FROM lyrics") == ["[00:01.00]Hi · lrclib · 1"])
+        #expect(try h.strings("SELECT video_id || ':' || rev FROM synced_lyrics") == ["t1:7"])
+
+        // Ещё одна синхронизация, в том числе принудительная: ни DELETE, ни повторного PUT
+        await h.engine.sync()
+        await h.engine.sync()
+        #expect(h.server.requests("DELETE", "/lyrics/t1").isEmpty)
+        #expect(h.server.requests("PUT", "/lyrics/t1").isEmpty)
+        #expect(try h.strings("SELECT video_id FROM lyrics") == ["t1"])
+        #expect(try h.strings("SELECT video_id FROM synced_lyrics") == ["t1"])
+    }
+
+    /// Найденный здесь автоматически текст совпал с пришедшей версией пользователя: он становится выбранным, а то,
+    /// что сервер не хранит (сдвиг «позже»), остаётся.
+    @Test func foundTextEqualToServerVersionBecomesChosenAndKeepsItsShift() async throws {
+        let h = try SyncHarness()
+        try h.sql("INSERT INTO lyrics (video_id, synced, plain, source, plain_source, offset_ms, language, fetched_at) VALUES ('t1', '[00:01.00]Hi', '', 'lrclib', NULL, 400, NULL, 0)")
+        let version = try JSONDecoder().decode(MyLyrics.self, from: Data(SyncFixtures.myLyrics("t1", rev: 7, synced: "[00:01.00]Hi", source: "lrclib").utf8))
+
+        try await h.store.write { tx in try LibrarySync.applyLyrics(tx, version) }
+
+        #expect(try h.strings("SELECT chosen || ' · ' || offset_ms FROM lyrics") == ["1 · 400"])
+        #expect(try h.strings("SELECT rev FROM synced_lyrics") == ["7"])
+    }
+
+    /// Версия с сервера не затирает своё, изменённое здесь после прошлого синка (`changedHere`, как у Android):
+    /// снимок обновляется, здешнее остаётся и уходит следующим `PUT`.
+    @Test func pullDoesNotOverwriteTextChangedHere() async throws {
+        let h = try SyncHarness()
+        let old = StoredLyrics(synced: "[00:01.00]Hi", plain: nil, syncedSource: "user", plainSource: nil)
+        let edited = StoredLyrics(synced: "[00:01.00]Hi\n[00:02.00]New", plain: nil, syncedSource: "user", plainSource: nil)
+        try await h.store.write { tx in
+            try tx.saveLyrics("t1", edited)
+            try tx.setSyncedLyrics("t1", rev: 5, hash: LyricsSyncRules.hash(LyricsSyncRules.payload(old)))
+        }
+        // Эхо собственной отправки или чужая правка — версия с сервера отличается от того, что здесь
+        let incoming = try JSONDecoder().decode(MyLyrics.self, from: Data(SyncFixtures.myLyrics("t1", rev: 6, synced: "[00:01.00]Hi").utf8))
+
+        try await h.store.write { tx in try LibrarySync.applyLyrics(tx, incoming) }
+
+        #expect(try h.strings("SELECT synced FROM lyrics") == [edited.synced ?? ""])
+        let serverHash = LyricsSyncRules.hash(LyricsSyncRules.payload(LyricsSyncRules.stored(incoming.text!.payload)))
+        #expect(try h.strings("SELECT rev || ' ' || hash FROM synced_lyrics") == ["6 \(serverHash)"])
+
+        h.server.on("POST", "/sync") { request in (200, SyncFixtures.response(request)) }
+        h.server.on("PUT", "/lyrics/t1") { _ in (200, SyncFixtures.myLyrics("t1", rev: 7, synced: "x")) }
+        await h.engine.sync()
+        let put = try #require(h.server.requests("PUT", "/lyrics/t1").first)
+        #expect(put.json["synced"] as? String == edited.synced)
+    }
+
+    /// Без правки здесь версия с сервера, наоборот, применяется: чужая правка доходит.
+    @Test func pullOverwritesUnchangedOwnTextWithTheServerVersion() async throws {
+        let h = try SyncHarness()
+        let old = StoredLyrics(synced: "[00:01.00]Hi", plain: nil, syncedSource: "user", plainSource: nil)
+        try await h.store.write { tx in
+            try tx.saveLyrics("t1", old)
+            try tx.setSyncedLyrics("t1", rev: 5, hash: LyricsSyncRules.hash(LyricsSyncRules.payload(old)))
+        }
+        let incoming = try JSONDecoder().decode(MyLyrics.self, from: Data(SyncFixtures.myLyrics("t1", rev: 6, synced: "[00:09.00]Other").utf8))
+
+        try await h.store.write { tx in try LibrarySync.applyLyrics(tx, incoming) }
+
+        #expect(try h.strings("SELECT synced FROM lyrics") == ["[00:09.00]Other"])
+    }
+
+    /// Сдвиг своего текста уходит с ближайшим синком: «раньше» — как `startTimeMs`, «позже» сервер не хранит.
+    @Test func shiftOfOwnTextGoesUpOnlyWhenTheServerCanKeepIt() async throws {
+        let h = try SyncHarness()
+        let store = LyricsStore(database: h.database)
+        store.saveOwn("t1", synced: "[00:01.00]Hi", plain: nil, source: LyricsSources.user)
+        h.server.on("POST", "/sync") { request in (200, SyncFixtures.response(request)) }
+        h.server.on("PUT", "/lyrics/t1") { _ in (200, SyncFixtures.myLyrics("t1", rev: 1, synced: "[00:01.00]Hi")) }
+        h.engine.start()
+        defer { h.engine.stop() }
+        await h.engine.sync()
+        try await Task.sleep(for: .milliseconds(300))
+        let sent = h.server.requests("PUT", "/lyrics/t1").count
+        #expect(sent == 1)
+
+        // «Позже»: у сервера этого поля нет, отправлять нечего
+        store.shift("t1", by: 200)
+        try await Task.sleep(for: .milliseconds(500))
+        #expect(h.server.requests("PUT", "/lyrics/t1").count == sent)
+
+        // «Раньше»: −0,5 с от +0,2 с — текст начинается на 0,3 с раньше
+        store.shift("t1", by: -500)
+        try await Task.sleep(for: .milliseconds(700))
+        let puts = h.server.requests("PUT", "/lyrics/t1")
+        #expect(puts.count == sent + 1)
+        #expect(puts.last?.json["startTimeMs"] as? Int == 300)
+    }
+
+    /// 413: слишком большой текст не отправляется, а человеку говорят (`rejectedLyrics` читает `AppModel` и показывает
+    /// плашку); забывается, пока текст не изменится.
+    @Test func tooLargeOwnTextIsReportedAndNotSentAgain() async throws {
+        let h = try SyncHarness()
+        let store = LyricsStore(database: h.database)
+        store.saveOwn("t1", synced: nil, plain: String(repeating: "я", count: LyricsSyncRules.plainMax + 1), source: LyricsSources.user)
+        h.server.on("POST", "/sync") { request in (200, SyncFixtures.response(request)) }
+
+        await h.engine.sync()
+
+        #expect(h.engine.rejectedLyrics == "t1")
+        #expect(h.server.requests("PUT", "/lyrics/t1").isEmpty)
+        #expect(try h.int("SELECT rev FROM synced_lyrics WHERE video_id = 't1'") == LyricsSnapshot.rejected)
+        h.engine.dismissRejectedLyrics()
+        #expect(h.engine.rejectedLyrics == nil)
+        await h.engine.sync()
+        #expect(h.engine.rejectedLyrics == nil)
+
+        // Сервер сам ответил 413 на текст в пределах нашего лимита
+        store.saveOwn("t2", synced: nil, plain: "коротко", source: LyricsSources.user)
+        h.server.on("PUT", "/lyrics/t2") { _ in (413, Fixtures.error("payload_too_large", 413)) }
+        await h.engine.sync()
+        #expect(h.engine.rejectedLyrics == "t2")
+        #expect(try h.int("SELECT rev FROM synced_lyrics WHERE video_id = 't2'") == LyricsSnapshot.rejected)
+    }
+
     @Test func lyricsRoutesNeedTheFeature() async throws {
         let h = try SyncHarness(lyrics: false)
         try h.sql("INSERT INTO lyrics (video_id, synced, plain, source, plain_source, offset_ms, language, fetched_at) VALUES ('t1', '[00:01.00]Hi', NULL, 'user', NULL, 0, NULL, 0)")

@@ -141,16 +141,23 @@ struct WatchLibraryPageView: View {
     }
 }
 
-/// Строка трека на часах: обложка, название, исполнитель, метка «скачано». Меню — долгое нажатие: ♡, «Играть
-/// следующим», «В конец очереди», «Скачать» или «Удалить загрузку» (§5.6).
+/// Строка трека на часах: обложка, название, исполнитель, метка «скачано». Действия — смахивание влево, «Ещё»: ♡, «Играть
+/// следующим», «В конец очереди», «Скачать» или «Удалить загрузку» (§5.6). Меню по долгому нажатию на watchOS не показывается
+/// (Force Touch убран в watchOS 7, `contextMenu` там устарел): долгое нажатие просто играет трек.
 struct WatchLibraryTrackRow: View {
     @Environment(WatchModel.self) private var model
     let track: Track
     let action: () -> Void
+    @State private var showsActions = false
 
     var body: some View {
         WatchTrackRow(track: track, downloaded: model.services.library?.isDownloaded(track.videoId) == true, action: action)
-            .contextMenu { WatchTrackMenu(track: track) }
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                Button { showsActions = true } label: { Label("common.more", systemImage: "ellipsis") }
+            }
+            .confirmationDialog(Text(verbatim: track.title), isPresented: $showsActions, titleVisibility: .visible) {
+                WatchTrackMenu(track: track)
+            }
     }
 }
 

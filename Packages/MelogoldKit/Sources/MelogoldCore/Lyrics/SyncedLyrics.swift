@@ -180,8 +180,11 @@ extension StoredLyrics {
     /// Пустой итог поиска: стороны «искали, нет».
     public static let empty = StoredLyrics(synced: nil, plain: nil, syncedSource: nil, plainSource: nil)
 
-    /// Свой текст — хотя бы одна сторона от пользователя или из файла (задание 0001 §3.2).
+    /// Свой текст — хотя бы одна сторона от пользователя или из файла либо выбранный (задания 0001 §3.2 и 0011).
     public var isOwn: Bool { LyricsSyncRules.isOwn(self) }
+
+    /// Набранный или импортированный текст (`user`, `file`): его нельзя заменить молча.
+    public var hasTypedText: Bool { LyricsSyncRules.hasTypedText(self) }
 }
 
 extension LyricsSources {

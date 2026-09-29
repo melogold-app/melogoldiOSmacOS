@@ -57,7 +57,7 @@ targets:
         destinationFilters: [iOS, macOS]
     dependencies:
       - package: MelogoldKit
-        products: [MelogoldCore, MelogoldData, MelogoldInnerTube, MelogoldServer, MelogoldPlayback]
+        products: [MelogoldCore, MelogoldData, MelogoldInnerTube, MelogoldLyrics, MelogoldServer, MelogoldPlayback]
       - target: Melogold Watch
         destinationFilters: [iOS]
       - package: Sparkle
@@ -136,7 +136,7 @@ targets:
       - path: Melogold.icon
     dependencies:
       - package: MelogoldKit
-        products: [MelogoldCore, MelogoldData, MelogoldInnerTube, MelogoldServer, MelogoldPlayback]
+        products: [MelogoldCore, MelogoldData, MelogoldInnerTube, MelogoldLyrics, MelogoldServer, MelogoldPlayback]
     info:
       path: Watch/Info.plist
       properties:

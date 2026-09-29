@@ -75,6 +75,63 @@ struct LiveSyncTests {
         try await withAccount(mac, watch) { try await scenario(mac: mac, watch: watch) }
     }
 
+    /// Задание 0011 на настоящем сервере: выбранный в «Найти текст» LrcLib-текст уходит со своим источником, приходит на
+    /// другое устройство выбранным и остаётся жить — ни следующие проходы на обоих устройствах, ни выбор на втором
+    /// устройстве не удаляют версию с сервера. Найденный автоматически такой же текст на сервер не уходит.
+    @Test func chosenLrcLibTextTravelsAndIsNotDeleted() async throws {
+        let a = try Device(name: "Test Mac", platform: "macos", recording: true)
+        let b = try Device(name: "Test iPhone", platform: "ios", recording: true)
+        try await withAccount(a, b) {
+            let chosen = "dQw4w9WgXcQ"
+            let found = "kJQP7kiw5Fk"
+            let back = "9bZkp7q19f0"
+            let lrc = "[00:01.00]Never gonna\n[00:03.50]give you up"
+            for id in [chosen, found, back] { try a.track(id) }
+            let insert = "INSERT INTO lyrics (video_id, synced, plain, source, plain_source, offset_ms, language, fetched_at, chosen) VALUES (?, ?, '', 'lrclib', NULL, 0, NULL, 0, ?)"
+            try a.sql(insert, [chosen, lrc, 1])
+            try a.sql(insert, [found, lrc, 0])
+
+            // A: выбранный уходит как `lrclib`, найденный — нет
+            let sentByA = await a.traffic { await a.synced() }
+            let put = try #require(sentByA.first { $0.method == "PUT" && $0.path == "/lyrics/\(chosen)" })
+            #expect(put.json["syncedSource"] as? String == "lrclib")
+            #expect(!sentByA.contains { $0.path == "/lyrics/\(found)" })
+
+            // B получает его выбранным; найденного у него нет
+            await b.synced()
+            #expect(try b.strings("SELECT synced || ' · ' || source || ' · ' || chosen FROM lyrics WHERE video_id = ?", [chosen]) == ["\(lrc) · lrclib · 1"])
+            #expect(try b.strings("SELECT video_id FROM lyrics WHERE video_id = ?", [found]).isEmpty)
+
+            // Ещё проходы на обоих устройствах: DELETE не уходит, версия на сервере жива и та же
+            for _ in 0 ..< 2 {
+                let sentByB = await b.traffic { await b.synced() }
+                #expect(!sentByB.contains { $0.method == "DELETE" }, "B удалил выбранный текст")
+                let sentByA2 = await a.traffic { await a.synced() }
+                #expect(!sentByA2.contains { $0.method == "DELETE" }, "A удалил выбранный текст")
+            }
+            let alive = try await b.engine.serverLyrics(chosen)
+            #expect(alive?.mine == true)
+            #expect(alive?.payload.synced == lrc)
+            #expect(alive?.payload.syncedSource == "lrclib")
+
+            // И обратно: B выбирает текст другого трека — A получает его выбранным и не стирает
+            let picked = LyricsStore(database: b.database).choose(back, synced: lrc + "\n[00:07.00]and desert you", plain: nil)
+            #expect(picked != .typedTextKept)
+            await b.synced()
+            await a.synced()
+            #expect(try a.strings("SELECT source || ' · ' || chosen FROM lyrics WHERE video_id = ?", [back]) == ["lrclib · 1"])
+            let sentByA3 = await a.traffic { await a.synced() }
+            #expect(!sentByA3.contains { $0.method == "DELETE" })
+            #expect(try await a.engine.serverLyrics(back)?.mine == true)
+
+            // Очистка кэша найденных текстов выбранные не трогает
+            let cleared = LyricsStore(database: a.database)
+            cleared.clearFetched()
+            #expect(try a.strings("SELECT video_id FROM lyrics ORDER BY video_id") == [back, chosen].sorted())
+            #expect(try a.strings("SELECT video_id FROM lyrics WHERE chosen = 0").isEmpty)
+        }
+    }
+
     /// Приёмка среза 5 от начала до конца: A — лайк, плейлист из трёх треков с переносом, закладка альбома, три
     /// прослушивания и свой текст; B получает всё это. B — снятый лайк, убранный трек плейлиста и «Убрать из истории»;
     /// A получает это. Синхронизация без правок ops не шлёт.

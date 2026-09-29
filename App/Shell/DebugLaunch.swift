@@ -86,7 +86,7 @@ enum DebugLaunch {
                 }
                 if defaults.bool(forKey: "MelogoldLyricsEditor") {
                     try? await Task.sleep(for: .seconds(4))
-                    model.lyricsEditor = true
+                    model.openLyricsEditor()
                 }
             }
         }

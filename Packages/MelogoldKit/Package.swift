@@ -15,6 +15,7 @@ let package = Package(
         .library(name: "MelogoldCore", targets: ["MelogoldCore"]),
         .library(name: "MelogoldData", targets: ["MelogoldData"]),
         .library(name: "MelogoldInnerTube", targets: ["MelogoldInnerTube"]),
+        .library(name: "MelogoldLyrics", targets: ["MelogoldLyrics"]),
         .library(name: "MelogoldServer", targets: ["MelogoldServer"]),
         .library(name: "MelogoldPlayback", targets: ["MelogoldPlayback"]),
     ],
@@ -29,6 +30,9 @@ let package = Package(
             swiftSettings: strictSwift
         ),
         .target(name: "MelogoldInnerTube", dependencies: ["MelogoldCore"], swiftSettings: strictSwift),
+        // Текст играющего трека: модель экрана над базой и цепочкой поиска — здесь, а не в приложении, чтобы гонки
+        // (поиск в полёте, смена трека под редактором, синк) проверялись `swift test`
+        .target(name: "MelogoldLyrics", dependencies: ["MelogoldCore", "MelogoldData", "MelogoldInnerTube"], swiftSettings: strictSwift),
         .target(name: "MelogoldServer", dependencies: ["MelogoldCore", "MelogoldData"], swiftSettings: strictSwift),
         .target(
             name: "MelogoldPlayback",
@@ -53,5 +57,10 @@ let package = Package(
             swiftSettings: strictSwift
         ),
         .testTarget(name: "MelogoldPlaybackTests", dependencies: ["MelogoldPlayback"], swiftSettings: strictSwift),
+        .testTarget(
+            name: "MelogoldLyricsTests",
+            dependencies: ["MelogoldLyrics", "MelogoldServer", .product(name: "GRDB", package: "GRDB.swift")],
+            swiftSettings: strictSwift
+        ),
     ]
 )

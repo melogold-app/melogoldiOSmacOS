@@ -66,9 +66,9 @@ struct PlayerMenuItems: View {
                         Label(lyrics.showingSynced ? "lyrics.plainView" : "lyrics.syncedView", systemImage: "text.alignleft")
                     }
                 }
-                Button { model.lyricsSearch = true } label: { Label("lyrics.find", systemImage: "magnifyingglass") }
+                Button { model.openLyricsSearch() } label: { Label("lyrics.find", systemImage: "magnifyingglass") }
                 #if !os(visionOS)
-                Button { model.lyricsEditor = true } label: { Label("lyrics.edit", systemImage: "pencil") }
+                Button { model.openLyricsEditor() } label: { Label("lyrics.edit", systemImage: "pencil") }
                 #endif
             }
         }

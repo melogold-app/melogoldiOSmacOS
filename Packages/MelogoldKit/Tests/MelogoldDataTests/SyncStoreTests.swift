@@ -41,6 +41,32 @@ struct SyncStoreTests {
         #expect(byTable["synced_bookmarks"] == ["type", "browse_id"])
     }
 
+    /// Задание 0011: выбранный текст — свой для синка с любым источником; найденный и пустой выбранный — нет.
+    @Test func ownLyricsIncludeChosenText() async throws {
+        try await store.write { tx in
+            try tx.saveLyrics("aaaaaaaaaaa", StoredLyrics(synced: "[00:01.00]a", plain: "", syncedSource: "user", plainSource: nil))
+            try tx.saveLyrics("bbbbbbbbbbb", StoredLyrics(synced: "[00:01.00]b", plain: "", syncedSource: "lrclib", plainSource: nil, chosen: true))
+            try tx.saveLyrics("ccccccccccc", StoredLyrics(synced: "[00:01.00]c", plain: "", syncedSource: "lrclib", plainSource: nil))
+            try tx.saveLyrics("ddddddddddd", StoredLyrics(synced: "", plain: "", syncedSource: nil, plainSource: nil, chosen: true))
+            try tx.saveLyrics("eeeeeeeeeee", StoredLyrics(synced: nil, plain: "просто", syncedSource: nil, plainSource: "kugou", chosen: true))
+        }
+        let own = try await store.read { try $0.ownLyrics() }
+        #expect(Set(own.keys) == ["aaaaaaaaaaa", "bbbbbbbbbbb", "eeeeeeeeeee"])
+        #expect(own["bbbbbbbbbbb"]?.chosen == true)
+        #expect(own["bbbbbbbbbbb"]?.syncedSource == "lrclib")
+        // Тот же отбор, что у правил
+        for (videoId, row) in own { #expect(LyricsSyncRules.isOwn(row), "\(videoId)") }
+    }
+
+    @Test func markChosenKeepsTheTextAndItsOffset() async throws {
+        try await store.write { tx in
+            try tx.saveLyrics("aaaaaaaaaaa", StoredLyrics(synced: "[00:01.00]a", plain: "", syncedSource: "lrclib", plainSource: nil, offsetMs: 400))
+            try tx.markLyricsChosen("aaaaaaaaaaa")
+        }
+        let row = try await store.read { try $0.lyrics("aaaaaaaaaaa") }
+        #expect(row == StoredLyrics(synced: "[00:01.00]a", plain: "", syncedSource: "lrclib", plainSource: nil, offsetMs: 400, chosen: true))
+    }
+
     /// Своё прослушивание, уже отправленное на сервер.
     private func sentOwnPlay(_ tx: SyncTx, _ eventId: String, playedAt: Int64) throws {
         try tx.db.execute(sql: "INSERT INTO play_events (event_id, video_id, played_at, play_time_ms, synced, device_id) VALUES (?, 'aaaaaaaaaaa', ?, 1000, 1, NULL)",
