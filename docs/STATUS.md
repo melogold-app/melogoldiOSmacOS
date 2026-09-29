@@ -402,6 +402,14 @@
 
 ### Срез 8. Выпуск
 
+**Mac 0.1.0 опубликован (2026-09-30, задание 0004).** `Release macOS` по тегу `v0.1.0` на раннере `xcode-27`: архив
+Release (arm64 + x86_64), подпись постоянным самоподписанным сертификатом «Melogold Release (self-signed)» (секреты
+`MACOS_SELF_SIGNED_P12_*`; требование подписи `identifier "app.melogold.Melogold" and certificate root = H"bed2…"` —
+одно во всех выпусках), DMG 12,9 МБ, `appcast.xml` с подписью EdDSA (`SPARKLE_ED_PRIVATE_KEY`, публичный ключ — в
+`Config/Project.xcconfig`). Проверено после публикации: appcast по `releases/latest/download/appcast.xml`, подпись DMG
+сверяется открытым ключом из `Info.plist`, `codesign --verify --deep --strict`. Цепочку обновления на живом Mac
+проверит выпуск 0.1.1. Ключи и сертификат — в резервной папке пользователя (`signing-key-backup/ПРОЧТИ.txt`).
+
 Сделано:
 - Настройки целиком (docs/PROMPT.md §5.9): в «Воспроизведении» — «Не гасить экран, пока открыт текст» (iPhone, iPad)
   и «Сведения о потоке» (источник, клиент извлечения, кодек и itag, битрейт, размер, громкость и применённое

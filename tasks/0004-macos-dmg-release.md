@@ -1,6 +1,6 @@
 # Выпуск для Mac: DMG в GitHub Releases и обновления через Sparkle
 
-Статус: в работе
+Статус: сделано — 0.1.0 опубликован 2026-09-30 (https://github.com/melogold-app/melogoldiOSmacOS/releases/tag/v0.1.0); без Developer ID: постоянный самоподписанный сертификат + EdDSA Sparkle
 
 Дополнение к `docs/PROMPT.md` (§3 «Обновления», грабли §9, п. 13–17), срез 8.
 
