@@ -132,6 +132,39 @@ struct LiveSyncTests {
         }
     }
 
+    /// Задания 0014 и 0015 на настоящем сервере: своё название и закреплённый текст с A приходят на B, снятие с B
+    /// снимает на A; лайк с оригинальными метаданными правку не сбрасывает.
+    @Test func overridesAndPinsTravel() async throws {
+        let a = try Device(name: "Test Mac", platform: "macos", recording: true)
+        let b = try Device(name: "Test iPhone", platform: "ios", recording: true)
+        try await withAccount(a, b) {
+            let video = "dQw4w9WgXcQ"
+            try a.track(video, liked: true)
+            a.library.setTrackOverride(video, TrackOverride(title: "Песня", artistsText: "Группа", albumTitle: "Потерянный альбом"))
+            a.library.setLyricsPin(video, LyricsPin(source: "lrclib", ref: "123456", startTimeMs: 800))
+            await a.synced()
+            #expect(try a.strings("SELECT title FROM synced_overrides") == ["Песня"])
+
+            await b.synced()
+            #expect(b.library.trackOverride(video) == TrackOverride(title: "Песня", artistsText: "Группа", albumTitle: "Потерянный альбом"))
+            #expect(b.library.lyricsPin(video) == LyricsPin(source: "lrclib", ref: "123456", startTimeMs: 800))
+            // Лайк на B с оригинальными метаданными правку не трогает
+            try b.sql("UPDATE tracks SET liked_at = NULL WHERE video_id = ?", [video])
+            await b.synced()
+            await a.synced()
+            #expect(a.library.trackOverride(video)?.albumTitle == "Потерянный альбом")
+
+            b.library.setTrackOverride(video, TrackOverride())
+            b.library.setLyricsPin(video, nil)
+            await b.synced()
+            await a.synced()
+            #expect(a.library.trackOverride(video) == nil)
+            #expect(a.library.lyricsPin(video) == nil)
+            let quiet = await a.traffic { await a.synced() }
+            #expect(quiet.filter { $0.path == "/sync" }.allSatisfy { ($0.json["ops"] as? [Any])?.isEmpty ?? true })
+        }
+    }
+
     /// Приёмка среза 5 от начала до конца: A — лайк, плейлист из трёх треков с переносом, закладка альбома, три
     /// прослушивания и свой текст; B получает всё это. B — снятый лайк, убранный трек плейлиста и «Убрать из истории»;
     /// A получает это. Синхронизация без правок ops не шлёт.

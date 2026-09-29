@@ -189,6 +189,8 @@ public struct SyncStore: Sendable {
             Table("lyrics"),
             Table("play_events"),
             Table("history_ops"),
+            Table("track_overrides"),
+            Table("lyrics_pins"),
         ]
     }
 
@@ -249,6 +251,8 @@ public struct SyncTx {
             DELETE FROM synced_playlists;
             DELETE FROM synced_bookmarks;
             DELETE FROM synced_lyrics;
+            DELETE FROM synced_overrides;
+            DELETE FROM synced_lyrics_pins;
             UPDATE playlists SET sync_id = NULL WHERE sync_id IS NOT NULL;
             UPDATE playlist_items SET sort_key = NULL WHERE sort_key IS NOT NULL;
             UPDATE play_events SET synced = 0 WHERE device_id IS NULL AND synced <> 0;
@@ -268,6 +272,8 @@ public struct SyncTx {
             DELETE FROM synced_playlists;
             DELETE FROM synced_bookmarks;
             DELETE FROM synced_lyrics WHERE rev <> ?;
+            DELETE FROM synced_overrides;
+            DELETE FROM synced_lyrics_pins;
             UPDATE playlist_items SET sort_key = NULL WHERE sort_key IS NOT NULL;
             UPDATE play_events SET synced = 0 WHERE device_id IS NULL AND synced <> 0;
             """, arguments: [LyricsSnapshot.rejected])
@@ -688,5 +694,86 @@ public struct SyncTx {
 
     public func forgetSyncedLyrics(_ videoId: String) throws {
         try db.execute(sql: "DELETE FROM synced_lyrics WHERE video_id = ?", arguments: [videoId])
+    }
+
+    // MARK: - Свои названия и закреплённые тексты (задания 0014, 0015)
+
+    /// Правки треков здесь: `videoId` → правка и время.
+    public func trackOverrides() throws -> [String: (override: TrackOverride, updatedAt: Int64)] {
+        try Row.fetchAll(db, sql: "SELECT video_id, title, artists_text, album_title, updated_at FROM track_overrides").reduce(into: [:]) { result, row in
+            result[row["video_id"] as String] = (TrackOverride(title: row["title"], artistsText: row["artists_text"], albumTitle: row["album_title"]), row["updated_at"])
+        }
+    }
+
+    public func trackOverride(_ videoId: String) throws -> TrackOverride? {
+        try Row.fetchOne(db, sql: "SELECT title, artists_text, album_title FROM track_overrides WHERE video_id = ?", arguments: [videoId]).map {
+            TrackOverride(title: $0["title"], artistsText: $0["artists_text"], albumTitle: $0["album_title"])
+        }
+    }
+
+    /// Правка с сервера; `nil` — снята.
+    public func setTrackOverride(_ videoId: String, _ override: TrackOverride?, updatedAt: Int64) throws {
+        if let override, !override.isEmpty {
+            try db.execute(sql: """
+                INSERT OR REPLACE INTO track_overrides (video_id, title, artists_text, album_title, updated_at) VALUES (?, ?, ?, ?, ?)
+                """, arguments: [videoId, override.title, override.artistsText, override.albumTitle, updatedAt])
+        } else {
+            try db.execute(sql: "DELETE FROM track_overrides WHERE video_id = ?", arguments: [videoId])
+        }
+    }
+
+    public func syncedOverrides() throws -> [String: TrackOverride] {
+        try Row.fetchAll(db, sql: "SELECT video_id, title, artists_text, album_title FROM synced_overrides").reduce(into: [:]) { result, row in
+            result[row["video_id"] as String] = TrackOverride(title: row["title"], artistsText: row["artists_text"], albumTitle: row["album_title"])
+        }
+    }
+
+    public func setSyncedOverride(_ videoId: String, _ override: TrackOverride?) throws {
+        if let override, !override.isEmpty {
+            try db.execute(sql: "INSERT OR REPLACE INTO synced_overrides (video_id, title, artists_text, album_title) VALUES (?, ?, ?, ?)",
+                           arguments: [videoId, override.title, override.artistsText, override.albumTitle])
+        } else {
+            try db.execute(sql: "DELETE FROM synced_overrides WHERE video_id = ?", arguments: [videoId])
+        }
+    }
+
+    /// Закрепления здесь: `videoId` → закрепление и время.
+    public func lyricsPins() throws -> [String: (pin: LyricsPin, updatedAt: Int64)] {
+        try Row.fetchAll(db, sql: "SELECT video_id, source, ref, start_time_ms, updated_at FROM lyrics_pins").reduce(into: [:]) { result, row in
+            if let pin = LyricsPin(source: row["source"], ref: row["ref"], startTimeMs: row["start_time_ms"]) {
+                result[row["video_id"] as String] = (pin, row["updated_at"])
+            }
+        }
+    }
+
+    public func lyricsPin(_ videoId: String) throws -> LyricsPin? {
+        try Row.fetchOne(db, sql: "SELECT source, ref, start_time_ms FROM lyrics_pins WHERE video_id = ?", arguments: [videoId]).flatMap {
+            LyricsPin(source: $0["source"], ref: $0["ref"], startTimeMs: $0["start_time_ms"])
+        }
+    }
+
+    public func setLyricsPin(_ videoId: String, _ pin: LyricsPin?, updatedAt: Int64) throws {
+        if let pin {
+            try db.execute(sql: """
+                INSERT OR REPLACE INTO lyrics_pins (video_id, source, ref, start_time_ms, updated_at) VALUES (?, ?, ?, ?, ?)
+                """, arguments: [videoId, pin.source, pin.ref, pin.startTimeMs, updatedAt])
+        } else {
+            try db.execute(sql: "DELETE FROM lyrics_pins WHERE video_id = ?", arguments: [videoId])
+        }
+    }
+
+    public func syncedLyricsPins() throws -> [String: LyricsPin] {
+        try Row.fetchAll(db, sql: "SELECT video_id, source, ref, start_time_ms FROM synced_lyrics_pins").reduce(into: [:]) { result, row in
+            if let pin = LyricsPin(source: row["source"], ref: row["ref"], startTimeMs: row["start_time_ms"]) { result[row["video_id"] as String] = pin }
+        }
+    }
+
+    public func setSyncedLyricsPin(_ videoId: String, _ pin: LyricsPin?) throws {
+        if let pin {
+            try db.execute(sql: "INSERT OR REPLACE INTO synced_lyrics_pins (video_id, source, ref, start_time_ms) VALUES (?, ?, ?, ?)",
+                           arguments: [videoId, pin.source, pin.ref, pin.startTimeMs])
+        } else {
+            try db.execute(sql: "DELETE FROM synced_lyrics_pins WHERE video_id = ?", arguments: [videoId])
+        }
     }
 }

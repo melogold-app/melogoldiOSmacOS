@@ -64,10 +64,17 @@ struct SyncOpBuilder {
 
     let now: Int64
     var mergeUploadMax = defaultMergeUploadMax
+    /// Виды ops, которые принимает сервер (`features.sync.kinds`): своих названий и закреплений у старого сервера нет,
+    /// они живут здесь и уходят, когда сервер научится.
+    var kinds: Set<String> = []
     var makeId: @Sendable () -> String = { UUID().uuidString.lowercased() }
 
-    init(now: Int64 = EpochMs.now(), mergeUploadMax: Int? = nil) {
+    static let overrideKind = "track.override.set"
+    static let pinKind = "lyrics.pin.set"
+
+    init(now: Int64 = EpochMs.now(), mergeUploadMax: Int? = nil, kinds: Set<String> = []) {
         self.now = now
+        self.kinds = kinds
         if let mergeUploadMax, mergeUploadMax > 0 { self.mergeUploadMax = mergeUploadMax }
     }
 
@@ -186,6 +193,42 @@ struct SyncOpBuilder {
                 $0.type = key.type
                 $0.browseId = key.browseId
                 $0.bookmarked = false
+            }
+        }
+
+        // Свои названия (задание 0014): каждая правка целиком, снятая — без полей
+        let overrides = try tx.trackOverrides()
+        image.overrides = overrides.mapValues(\.override)
+        if kinds.contains(Self.overrideKind) {
+            let synced = try tx.syncedOverrides()
+            for (videoId, local) in overrides.sorted(by: { $0.key < $1.key }) where synced[videoId] != local.override {
+                make(Self.overrideKind, "ovr:\(videoId)", at: local.updatedAt) {
+                    $0.videoId = videoId
+                    $0.title = local.override.title
+                    $0.artistsText = local.override.artistsText
+                    $0.albumTitle = local.override.albumTitle
+                }
+            }
+            for videoId in synced.keys.sorted() where overrides[videoId] == nil {
+                make(Self.overrideKind, "ovr:\(videoId)", at: now) { $0.videoId = videoId }
+            }
+        }
+
+        // Закреплённые тексты (задание 0015): снятое — без ссылки
+        let pins = try tx.lyricsPins()
+        image.pins = pins.mapValues(\.pin)
+        if kinds.contains(Self.pinKind) {
+            let synced = try tx.syncedLyricsPins()
+            for (videoId, local) in pins.sorted(by: { $0.key < $1.key }) where synced[videoId] != local.pin {
+                make(Self.pinKind, "lpin:\(videoId)", at: local.updatedAt) {
+                    $0.videoId = videoId
+                    $0.source = local.pin.source
+                    $0.ref = local.pin.ref
+                    $0.startTimeMs = local.pin.startTimeMs
+                }
+            }
+            for videoId in synced.keys.sorted() where pins[videoId] == nil {
+                make(Self.pinKind, "lpin:\(videoId)", at: now) { $0.videoId = videoId }
             }
         }
 

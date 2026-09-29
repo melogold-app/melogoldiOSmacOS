@@ -751,7 +751,7 @@ public final class Library: Sendable {
     }
 
     @discardableResult
-    private func write<T>(_ work: (Database) throws -> T) -> T? {
+    func write<T>(_ work: (Database) throws -> T) -> T? {
         do {
             return try database.writer.write(work)
         } catch {

@@ -15,6 +15,9 @@ struct LibraryImage: Sendable {
     var syncIds: [String: Int64] = [:]
     /// Плейлисты, чьи треки правили здесь во время запроса: до конца прохода держат порядок этого устройства.
     var edited: Set<Int64> = []
+    /// Свои названия треков и закреплённые тексты.
+    var overrides: [String: TrackOverride] = [:]
+    var pins: [String: LyricsPin] = [:]
 }
 
 struct PlaylistImage: Sendable, Equatable {
@@ -204,6 +207,29 @@ enum SyncApply {
             } else {
                 try tx.setBookmark(key, bookmarkedAt: bookmarkedAt, title: row.title, subtitle: row.subtitle, thumbnailUrl: row.thumbnailUrl, year: row.year)
                 image.bookmarks[key] = bookmarkedAt
+            }
+        }
+
+        for row in response.overrides {
+            let override = row.deleted ? nil : TrackOverride(title: row.title, artistsText: row.artistsText, albumTitle: row.albumTitle)
+            let value = override?.isEmpty == false ? override : nil
+            if try tx.trackOverride(row.videoId) != image.overrides[row.videoId] || pendingKeys.contains("ovr:\(row.videoId)") {
+                try tx.setSyncedOverride(row.videoId, value)
+            } else {
+                try tx.setTrackOverride(row.videoId, value, updatedAt: IsoTime.epochMs(row.updatedAt) ?? now)
+                try tx.setSyncedOverride(row.videoId, value)
+                image.overrides[row.videoId] = value
+            }
+        }
+
+        for row in response.lyricsPins {
+            let pin = row.deleted ? nil : row.source.flatMap { source in row.ref.flatMap { LyricsPin(source: source, ref: $0, startTimeMs: row.startTimeMs) } }
+            if try tx.lyricsPin(row.videoId) != image.pins[row.videoId] || pendingKeys.contains("lpin:\(row.videoId)") {
+                try tx.setSyncedLyricsPin(row.videoId, pin)
+            } else {
+                try tx.setLyricsPin(row.videoId, pin, updatedAt: IsoTime.epochMs(row.updatedAt) ?? now)
+                try tx.setSyncedLyricsPin(row.videoId, pin)
+                image.pins[row.videoId] = pin
             }
         }
 

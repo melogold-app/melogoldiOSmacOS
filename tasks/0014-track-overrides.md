@@ -1,6 +1,6 @@
 # Своё название, исполнитель и альбом трека
 
-Статус: открыто — сервер готов: контракт — `melogoldServer/docs/API.md` §4.8 (`track.override.set`, `overrides`), сервер 0.1.1 работает на живом сервере; образец — Android 0.1.10
+Статус: в работе — синк и хранение готовы (2026-09-30: `Library.setTrackOverride`/`displayed`/`setAlbum`, op `track.override.set`, строки `overrides`, живой тест на сервере); осталось применить правку во всех местах показа и окно «Сведения о треке»
 
 Общая часть (что нужно пользователю, как должно быть, синк, тексты) — `melogoldWindows/tasks/0011-track-overrides.md`.
 Те же задания: `melogoldAndroid/tasks/0012-track-overrides.md`, `melogoldLinux/tasks/0005-track-overrides.md`.
