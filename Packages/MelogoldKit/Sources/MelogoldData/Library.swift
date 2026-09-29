@@ -737,7 +737,7 @@ public final class Library: Sendable {
 
     // MARK: - Служебное
 
-    private func read<T>(_ work: (Database) throws -> T) -> T? {
+    func read<T>(_ work: (Database) throws -> T) -> T? {
         do {
             return try database.writer.read(work)
         } catch {
