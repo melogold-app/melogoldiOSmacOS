@@ -32,11 +32,13 @@
 		36BF6117FE82E0774B7F66DE /* SettingsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10E71927F6789EA72F07161B /* SettingsUITests.swift */; };
 		37386CC75DEE3EBD4A5BBEA7 /* Shelves.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05CB98AC0A4C230383AE4920 /* Shelves.swift */; };
 		373ABF28FB0AE1BC2575DFF3 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05609036F2EA8B7D37C79D06 /* RootView.swift */; };
+		393CF23087EB4F9EFFD2E499 /* LinkCodeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C256D850ACC18CCD8BC9C284 /* LinkCodeUITests.swift */; };
 		3BB36E4150B2B2AEBBE9160E /* DetailPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0EB2E2FB27D4F819EF2650A /* DetailPage.swift */; };
 		3C22FA3123C7D699E86A37BD /* PlaylistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B07519490EFF013E29A5996 /* PlaylistView.swift */; };
 		3CFCDA19CAC75C5B78336D95 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; platformFilters = (macos, ); productRef = 89873D359F5B307CD9753C23 /* Sparkle */; };
 		3E193FFD11048CC214283B56 /* MelogoldServer in Frameworks */ = {isa = PBXBuildFile; productRef = B5D32A80D75EB126504B9C0F /* MelogoldServer */; };
 		3F6A128A55BD3A2A6036B518 /* LibraryComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90EBF5BECA6153235D0C0A59 /* LibraryComponents.swift */; };
+		42B0B40BD1EBDEDA76303B2D /* LinkCodeViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 081EACACEA42B010A5B67C9F /* LinkCodeViews.swift */; };
 		487A4AFB6D59F59926D9F0D9 /* MelogoldInnerTube in Frameworks */ = {isa = PBXBuildFile; productRef = EE83B993730C176DE0BCEA02 /* MelogoldInnerTube */; };
 		4B799A1160487B46F707750B /* FileExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24F1F7B1F153ABCE7ABE1A14 /* FileExport.swift */; };
 		4CB6CB531388EC4C9CEAF2B2 /* MelogoldServer in Frameworks */ = {isa = PBXBuildFile; productRef = 2973D1F8B1EADECCA8A6B50E /* MelogoldServer */; };
@@ -172,6 +174,7 @@
 		039F87724BDABD8F92A76A71 /* WatchHistoryUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHistoryUITests.swift; sourceTree = "<group>"; };
 		05609036F2EA8B7D37C79D06 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		05CB98AC0A4C230383AE4920 /* Shelves.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shelves.swift; sourceTree = "<group>"; };
+		081EACACEA42B010A5B67C9F /* LinkCodeViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkCodeViews.swift; sourceTree = "<group>"; };
 		08532D563B1E263D0A8FEF2D /* LocalPlaylistView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPlaylistView.swift; sourceTree = "<group>"; };
 		09C67B6DB37BD9B39F0015A5 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		0E0F3CDE1537AB387F77F857 /* LyricsEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsEditorView.swift; sourceTree = "<group>"; };
@@ -244,6 +247,7 @@
 		BC8171812B4C4F41481F1303 /* SearchModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchModel.swift; sourceTree = "<group>"; };
 		BD6176B0421F4BED1367019F /* WatchLibraryViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchLibraryViews.swift; sourceTree = "<group>"; };
 		BDE62678E8C83CFCC9DFA91C /* AccountText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountText.swift; sourceTree = "<group>"; };
+		C256D850ACC18CCD8BC9C284 /* LinkCodeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkCodeUITests.swift; sourceTree = "<group>"; };
 		C305A7FFD78AB75764C9F3D0 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		CFA350B01580D05B8B5A7E0C /* Project.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Project.xcconfig; sourceTree = "<group>"; };
 		D0606F8F802EDA814564C80E /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
@@ -328,6 +332,7 @@
 				F1D156A776E7F72E0757C991 /* AccountOverviewView.swift */,
 				13B81A946E728A6A1CF4DBE3 /* AccountRoute.swift */,
 				E7276233A1B85EC99AD83FB4 /* AccountSettingsSection.swift */,
+				081EACACEA42B010A5B67C9F /* LinkCodeViews.swift */,
 				FDD0F2577B6C283234174F5C /* SignInView.swift */,
 			);
 			path = Account;
@@ -384,6 +389,7 @@
 				571D3D5AAD367DD65A477BF3 /* CatalogUITests.swift */,
 				ECF11684D63D68687931A590 /* HistoryUITests.swift */,
 				88A1BA2E6F1DE9B1CB7537AA /* LibraryUITests.swift */,
+				C256D850ACC18CCD8BC9C284 /* LinkCodeUITests.swift */,
 				8283257DCBDBDAFFA51CE3F2 /* LyricsUITests.swift */,
 				5D36BEB67142D8EF879DBCC5 /* PlaybackUITests.swift */,
 				682BBF8C408EDA9E19B8D661 /* PlayerUITests.swift */,
@@ -814,6 +820,7 @@
 				76AF7E56D0A746CD7C2D6B70 /* CatalogUITests.swift in Sources */,
 				61014204235DA4E4E0269242 /* HistoryUITests.swift in Sources */,
 				93A6977A8AC785AAC66B41FC /* LibraryUITests.swift in Sources */,
+				393CF23087EB4F9EFFD2E499 /* LinkCodeUITests.swift in Sources */,
 				0E84339350F8EEB82DDE49BA /* LyricsUITests.swift in Sources */,
 				E1F098D49490EF6BC4A3B7BE /* PlaybackUITests.swift in Sources */,
 				1813387E02F116DA5080EABA /* PlayerUITests.swift in Sources */,
@@ -855,6 +862,7 @@
 				E20A0C7192DB65C96D705D6C /* LibraryScreens.swift in Sources */,
 				90985A5D16448BB9E68C0BE8 /* LibraryStore.swift in Sources */,
 				DEF932C917686C6E9BC6CEAE /* LibraryView.swift in Sources */,
+				42B0B40BD1EBDEDA76303B2D /* LinkCodeViews.swift in Sources */,
 				9C271D28B90CFFB53D9B93C6 /* Loadable.swift in Sources */,
 				FD79B42ABBB0A41612D8C1DA /* LocalPlaylistView.swift in Sources */,
 				B2979E9C8C774653A2852C52 /* LyricsEditorView.swift in Sources */,

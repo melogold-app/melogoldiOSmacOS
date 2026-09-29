@@ -38,6 +38,10 @@ struct SignInView: View {
                 }
                 .disabled(login.isEmpty || password.isEmpty || busy)
                 .accessibilityIdentifier("account.signIn.submit")
+                NavigationLink(value: Route.account(.signInByCode(enterCode: false))) {
+                    Text("account.signIn.code")
+                }
+                .accessibilityIdentifier("account.signIn.code")
                 NavigationLink(value: Route.account(.recover(login: login))) {
                     Text("account.forgotPassword")
                 }

@@ -9,7 +9,12 @@
 # Секреты — только из окружения (GitHub Secrets), имена — как в задании 0004 §3:
 #   APPLE_TEAM_ID, MACOS_DEVELOPER_ID_P12_BASE64, MACOS_DEVELOPER_ID_P12_PASSWORD,
 #   ASC_API_KEY_ID, ASC_API_ISSUER_ID, ASC_API_KEY_P8_BASE64 — подпись Developer ID и нотаризация, только все вместе;
-#   SPARKLE_ED_PRIVATE_KEY — подпись обновления EdDSA; без него appcast не публикуется.
+#   SPARKLE_ED_PRIVATE_KEY — подпись обновления EdDSA; без него appcast не публикуется;
+#   MACOS_SELF_SIGNED_P12_BASE64, MACOS_SELF_SIGNED_P12_PASSWORD — постоянный самоподписанный сертификат Melogold,
+#   когда Developer ID нет. Gatekeeper его не признаёт (первый запуск — «Всё равно открыть»), зато требование подписи
+#   (designated requirement) одно и то же во всех выпусках: связка ключей не спрашивает доступ к токенам после
+#   каждого обновления, а Sparkle сверяет, что обновление подписано тем же сертификатом. У ad-hoc требование —
+#   хеш кода, он меняется в каждом выпуске.
 # Без секретов подписи приложение и DMG подписаны ad-hoc и не нотаризованы — так и пишется в итоге и в описании.
 #
 # Другие переменные:
@@ -63,7 +68,17 @@ done
 # Подпись без нотаризации пользователю не лучше ad-hoc: полная цепочка — только со всеми секретами
 if [ -z "$MISSING" ]; then SIGNED=1; else SIGNED=0; fi
 if [ -n "${SPARKLE_ED_PRIVATE_KEY:-}" ]; then HAS_SPARKLE_KEY=1; else HAS_SPARKLE_KEY=0; MISSING="$MISSING SPARKLE_ED_PRIVATE_KEY"; fi
-if [ "$SIGNED" -eq 1 ]; then echo "  подпись: Developer ID и нотаризация"; else echo "  подпись: ad-hoc, без нотаризации (нет:$MISSING)"; fi
+SELF_SIGNED=0
+if [ "$SIGNED" -eq 0 ] && [ -n "${MACOS_SELF_SIGNED_P12_BASE64:-}" ] && [ -n "${MACOS_SELF_SIGNED_P12_PASSWORD:-}" ]; then
+  SELF_SIGNED=1
+fi
+if [ "$SIGNED" -eq 1 ]; then
+  echo "  подпись: Developer ID и нотаризация"
+elif [ "$SELF_SIGNED" -eq 1 ]; then
+  echo "  подпись: постоянный самоподписанный сертификат Melogold, без нотаризации (нет:$MISSING)"
+else
+  echo "  подпись: ad-hoc, без нотаризации (нет:$MISSING MACOS_SELF_SIGNED_P12_BASE64)"
+fi
 
 BUILD_DIR="${MELOGOLD_BUILD_DIR:-$ROOT/build/release}"
 rm -rf "$BUILD_DIR"
@@ -81,13 +96,29 @@ trap cleanup EXIT
 
 # ─── Связка ключей и ключ API (с секретами) ─────────────────────────────────────────────────────────────
 
-if [ "$SIGNED" -eq 1 ]; then
+new_keychain() {
   step "Временная связка ключей"
   KEYCHAIN="$BUILD_DIR/melogold-release.keychain-db"
   KEYCHAIN_PASSWORD="$(uuidgen)"
   security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
   security set-keychain-settings -lut 3600 "$KEYCHAIN"
   security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+}
+
+if [ "$SELF_SIGNED" -eq 1 ]; then
+  new_keychain
+  echo "$MACOS_SELF_SIGNED_P12_BASE64" | base64 --decode > "$SECRETS/self-signed.p12"
+  security import "$SECRETS/self-signed.p12" -k "$KEYCHAIN" -P "$MACOS_SELF_SIGNED_P12_PASSWORD" -T /usr/bin/codesign >/dev/null
+  security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
+  # Без -v: самоподписанный сертификат системе не доверен (CSSMERR_TP_NOT_TRUSTED), но codesign подписывает им
+  # по SHA-1 и в связке, переданной явно (--keychain); список связок пользователя не трогаем
+  SELF_IDENTITY="$(security find-identity -p codesigning "$KEYCHAIN" | sed -nE 's/^ *[0-9]+\) ([0-9A-F]{40}) ".*/\1/p' | head -1)"
+  [ -n "$SELF_IDENTITY" ] || fail "в MACOS_SELF_SIGNED_P12_BASE64 нет сертификата для подписи кода"
+  echo "  сертификат $SELF_IDENTITY"
+fi
+
+if [ "$SIGNED" -eq 1 ]; then
+  new_keychain
   echo "$MACOS_DEVELOPER_ID_P12_BASE64" | base64 --decode > "$SECRETS/developer-id.p12"
   security import "$SECRETS/developer-id.p12" -k "$KEYCHAIN" -P "$MACOS_DEVELOPER_ID_P12_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
   security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
@@ -137,6 +168,16 @@ if [ "$SIGNED" -eq 1 ]; then
 PLIST
   xcodebuild -exportArchive -archivePath "$ARCHIVE" -exportOptionsPlist "$BUILD_DIR/ExportOptions.plist" -exportPath "$APP_DIR"
   [ -d "$APP" ] || fail "экспорт не дал Melogold.app"
+elif [ "$SELF_SIGNED" -eq 1 ]; then
+  step "Подпись самоподписанным сертификатом Melogold"
+  ditto "$ARCHIVE/Products/Applications/Melogold.app" "$APP"
+  # Без --options runtime — как у ad-hoc ниже: без Team ID проверка библиотек не дала бы загрузить Sparkle.framework
+  codesign --force --deep --sign "$SELF_IDENTITY" --keychain "$KEYCHAIN" "$APP"
+  REQUIREMENT="$(codesign -d -r- "$APP" 2>&1 | sed -nE 's/^designated => (.*)$/\1/p')"
+  case "$REQUIREMENT" in
+    *"certificate root = H\""*) echo "  $REQUIREMENT" ;;
+    *) fail "требование подписи не привязано к сертификату: $REQUIREMENT" ;;
+  esac
 else
   step "Подпись ad-hoc"
   ditto "$ARCHIVE/Products/Applications/Melogold.app" "$APP"
@@ -189,7 +230,12 @@ STAGE="$BUILD_DIR/dmg"
 mkdir -p "$STAGE"
 ditto "$APP" "$STAGE/Melogold.app"
 ln -s /Applications "$STAGE/Applications"
-hdiutil create -volname "Melogold" -srcfolder "$STAGE" -fs HFS+ -format UDZO -ov "$DMG" >/dev/null
+# hdiutil на раннерах изредка отвечает «Resource busy» — до трёх попыток
+for attempt in 1 2 3; do
+  if hdiutil create -volname "Melogold" -srcfolder "$STAGE" -fs HFS+ -format UDZO -ov "$DMG" >/dev/null; then break; fi
+  [ "$attempt" -lt 3 ] || fail "hdiutil create не собрал DMG"
+  sleep 5
+done
 if [ "$SIGNED" -eq 1 ]; then
   # Gatekeeper проверяет то, что скачали: DMG подписывается и нотаризуется сам
   codesign --force --sign "$IDENTITY" --keychain "$KEYCHAIN" --timestamp "$DMG"
@@ -269,9 +315,9 @@ NOTES="$BUILD_DIR/release-notes.md"
   cat "$NOTES_EN"
   if [ "$SIGNED" -eq 0 ]; then
     echo
-    echo "Приложение не подписано Apple. Первый запуск: «Системные настройки › Конфиденциальность и безопасность › Всё равно открыть»."
+    echo "Приложение не подписано Apple. Первый запуск: перетащите Melogold в «Программы», откройте, затем «Системные настройки › Конфиденциальность и безопасность › Всё равно открыть». Дальше оно обновляется само. Почему так — https://github.com/$REPO#скачать-для-mac"
     echo
-    echo "The app is not signed by Apple. First launch: System Settings › Privacy & Security › Open Anyway."
+    echo "The app is not signed by Apple. First launch: drag Melogold to Applications, open it, then System Settings › Privacy & Security › Open Anyway. After that it updates itself. Why — https://github.com/$REPO#download-for-mac"
   fi
 } > "$NOTES"
 
@@ -299,6 +345,7 @@ summary "| | |"
 summary "|---|---|"
 summary "| DMG | Melogold-$VERSION.dmg, $DMG_SIZE байт |"
 summary "| Подписан Developer ID | $(yes_no "$SIGNED") |"
+summary "| Самоподписанный сертификат Melogold | $(yes_no "$SELF_SIGNED") |"
 summary "| Нотаризован | $(yes_no "$SIGNED") |"
 if [ -n "$APPCAST" ]; then summary "| Appcast | да |"; else summary "| Appcast | нет |"; fi
 summary "| Опубликован | $(yes_no "$PUBLISH") |"

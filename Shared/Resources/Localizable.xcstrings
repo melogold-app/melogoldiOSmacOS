@@ -35,6 +35,23 @@
         }
       }
     },
+    "account.addDevice.denied" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign-in was denied"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вход отклонён"
+          }
+        }
+      }
+    },
     "account.addDevice.deny" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -103,6 +120,57 @@
         }
       }
     },
+    "account.addDevice.invite.cancelled" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The invitation was canceled"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Приглашение отменено"
+          }
+        }
+      }
+    },
+    "account.addDevice.invite.expired" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The code has expired. Show a new one"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Код устарел. Покажите новый"
+          }
+        }
+      }
+    },
+    "account.addDevice.invite.explain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On the new device, choose “Sign in with a code” and “I have a code from another device”, then enter this code"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "На новом устройстве выберите «Войти по коду» и «У меня есть код с другого устройства», затем введите этот код"
+          }
+        }
+      }
+    },
     "account.addDevice.otherNetwork" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -150,6 +218,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "В той же сети, что и это устройство"
+          }
+        }
+      }
+    },
+    "account.addDevice.showCode" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show a code for a new device"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показать код для нового устройства"
+          }
+        }
+      }
+    },
+    "account.addDevice.waiting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for the new device…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ждём новое устройство…"
           }
         }
       }
@@ -337,6 +439,91 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Это устройство"
+          }
+        }
+      }
+    },
+    "account.device.kind.computer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Computer"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Компьютер"
+          }
+        }
+      }
+    },
+    "account.device.kind.headset" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Headset"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Гарнитура"
+          }
+        }
+      }
+    },
+    "account.device.kind.phone" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phone"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Телефон"
+          }
+        }
+      }
+    },
+    "account.device.kind.tablet" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tablet"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Планшет"
+          }
+        }
+      }
+    },
+    "account.device.kind.watch" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Watch"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Часы"
           }
         }
       }
@@ -902,6 +1089,23 @@
         }
       }
     },
+    "account.link.account %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signing in to %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вход в аккаунт %@"
+          }
+        }
+      }
+    },
     "account.link.completed" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -915,6 +1119,108 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Вход выполнен"
+          }
+        }
+      }
+    },
+    "account.link.enter.explain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter the code another device shows: Account › Add device › Show a code for a new device"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Введите код, который показывает другое устройство: Аккаунт › Добавить устройство › Показать код для нового устройства"
+          }
+        }
+      }
+    },
+    "account.link.error.cancelled" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign-in was canceled on the other device"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вход отменили на другом устройстве"
+          }
+        }
+      }
+    },
+    "account.link.error.denied" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign-in was denied on the other device"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вход отклонён на другом устройстве"
+          }
+        }
+      }
+    },
+    "account.link.error.expired" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The code has expired. Get a new one"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Код устарел. Получите новый"
+          }
+        }
+      }
+    },
+    "account.link.error.expiredInvite" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The code has expired. Show a new one on the device where you're signed in"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Код устарел. Покажите новый на устройстве, где вы уже вошли"
+          }
+        }
+      }
+    },
+    "account.link.error.wrongMode" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This is a new device's code. Enter it where you're signed in: Account › Add device"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Это код нового устройства. Введите его там, где вы уже вошли: Аккаунт › Добавить устройство"
           }
         }
       }
@@ -936,6 +1242,57 @@
         }
       }
     },
+    "account.link.gettingCode" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Getting a code…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Получаем код…"
+          }
+        }
+      }
+    },
+    "account.link.haveCode" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I have a code from another device"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "У меня есть код с другого устройства"
+          }
+        }
+      }
+    },
+    "account.link.newCode" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Get a new code"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Получить новый код"
+          }
+        }
+      }
+    },
     "account.link.on %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -949,6 +1306,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "на «%@»"
+          }
+        }
+      }
+    },
+    "account.link.otherCode" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter another code"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ввести другой код"
+          }
+        }
+      }
+    },
+    "account.link.password" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in with a password"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Войти по паролю"
           }
         }
       }
@@ -970,6 +1361,57 @@
         }
       }
     },
+    "account.link.pickOn %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose this number on “%@”"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выберите это число на «%@»"
+          }
+        }
+      }
+    },
+    "account.link.reconnecting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can't reach the server. Trying again…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нет связи с сервером. Пробуем снова…"
+          }
+        }
+      }
+    },
+    "account.link.request.explain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On a device where you're signed in, open Account › Add device and enter this code"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "На устройстве, где вы уже вошли, откройте Аккаунт › Добавить устройство и введите этот код"
+          }
+        }
+      }
+    },
     "account.link.retry" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -983,6 +1425,108 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Повторить"
+          }
+        }
+      }
+    },
+    "account.link.showMine" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show my code"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показать мой код"
+          }
+        }
+      }
+    },
+    "account.link.signingIn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signing in…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Входим…"
+          }
+        }
+      }
+    },
+    "account.link.spokenCode %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign-in code: %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Код для входа: %@"
+          }
+        }
+      }
+    },
+    "account.link.spokenNumber %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Number %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Число %@"
+          }
+        }
+      }
+    },
+    "account.link.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in with a code"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вход по коду"
+          }
+        }
+      }
+    },
+    "account.link.validFor %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valid for %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Действует %@"
           }
         }
       }
@@ -4813,13 +5357,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sign-in will come with the Melogold account"
+            "value" : "To sign in to another account, sign out first in Settings › Account"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Вход появится вместе с аккаунтом Melogold"
+            "value" : "Чтобы войти в другой аккаунт, сначала выйдите: Настройки › Аккаунт"
           }
         }
       }
@@ -4830,13 +5374,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sign-in isn't here yet"
+            "value" : "This device is already signed in"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Входа пока нет"
+            "value" : "Это устройство уже вошло"
           }
         }
       }
@@ -4932,13 +5476,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open Melogold on the other device → Add device → Scan"
+            "value" : "On a device where you're signed in, open Account › Add device and enter the code"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Откройте Melogold на другом устройстве → Добавить устройство → Сканировать"
+            "value" : "На устройстве, где вы уже вошли, откройте Аккаунт › Добавить устройство и введите код"
           }
         }
       }
@@ -4949,7 +5493,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add the device from another one"
+            "value" : "Add this device from another one"
           }
         },
         "ru" : {

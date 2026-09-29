@@ -1,11 +1,9 @@
-# Сборки для App Store Connect и TestFlight (задание 0005): iOS (iPhone, iPad, часы внутри) и visionOS. По тегу vX.Y.Z
-# и вручную. Шаги — в scripts/release-testflight.sh. Без секретов архивы собираются без подписи и не загружаются;
+# Сборки для App Store Connect и TestFlight (задание 0005): iOS (iPhone, iPad, часы внутри) и visionOS. Только вручную:
+# пока нет секретов App Store Connect, запуск по тегу лишь собирал бы неподписанные архивы рядом с выпуском Mac. Шаги — в scripts/release-testflight.sh. Без секретов архивы собираются без подписи и не загружаются;
 # итог говорит, каких секретов не хватило. Публикация в App Store — только по команде пользователя.
 name: TestFlight
 
 on:
-  push:
-    tags: ["v*.*.*"]
   workflow_dispatch:
 
 permissions:

@@ -7,6 +7,8 @@ enum AccountRoute: Hashable {
     case recover(login: String?)
     /// Код восстановления после регистрации, восстановления или «Новый код»: показывается один раз.
     case recoveryCode(code: String, createdAt: String)
+    /// «Вход по коду»: `enterCode` — сразу поле для кода с другого устройства (ссылка `melogold://link?mode=invite`).
+    case signInByCode(enterCode: Bool)
     case overview
     case addDevice
     case changePassword
@@ -21,6 +23,7 @@ struct AccountRouteView: View {
         case .register: RegisterView()
         case .recover(let login): RecoverView(initialLogin: login ?? "")
         case .recoveryCode(let code, let createdAt): RecoveryCodeView(code: code, createdAt: createdAt)
+        case .signInByCode(let enterCode): SignInByCodeView(enterCode: enterCode)
         case .overview: AccountOverviewView()
         case .addDevice: AddDeviceView()
         case .changePassword: ChangePasswordView()

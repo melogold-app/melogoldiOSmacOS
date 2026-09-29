@@ -48,8 +48,14 @@ extension ServerAPI {
 
     /// Поток живых событий `GET /auth/me/events`. Кадр — `id:` и `data: <LiveEvent>` до пустой строки, строки
     /// с `:` — heartbeat. Поток заканчивается, когда сервер его закрыл; тишина дольше `eventsIdleTimeout` — ошибка сети.
-    func events(token: String) -> AsyncThrowingStream<LiveEvent, any Error> {
+    /// `remote` — устройство разрешает управление собой (`?remote=1`, пульт API §4.9): только такие потоки получают
+    /// `playback.command`.
+    func events(token: String, remote: Bool = false) -> AsyncThrowingStream<LiveEvent, any Error> {
         var prepared = request("GET", "/auth/me/events", token: token, timeout: Self.eventsIdleTimeout)
+        if remote, var components = URLComponents(url: prepared.url!, resolvingAgainstBaseURL: false) {
+            components.queryItems = [URLQueryItem(name: "remote", value: "1")]
+            prepared.url = components.url
+        }
         prepared.setValue("text/event-stream", forHTTPHeaderField: "Accept")
         prepared.cachePolicy = .reloadIgnoringLocalCacheData
         let request = prepared
@@ -163,10 +169,25 @@ extension LiveEvent {
         case "lyrics.changed":
             kind = .lyricsChanged(videoId: payload["videoId"] as? String ?? "", rev: (payload["rev"] as? NSNumber)?.int64Value ?? 0)
         case "playback.updated":
-            kind = .playbackUpdated
+            kind = .playbackUpdated(
+                rev: (payload["rev"] as? NSNumber)?.int64Value ?? 0,
+                cleared: payload["cleared"] as? Bool ?? false,
+                state: (payload["state"] as? [String: Any]).flatMap { decodePayload(PlaybackSummary.self, $0) }
+            )
+        case "playback.command":
+            if let command = decodePayload(PlaybackCommand.self, payload) {
+                kind = .playbackCommand(command)
+            } else {
+                kind = .other
+            }
         default:
             kind = .other
         }
         return LiveEvent(id: id, type: type, at: object["at"] as? String ?? "", kind: kind)
+    }
+
+    private static func decodePayload<T: Decodable>(_ type: T.Type, _ object: [String: Any]) -> T? {
+        guard let data = try? JSONSerialization.data(withJSONObject: object) else { return nil }
+        return try? JSONDecoder().decode(T.self, from: data)
     }
 }
