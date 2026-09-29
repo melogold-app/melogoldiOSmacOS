@@ -261,9 +261,9 @@ public final class Account {
         try await authorized { api, token in try await api.confirmRecoveryCode(token: token, createdAt: createdAt) }
     }
 
-    // MARK: - Вход по коду (API §4.6, режим `request`)
+    // MARK: - Вход по коду (API §4.6)
 
-    /// Новое устройство (часы) просит вход: сервер выдаёт код, который вводят на вошедшем устройстве.
+    /// Новое устройство просит вход (режим `request`): сервер выдаёт код, который вводят на вошедшем устройстве.
     public func startLinkRequest() async throws -> LinkCreated {
         let info = try await check()
         return try await api(settings.serverURL).createLinkRequest(device: identity.input(serverId: info.serverId))
@@ -278,6 +278,30 @@ public final class Account {
 
     public func cancelLinkRequest(pollSecret: String) async {
         try? await api(settings.serverURL).cancelLinkRequest(pollSecret: pollSecret)
+    }
+
+    /// Новое устройство вводит код, который показывает вошедшее (режим `invite`). Дальше — `pollLink` с `claimed`.
+    public func claimLink(userCode: String) async throws -> LinkClaimed {
+        let info = try await check()
+        return try await api(settings.serverURL).claimLink(userCode: userCode, device: identity.input(serverId: info.serverId))
+    }
+
+    /// Вошедшее устройство показывает код для нового (режим `invite`).
+    public func createLinkInvite() async throws -> LinkCreated {
+        try await authorized { api, token in try await api.createLinkInvite(token: token) }
+    }
+
+    public func link(_ linkId: String) async throws -> LinkDetails {
+        try await authorized { api, token in try await api.link(token: token, linkId: linkId) }
+    }
+
+    /// Отмена привязки вошедшим устройством (приглашение, которое никто не забрал). Уже законченная — тоже 204.
+    public func cancelLink(_ linkId: String) async {
+        do {
+            try await authorized { api, token in try await api.cancelLink(token: token, linkId: linkId) }
+        } catch {
+            Log.warning("account", "Отмена привязки не прошла: \(error)")
+        }
     }
 
     /// Вошедшее устройство вводит код нового: карточка устройства и три числа на выбор.

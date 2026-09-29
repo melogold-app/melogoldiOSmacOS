@@ -94,6 +94,8 @@ public final class LibrarySync {
     public private(set) var accountWarning: AccountWarning?
     /// Поток живых событий открыт (`system.connected` пришёл).
     public private(set) var liveConnected = false
+    /// Последнее SSE `link.updated` (API §6): «Показать код для нового устройства» читает приглашение сразу.
+    public private(set) var linkUpdate: LinkUpdate?
     /// Свой текст, который сервер не принял как слишком большой (413): он остаётся только на этом устройстве.
     public private(set) var rejectedLyrics: String?
     /// В базе есть привязка к аккаунту (`sync_state.binding`): устройство уже синхронизировалось с ним. После выхода
@@ -827,7 +829,9 @@ public final class LibrarySync {
             accountWarning = AccountWarning(id: event.id, reason: reason, byDeviceId: byDeviceId, byDeviceName: byDeviceName)
         case .lyricsChanged:
             enqueue(.lyrics)
-        case .linkUpdated, .playbackUpdated, .other:
+        case .linkUpdated(let linkId, let status):
+            linkUpdate = LinkUpdate(id: event.id, linkId: linkId, status: status)
+        case .playbackUpdated, .other:
             break
         }
     }

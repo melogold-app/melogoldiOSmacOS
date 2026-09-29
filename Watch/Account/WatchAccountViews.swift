@@ -194,91 +194,71 @@ struct WatchRecoveryCodeView: View {
 }
 
 /// Вход по коду (API §4.6, режим `request`): часы показывают код, на вошедшем iPhone, iPad, Mac или Vision его
-/// вводят в «Аккаунт › Добавить устройство» и выбирают число, которое часы показывают следом.
+/// вводят в «Аккаунт › Добавить устройство» и выбирают число, которое часы показывают следом. Ожидание, повтор без
+/// связи и отказы — общий `NewDeviceLinker`, как в приложении.
 struct WatchLinkRequestView: View {
     @Environment(WatchModel.self) private var model
     @Environment(\.dismiss) private var dismiss
 
-    @State private var created: LinkCreated?
-    @State private var verifyCode: String?
-    @State private var approverName: String?
-    @State private var error: (any Error)?
-    @State private var completed = false
+    @State private var linker: NewDeviceLinker?
+
+    private var state: NewDeviceLinkState { linker?.state ?? .idle }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 8) {
-                if completed {
-                    Label("account.link.completed", systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                    Button("account.done") { dismiss() }
-                } else if let verifyCode {
-                    Text("account.link.pick")
-                        .font(.footnote)
-                        .multilineTextAlignment(.center)
-                    Text(verbatim: verifyCode)
-                        .font(.system(size: 56, weight: .bold, design: .rounded))
-                        .accessibilityLabel(Text(verbatim: verifyCode))
-                    if let approverName {
-                        Text("account.link.on \(approverName)")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                } else if let created {
+                switch state {
+                case .idle, .starting:
+                    ProgressView()
+                case .showingCode(let userCode, _, let reconnecting):
                     Text("account.link.explain")
                         .font(.footnote)
                         .multilineTextAlignment(.center)
-                    Text(verbatim: LinkCode.grouped(LinkCode.userCode(created.userCode) ?? created.userCode))
+                    Text(verbatim: LinkCode.grouped(LinkCode.userCode(userCode) ?? userCode))
                         .font(.system(.title3, design: .monospaced).weight(.bold))
-                } else if error == nil {
-                    ProgressView()
-                }
-                if let error {
-                    Text(AccountText.message(for: error))
+                        .accessibilityLabel(Text("account.link.spokenCode \(LinkTiming.spokenCode(userCode))"))
+                    if reconnecting { reconnectingText }
+                case .verify(let number, _, let approverName, _, _, let reconnecting):
+                    Text("account.link.pick")
+                        .font(.footnote)
+                        .multilineTextAlignment(.center)
+                    Text(verbatim: number)
+                        .font(.system(size: 56, weight: .bold, design: .rounded))
+                        .accessibilityLabel(Text("account.link.spokenNumber \(number)"))
+                    Text("account.link.on \(approverName)")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    if reconnecting { reconnectingText }
+                case .signedIn:
+                    Label("account.link.completed", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Button("account.done") { dismiss() }
+                case .failed(let failure, _):
+                    Text(AccountText.link(failure, invite: false))
                         .font(.footnote)
                         .foregroundStyle(.red)
                         .multilineTextAlignment(.center)
-                    Button("account.link.retry") { Task { await start() } }
+                    Button("account.link.retry") { linker?.showCode() }
                 }
             }
         }
         .navigationTitle(Text("account.signIn.code"))
-        .task { await start() }
+        .task {
+            guard linker == nil else { return }
+            let linker = NewDeviceLinker(port: model.account)
+            self.linker = linker
+            linker.showCode()
+        }
         .onDisappear {
-            if !completed, let secret = created?.pollSecret {
-                Task { await model.account.cancelLinkRequest(pollSecret: secret) }
-            }
+            if state != .signedIn { linker?.cancel() }
         }
     }
 
-    private func start() async {
-        error = nil
-        verifyCode = nil
-        do {
-            let request = try await model.account.startLinkRequest()
-            created = request
-            guard let secret = request.pollSecret else { return }
-            var known = "pending"
-            while !Task.isCancelled {
-                let response = try await model.account.pollLink(pollSecret: secret, knownStatus: known)
-                switch response.status {
-                case "claimed":
-                    verifyCode = response.verifyCode
-                    approverName = response.approverDevice?.name
-                    known = "claimed"
-                case "completed":
-                    completed = true
-                    return
-                default:
-                    continue
-                }
-            }
-        } catch is CancellationError {
-            return
-        } catch {
-            self.error = error
-            created = nil
-        }
+    private var reconnectingText: some View {
+        Text("account.link.reconnecting")
+            .font(.footnote)
+            .foregroundStyle(.red)
+            .multilineTextAlignment(.center)
     }
 }
 

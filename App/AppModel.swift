@@ -213,9 +213,16 @@ final class AppModel {
             section = .settings
             routes[.settings] = [.server(prefill: address, serverId: serverId)]
         case .success(.link(.request, _, _, _)):
+            // QR нового устройства: одобряют его в «Добавить устройство», сама ссылка ничего не делает (API §7.2)
             notice = Notice(title: "link.request.title", message: "link.request.message")
         case .success(.link(.invite, _, _, _)):
-            notice = Notice(title: "link.invite.title", message: "link.invite.message")
+            // Приглашение вошедшего устройства: «Вход по коду» с полем для кода; входа без нажатия не бывает
+            if account.isSignedIn {
+                notice = Notice(title: "link.invite.title", message: "link.invite.message")
+            } else {
+                section = .settings
+                routes[.settings] = [.account(.signIn(login: nil)), .account(.signInByCode(enterCode: true))]
+            }
         case .failure(.badServer(let error)):
             notice = Notice(title: "link.invalid", message: ServerAddressText.message(for: error))
         case .failure:

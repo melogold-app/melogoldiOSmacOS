@@ -302,8 +302,9 @@ struct AccountOverviewView: View {
     }
 }
 
-/// «Добавить устройство»: вход нового устройства по коду (API §4.6, режим `request`) — часы, телевизор, чужой
-/// компьютер. Код с нового устройства → карточка устройства → число, которое видно на нём.
+/// «Добавить устройство» (API §4.6, задание 0017): ввести код, который показывает новое устройство (режим
+/// `request`), или «Показать код для нового устройства» (режим `invite`) и ждать, пока его введут там. В обоих
+/// случаях дальше — карточка нового устройства и три числа: выбирают то, что видно на нём.
 struct AddDeviceView: View {
     @Environment(AppModel.self) private var model
 
@@ -312,6 +313,9 @@ struct AddDeviceView: View {
     @State private var busy = false
     @State private var error: (any Error)?
     @State private var approved: String?
+    @State private var denied = false
+    /// Приглашение «Показать код для нового устройства»; `nil` — режим ввода кода.
+    @State private var invite: InviteLinker?
 
     var body: some View {
         Form {
@@ -319,77 +323,20 @@ struct AddDeviceView: View {
                 Section {
                     Label("account.addDevice.done \(approved)", systemImage: "checkmark.circle.fill")
                         .foregroundStyle(.green)
-                    Button("account.done") { model.routes[.settings]?.removeLast() }
+                    Button("account.done") { model.goBack() }
+                }
+            } else if denied {
+                Section {
+                    Label("account.addDevice.denied", systemImage: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                    Button("account.done") { model.goBack() }
                 }
             } else if let details, let device = details.device {
-                Section {
-                    HStack(spacing: 12) {
-                        Image(systemName: DeviceSymbol.name(for: device.platform))
-                            .font(.title)
-                            .foregroundStyle(.tint)
-                            .frame(width: 40)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(verbatim: device.name).font(.headline)
-                            Text(verbatim: [device.model, device.osVersion].compactMap { $0 }.joined(separator: " · "))
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    if let sameNetwork = details.sameNetwork {
-                        Text(sameNetwork ? "account.addDevice.sameNetwork" : "account.addDevice.otherNetwork")
-                            .foregroundStyle(sameNetwork ? Color.secondary : Color.orange)
-                    }
-                } header: {
-                    Text("account.addDevice.device")
-                }
-
-                Section {
-                    HStack(spacing: 12) {
-                        ForEach(details.verifyChoices, id: \.self) { choice in
-                            Button {
-                                approve(details.linkId, choice, name: device.name)
-                            } label: {
-                                Text(verbatim: choice)
-                                    .font(.system(.largeTitle, design: .rounded).weight(.bold))
-                                    .frame(maxWidth: .infinity, minHeight: 64)
-                            }
-                            .buttonStyle(.bordered)
-                        }
-                    }
-                    .disabled(busy)
-                    Button("account.addDevice.deny", role: .destructive) { deny(details.linkId) }
-                        .disabled(busy)
-                } header: {
-                    Text("account.addDevice.pick")
-                        .textCase(nil)
-                } footer: {
-                    AccountErrorFooter(error: error)
-                }
+                approval(details, device: device)
+            } else if let invite {
+                inviteSections(invite)
             } else {
-                Section {
-                    TextField("account.addDevice.code", text: $code, prompt: Text(verbatim: "XXXX-XXXX"))
-                        .font(.title2.monospaced())
-                        .autocorrectionDisabled()
-                        #if os(iOS) || os(visionOS)
-                        .textInputAutocapitalization(.characters)
-                        #endif
-                        .onSubmit(resolve)
-                    Button(action: resolve) {
-                        HStack {
-                            Text("account.continue")
-                            if busy {
-                                Spacer()
-                                ProgressView()
-                            }
-                        }
-                    }
-                    .disabled(LinkCode.userCode(code) == nil || busy)
-                } header: {
-                    Text("account.addDevice.explain")
-                        .textCase(nil)
-                } footer: {
-                    AccountErrorFooter(error: error)
-                }
+                enterCodeSection
             }
         }
         .formStyle(.grouped)
@@ -397,6 +344,148 @@ struct AddDeviceView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
+        .onChange(of: model.sync.linkUpdate) { _, update in
+            if let update { invite?.nudge(linkId: update.linkId) }
+        }
+        .onDisappear {
+            // Ушли, пока решения нет: приглашение отменяется, иначе их набежит до трёх
+            if approved == nil, !denied { invite?.cancel() }
+        }
+    }
+
+    private var enterCodeSection: some View {
+        Section {
+            TextField("account.addDevice.code", text: $code, prompt: Text(verbatim: "XXXX-XXXX"))
+                .font(.title2.monospaced())
+                .autocorrectionDisabled()
+                #if os(iOS) || os(visionOS)
+                .textInputAutocapitalization(.characters)
+                #endif
+                .onSubmit(resolve)
+            Button(action: resolve) {
+                HStack {
+                    Text("account.continue")
+                    if busy {
+                        Spacer()
+                        ProgressView()
+                    }
+                }
+            }
+            .disabled(LinkCode.userCode(code) == nil || busy)
+            Button("account.addDevice.showCode") { startInvite() }
+                .accessibilityIdentifier("account.addDevice.showCode")
+        } header: {
+            Text("account.addDevice.explain")
+                .textCase(nil)
+        } footer: {
+            AccountErrorFooter(error: error)
+        }
+    }
+
+    @ViewBuilder
+    private func inviteSections(_ invite: InviteLinker) -> some View {
+        switch invite.state {
+        case .idle, .starting:
+            Section {
+                HStack(spacing: 12) {
+                    ProgressView()
+                    Text("account.link.gettingCode")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        case .waiting(let userCode, let expiresAt):
+            Section {
+                LinkCodeBlock(code: userCode)
+                LinkStatusRow(expiresAt: expiresAt, reconnecting: false, waiting: "account.addDevice.waiting")
+            } header: {
+                Text("account.addDevice.invite.explain")
+                    .textCase(nil)
+            }
+            Section {
+                Button("account.cancel", role: .cancel) { stopInvite() }
+            }
+        case .claimed(let claimed):
+            if let device = claimed.device {
+                approval(claimed, device: device)
+            }
+        case .failed(let failure, _):
+            Section {
+                Text(inviteMessage(failure))
+                    .foregroundStyle(.red)
+                Button("account.addDevice.showCode") { startInvite() }
+                Button("account.cancel", role: .cancel) { stopInvite() }
+            }
+        }
+    }
+
+    /// Карточка нового устройства и три числа — одинаково для введённого здесь кода и для приглашения.
+    @ViewBuilder
+    private func approval(_ details: LinkDetails, device: LinkDeviceInfo) -> some View {
+        Section {
+            HStack(spacing: 12) {
+                Image(systemName: DeviceSymbol.name(for: device.platform))
+                    .font(.title)
+                    .foregroundStyle(.tint)
+                    .frame(width: 40)
+                    .accessibilityLabel(Text(DeviceSymbol.kind(for: device.platform)))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(verbatim: device.name).font(.headline)
+                    Text(verbatim: [device.model, device.osVersion].compactMap { $0 }.joined(separator: " · "))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            if let sameNetwork = details.sameNetwork {
+                Text(sameNetwork ? "account.addDevice.sameNetwork" : "account.addDevice.otherNetwork")
+                    .foregroundStyle(sameNetwork ? Color.secondary : Color.orange)
+            }
+        } header: {
+            Text("account.addDevice.device")
+        }
+
+        Section {
+            HStack(spacing: 12) {
+                ForEach(details.verifyChoices, id: \.self) { choice in
+                    Button {
+                        approve(details.linkId, choice, name: device.name)
+                    } label: {
+                        Text(verbatim: choice)
+                            .font(.system(.largeTitle, design: .rounded).weight(.bold))
+                            .frame(maxWidth: .infinity, minHeight: 64)
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityLabel(Text("account.link.spokenNumber \(choice)"))
+                }
+            }
+            .disabled(busy)
+            Button("account.addDevice.deny", role: .destructive) { deny(details.linkId) }
+                .disabled(busy)
+        } header: {
+            Text("account.addDevice.pick")
+                .textCase(nil)
+        } footer: {
+            AccountErrorFooter(error: error)
+        }
+    }
+
+    private func inviteMessage(_ failure: LinkFailure) -> LocalizedStringResource {
+        switch failure.reason {
+        case .expired: "account.addDevice.invite.expired"
+        case .cancelled: "account.addDevice.invite.cancelled"
+        default: failure.error.map { AccountText.message(for: $0) } ?? AccountText.link(failure, invite: false)
+        }
+    }
+
+    private func startInvite() {
+        error = nil
+        let linker = invite ?? InviteLinker(port: model.account)
+        invite = linker
+        linker.start()
+    }
+
+    private func stopInvite() {
+        invite?.cancel()
+        invite = nil
     }
 
     private func resolve() {
@@ -407,6 +496,7 @@ struct AddDeviceView: View {
     private func approve(_ linkId: String, _ choice: String, name: String) {
         work {
             _ = try await model.account.approveLink(linkId, verifyCode: choice)
+            invite?.release()
             approved = name
         }
     }
@@ -414,8 +504,8 @@ struct AddDeviceView: View {
     private func deny(_ linkId: String) {
         work {
             _ = try await model.account.denyLink(linkId)
-            details = nil
-            code = ""
+            invite?.release()
+            denied = true
         }
     }
 
@@ -430,6 +520,7 @@ struct AddDeviceView: View {
                 self.error = error
                 if let apiError = error as? APIError, ["link_expired", "link_verify_mismatch", "link_cancelled"].contains(apiError.code) {
                     details = nil
+                    if invite != nil { stopInvite() }
                 }
             }
         }

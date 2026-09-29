@@ -1,6 +1,6 @@
 # Вход по коду: показать код на новом устройстве и на устройстве, где уже вошли
 
-Статус: открыто
+Статус: сделано (iPhone, iPad, Mac, Vision, часы; 2026-09-30)
 
 Те же задания: `melogoldAndroid/tasks/0015-sign-in-by-code.md` (сделано, ветка `feature/sign-in-by-code`), `melogoldWindows/tasks/0014-sign-in-by-code.md`, `melogoldLinux/tasks/0008-sign-in-by-code.md`.
 Образец — Android (`sync/DeviceLinking.kt`, `ui/screens/settings/account/LinkCodeScreens.kt`, `AddDeviceScreen.kt`); контракт — API §4.6 сервера (`melogoldServer/docs/API.md`, «Привязка устройств»).
@@ -134,7 +134,6 @@
 - Часы получают режим `request` как раньше; ввод чужого кода на часах не нужен.
 - Тексты — `Shared/Resources/Localizable.xcstrings`, ru и en; в основном checkout Apple есть несвязанные незакоммиченные правки Xcode — их не трогать.
 
-Работа над Apple на паузе по решению пользователя — задание ждёт её возобновления.
 
 ## 4. Проверка
 

@@ -159,6 +159,33 @@ struct TestDevice: Sendable {
         XCTAssertEqual(decision["status"] as? String, "approved")
     }
 
+    /// «Показать код для нового устройства» (режим `invite`): код и id приглашения.
+    func createInvite() async throws -> (linkId: String, userCode: String) {
+        let created = try await Self.call(server, "POST", "/auth/me/links", token: token, body: [:])
+        return (try XCTUnwrap(created["linkId"] as? String), try XCTUnwrap(created["userCode"] as? String))
+    }
+
+    /// Приглашение глазами создателя: статус и три числа, когда его забрали.
+    func link(_ linkId: String) async throws -> (status: String, choices: [String]) {
+        let details = try await Self.call(server, "GET", "/auth/me/links/\(linkId)", token: token)
+        return (details["status"] as? String ?? "", details["verifyChoices"] as? [String] ?? [])
+    }
+
+    /// Новое устройство вводит код, который показывает вошедшее (режим `invite`): секрет опроса и число.
+    static func claim(server: String, userCode: String, name: String) async throws -> (pollSecret: String, verifyCode: String) {
+        let claimed = try await call(server, "POST", "/auth/link/claim", body: [
+            "userCode": userCode,
+            "device": ["hwid": randomHwid(), "name": name, "platform": "windows", "osVersion": "11"],
+        ])
+        return (try XCTUnwrap(claimed["pollSecret"] as? String), try XCTUnwrap(claimed["verifyCode"] as? String))
+    }
+
+    /// Опрос нового устройства: статус и есть ли сеанс.
+    static func poll(server: String, pollSecret: String, knownStatus: String) async throws -> (status: String, hasSession: Bool) {
+        let answer = try await call(server, "POST", "/auth/link/poll", body: ["pollSecret": pollSecret, "knownStatus": knownStatus, "waitSeconds": 20])
+        return (answer["status"] as? String ?? "", answer["session"] is [String: Any])
+    }
+
     /// Изменения истории после `cursor` (API §4.8): `plays`, `playStats`, `playForgets` и новый курсор.
     func changes(since cursor: String) async throws -> [String: Any] {
         try await sync(ops: [], cursor: cursor)

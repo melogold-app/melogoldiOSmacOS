@@ -36,6 +36,21 @@ enum AccountText {
         }
     }
 
+    /// Почему вход по коду не удался (задание 0017 §2.3). `invite` — код ввели здесь, его показывает вошедшее
+    /// устройство: тогда за новым кодом идут туда. Лимит устройств, частота, сеть — как при входе по паролю.
+    static func link(_ failure: LinkFailure, invite: Bool) -> LocalizedStringResource {
+        switch failure.reason {
+        case .denied: return "account.link.error.denied"
+        case .expired: return invite ? "account.link.error.expiredInvite" : "account.link.error.expired"
+        case .cancelled: return "account.link.error.cancelled"
+        case .notFound: return "account.error.linkNotFound"
+        case .alreadyClaimed: return "account.error.linkClaimed"
+        case .wrongMode: return "account.link.error.wrongMode"
+        case .deviceLimit, .throttled, .network, .unknown:
+            return failure.error.map { message(for: $0) } ?? "account.error.generic"
+        }
+    }
+
     /// Почему сервер завершил сеанс (`Account.endedReason`).
     static func sessionEnded(_ reason: String?) -> LocalizedStringResource {
         switch reason {
@@ -51,6 +66,17 @@ enum AccountText {
 
 /// Значок устройства в списке аккаунта — по `platform` (API §1.6), как `DeviceSymbol` Clementine.
 enum DeviceSymbol {
+    /// Вид устройства словами — подпись значка для VoiceOver.
+    static func kind(for platform: String) -> LocalizedStringResource {
+        switch platform.lowercased() {
+        case "ios", "android": "account.device.kind.phone"
+        case "ipados": "account.device.kind.tablet"
+        case "watchos": "account.device.kind.watch"
+        case "visionos": "account.device.kind.headset"
+        default: "account.device.kind.computer"
+        }
+    }
+
     static func name(for platform: String) -> String {
         switch platform.lowercased() {
         case "ios": "iphone"

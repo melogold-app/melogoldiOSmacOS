@@ -106,6 +106,24 @@ public struct ServerAPI: Sendable {
         try await send("POST", "/auth/me/links/resolve", body: ResolveLinkRequest(linkToken: nil, userCode: userCode), token: token)
     }
 
+    /// Новое устройство вводит код, который показывает вошедшее (режим `invite`): сразу число и аккаунт.
+    func claimLink(userCode: String, device: DeviceInput) async throws -> LinkClaimed {
+        try await send("POST", "/auth/link/claim", body: ClaimLinkRequest(userCode: userCode, device: device))
+    }
+
+    /// Вошедшее устройство показывает код для нового (режим `invite`, `pollSecret` в ответе — `null`).
+    func createLinkInvite(token: String) async throws -> LinkCreated {
+        try await send("POST", "/auth/me/links", body: EmptyBody(), token: token)
+    }
+
+    func link(token: String, linkId: String) async throws -> LinkDetails {
+        try await send("GET", "/auth/me/links/\(linkId)", token: token)
+    }
+
+    func cancelLink(token: String, linkId: String) async throws {
+        try await sendEmpty("POST", "/auth/me/links/\(linkId)/cancel", body: EmptyBody(), token: token)
+    }
+
     func approveLink(token: String, linkId: String, verifyCode: String) async throws -> LinkDecisionResponse {
         try await send("POST", "/auth/me/links/\(linkId)/approve", body: ApproveLinkRequest(verifyCode: verifyCode), token: token)
     }
