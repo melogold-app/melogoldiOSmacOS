@@ -32,6 +32,10 @@ public struct ServerInfo: Decodable, Sendable, Equatable {
         public let accountDeletion: Version?
         public let registrationPow: Version?
         public let lyrics: Version?
+        /// Ссылки на свои плейлисты (API §4.11).
+        public let share: Version?
+        /// Пульт: управление другим устройством (API §4.9).
+        public let remote: Version?
 
         public struct Sync: Decodable, Sendable, Equatable {
             public let protocolVersion: Int
@@ -409,7 +413,10 @@ public enum LiveEventKind: Sendable, Equatable {
     case accountUpdated(reason: String, byDeviceId: String?, byDeviceName: String?)
     case linkUpdated(linkId: String, status: String)
     case lyricsChanged(videoId: String, rev: Int64)
-    case playbackUpdated
+    /// Что играет на другом устройстве; `cleared` — состояние очищено (`state == nil`).
+    case playbackUpdated(rev: Int64, cleared: Bool, state: PlaybackSummary?)
+    /// Команда пульта этому устройству (приходит только в поток с `remote=1`).
+    case playbackCommand(PlaybackCommand)
     /// Тип, которого этот клиент ещё не знает (API §1.1): пропускается.
     case other
 }

@@ -96,6 +96,15 @@ public final class LibrarySync {
     public private(set) var liveConnected = false
     /// Последнее SSE `link.updated` (API §6): «Показать код для нового устройства» читает приглашение сразу.
     public private(set) var linkUpdate: LinkUpdate?
+    /// Устройство разрешает управление собой с других (`?remote=1`, задание 0020, «Управление с других устройств»).
+    /// Смена открывает поток заново.
+    public var remoteControlEnabled = false {
+        didSet { if oldValue != remoteControlEnabled, live != nil { startLive() } }
+    }
+    /// SSE `playback.updated` (`rev`, `cleared`, состояние) — пульту и «Слушать здесь».
+    @ObservationIgnored public var onPlaybackUpdated: ((Int64, Bool, PlaybackSummary?) -> Void)?
+    /// SSE `playback.command` — плееру этого устройства.
+    @ObservationIgnored public var onPlaybackCommand: ((PlaybackCommand) -> Void)?
     /// Свой текст, который сервер не принял как слишком большой (413): он остаётся только на этом устройстве.
     public private(set) var rejectedLyrics: String?
     /// В базе есть привязка к аккаунту (`sync_state.binding`): устройство уже синхронизировалось с ним. После выхода
@@ -787,7 +796,7 @@ public final class LibrarySync {
 
     /// Один поток событий. `true` — закрыт этим клиентом перед истечением токена, открыть новый сразу.
     private func listen(api: ServerAPI, token: String) async throws -> Bool {
-        let stream = api.events(token: token)
+        let stream = api.events(token: token, remote: remoteControlEnabled)
         let consumer = Task { @MainActor in
             for try await event in stream { self.handle(event) }
         }
@@ -831,7 +840,11 @@ public final class LibrarySync {
             enqueue(.lyrics)
         case .linkUpdated(let linkId, let status):
             linkUpdate = LinkUpdate(id: event.id, linkId: linkId, status: status)
-        case .playbackUpdated, .other:
+        case .playbackUpdated(let rev, let cleared, let state):
+            onPlaybackUpdated?(rev, cleared, state)
+        case .playbackCommand(let command):
+            onPlaybackCommand?(command)
+        case .other:
             break
         }
     }
