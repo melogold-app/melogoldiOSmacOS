@@ -31,7 +31,18 @@ struct MiniPlayer: View {
                     Text(track.title)
                         .font(.subheadline.weight(.semibold))
                         .lineLimit(1)
-                    if !compact { PlayerStatusLine(font: .caption) }
+                    if !compact {
+                        if let remote = model.remoteBridge?.remote, remote.isActive, let target = remote.target {
+                            // Пульт управляет другим устройством: мини-плеер говорит где (задание 0020)
+                            Label { Text("remote.playingOn \(target.name)").lineLimit(1) } icon: {
+                                Image(systemName: DeviceSymbol.name(for: target.platform))
+                            }
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tint)
+                        } else {
+                            PlayerStatusLine(font: .caption)
+                        }
+                    }
                 }
                 .offset(x: dragOffset)
                 Spacer(minLength: Design.Space.xxs)

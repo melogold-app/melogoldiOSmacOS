@@ -46,7 +46,9 @@ struct RootView: View {
             .sheet(item: $model.playlistShare) { request in
                 PlaylistShareSheet(playlist: request.playlist)
             }
-            .sheet(isPresented: $model.remoteSheet) {
+            // Пока открыт «Сейчас играет» (на iPhone и iPad это лист), «Устройство» показывает он сам: второй лист с корня
+            // система не покажет
+            .sheet(isPresented: Binding(get: { model.remoteSheet && !model.nowPlayingIsSheet }, set: { model.remoteSheet = $0 })) {
                 RemoteSheet()
             }
             .modifier(SelectionPromptModifier())

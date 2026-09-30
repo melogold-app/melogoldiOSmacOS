@@ -100,6 +100,16 @@ private func makeGlass(interactive: Bool, tint: Color?) -> Glass {
 #endif
 
 extension View {
+    /// Кнопка на стекле (`glass`); на visionOS такого стиля нет — `bordered`.
+    @ViewBuilder
+    func glassButton() -> some View {
+        #if os(visionOS)
+        buttonStyle(.bordered)
+        #else
+        buttonStyle(.glass)
+        #endif
+    }
+
     /// Главная кнопка экрана на стекле (`glassProminent`); на visionOS такого стиля нет — `borderedProminent`.
     @ViewBuilder
     func prominentGlassButton() -> some View {

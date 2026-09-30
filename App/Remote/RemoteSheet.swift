@@ -179,7 +179,7 @@ struct RemotePlayerView: View {
                     }
                     .font(.subheadline.weight(.semibold))
                 }
-                .buttonStyle(.glass)
+                .glassButton()
 
                 if let state = remote.state, let track = state.track {
                     ArtworkView(url: track.thumbnailUrl, size: 260)
@@ -220,7 +220,7 @@ struct RemotePlayerView: View {
                         Text("remote.listenHere")
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.glassProminent)
+                    .prominentGlassButton()
                     .controlSize(.large)
                     Button("remote.disconnect") { remote.disconnect() }
                 }
@@ -262,28 +262,84 @@ struct RemotePlayerView: View {
         }
     }
 
+    /// ⏮ ⏯ ⏭ пульта — как в «Сейчас играет»: значки без рамок, под пальцем круг (`TransportPressStyle`). Явные «пауза»
+    /// и «играть» по тому, что видно на пульте: переключатель при устаревшем состоянии сделал бы обратное.
     private func transport(playing: Bool) -> some View {
-        GlassEffectContainer(spacing: 24) {
-            HStack(spacing: 24) {
-                Button { Task { await remote.previous() } } label: {
-                    Image(systemName: "backward.fill").font(.title2).frame(width: 44, height: 44)
-                }
-                .buttonStyle(.glass)
-                .accessibilityLabel(Text("player.previous"))
-                // Явные «пауза»/«играть» по тому, что видно на пульте: переключатель при устаревшем состоянии сделал
-                // бы обратное
-                Button { Task { if playing { await remote.pause() } else { await remote.play() } } } label: {
-                    Image(systemName: playing ? "pause.fill" : "play.fill").font(.largeTitle).frame(width: 64, height: 64)
-                }
-                .buttonStyle(.glassProminent)
-                .accessibilityLabel(Text(playing ? "player.pause" : "player.play"))
-                .sensoryFeedback(.selection, trigger: playing)
-                Button { Task { await remote.next() } } label: {
-                    Image(systemName: "forward.fill").font(.title2).frame(width: 44, height: 44)
-                }
-                .buttonStyle(.glass)
-                .accessibilityLabel(Text("player.next"))
+        HStack(spacing: Design.Space.xl) {
+            Button { Task { await remote.previous() } } label: {
+                Image(systemName: "backward.fill").font(.system(size: 30, weight: .semibold)).frame(width: 60, height: 60)
             }
+            .buttonStyle(TransportPressStyle(diameter: 60))
+            .accessibilityLabel(Text("player.previous"))
+            Button { Task { if playing { await remote.pause() } else { await remote.play() } } } label: {
+                Image(systemName: playing ? "pause.fill" : "play.fill")
+                    .font(.system(size: 40, weight: .semibold))
+                    .frame(width: 76, height: 76)
+                    .contentTransition(.symbolEffect(.replace))
+            }
+            .buttonStyle(TransportPressStyle(diameter: 76))
+            .accessibilityLabel(Text(playing ? "player.pause" : "player.play"))
+            .sensoryFeedback(.selection, trigger: playing)
+            Button { Task { await remote.next() } } label: {
+                Image(systemName: "forward.fill").font(.system(size: 30, weight: .semibold)).frame(width: 60, height: 60)
+            }
+            .buttonStyle(TransportPressStyle(diameter: 60))
+            .accessibilityLabel(Text("player.next"))
+        }
+    }
+}
+
+/// Кнопка «Устройство» в нижнем ряду «Сейчас играет» (задание 0020): с аккаунтом на сервере с пультом — лист
+/// «Устройство» (в нём и AirPlay этого устройства); без аккаунта или на старом сервере — системный AirPlay. Пока пульт
+/// управляет другим устройством — значок того устройства, акцентом.
+struct DeviceButton: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        if model.account.isSignedIn, model.account.supportsRemote, let remote = model.remoteBridge?.remote {
+            Button { model.remoteSheet = true } label: {
+                Image(systemName: remote.isActive ? DeviceSymbol.name(for: remote.target?.platform ?? "") : "airplay.audio")
+                    .font(.title3)
+                    .symbolRenderingMode(.monochrome)
+                    .foregroundStyle(remote.isActive ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                    .frame(width: Design.Size.minTap, height: Design.Size.minTap)
+                    .contentShape(Rectangle())
+                    .contentTransition(.symbolEffect(.replace))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text("remote.device"))
+            .accessibilityValue(remote.isActive ? Text("remote.playingOn \(remote.target?.name ?? "")") : Text(verbatim: ""))
+        } else {
+            #if !os(visionOS)
+            RoutePickerButton()
+                .frame(width: Design.Size.minTap, height: Design.Size.minTap)
+                .accessibilityLabel(Text("player.airplay"))
+            #endif
+        }
+    }
+}
+
+/// «Играет на «Pixel»»: пока пульт управляет другим устройством, над нижним рядом «Сейчас играет»; нажатие — пульт.
+struct RemotePlayingPill: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        if let remote = model.remoteBridge?.remote, remote.isActive, let target = remote.target {
+            Button { model.remoteSheet = true } label: {
+                Label {
+                    Text("remote.playingOn \(target.name)")
+                        .lineLimit(1)
+                } icon: {
+                    Image(systemName: DeviceSymbol.name(for: target.platform))
+                }
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.tint)
+                .padding(.horizontal, Design.Space.s)
+                .padding(.vertical, 6)
+                .controlGlass(Capsule(), interactive: true)
+            }
+            .buttonStyle(.plain)
+            .transition(.opacity.combined(with: .scale(scale: 0.9)))
         }
     }
 }

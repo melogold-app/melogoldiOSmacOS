@@ -218,8 +218,9 @@ struct BotCheckStopTests {
         let seen = YouTubeStub.requests
         #expect(seen.filter { $0.videoId == "aaaaaaaaaaa" }.count == 1, "повтора нет, второго клиента нет")
         #expect(seen.allSatisfy { $0.clientId == "101" }, "ни ANDROID_VR, ни диагноза WEB: \(seen)")
-        // Заготовка двух следующих треков: второй трек мог уйти вместе с первым, третий — уже нет (адрес закрыт)
-        #expect(seen.filter { $0.videoId == "ccccccccccc" }.isEmpty, "третий трек не заготавливается: \(seen)")
+        // Заготовка двух следующих треков идёт по одному: одна из них могла уйти вместе с первым треком (какая — как
+        // успеет), вторая — уже нет (адрес закрыт)
+        #expect(seen.filter { $0.videoId != "aaaaaaaaaaa" }.count <= 1, "заготовка — не больше одного запроса: \(seen)")
         #expect(seen.count <= 2, "\(seen)")
         engine.stop()
     }
