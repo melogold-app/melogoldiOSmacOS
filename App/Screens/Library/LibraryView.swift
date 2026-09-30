@@ -150,8 +150,8 @@ struct LibraryView: View {
                 Spacer(minLength: 0)
                 Text(title)
                     .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
+                    .minimumScaleFactor(typeSize.isAccessibilitySize ? 1 : 0.8)
                 Text(verbatim: count.map { "\($0)" } ?? " ")
                     .font(.footnote)
                     .monospacedDigit()
@@ -189,6 +189,7 @@ struct LibraryView: View {
 /// связи с YouTube.
 struct PlaylistCard: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var typeSize
     let playlist: LibraryPlaylist
 
     var body: some View {
@@ -201,7 +202,7 @@ struct PlaylistCard: View {
                 HStack(spacing: Design.Space.xxs) {
                     Text(verbatim: playlist.name)
                         .font(.subheadline)
-                        .lineLimit(1)
+                        .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
                     if model.services.downloads?.store.isCollection(.playlist, key: String(playlist.id)) == true {
                         Image(systemName: "arrow.down.circle.fill")
                             .font(.footnote)
@@ -220,7 +221,7 @@ struct PlaylistCard: View {
                 }
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-                .lineLimit(1)
+                .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
@@ -275,13 +276,14 @@ struct SquareFill<Content: View>: View {
 /// Строка своего плейлиста: мозаика, название, «42 трека», метка связи с YouTube (REWRITE §3.2.5).
 struct PlaylistRow: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var typeSize
     let playlist: LibraryPlaylist
 
     var body: some View {
         HStack(spacing: Design.Space.s) {
             PlaylistArtwork(playlist: playlist, size: Design.Layout.rowArtwork)
             VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: playlist.name).lineLimit(1)
+                Text(verbatim: playlist.name).lineLimit(typeSize.isAccessibilitySize ? nil : 1)
                 HStack(spacing: 6) {
                     Text("library.tracks \(playlist.trackCount)")
                     switch playlist.link {
@@ -295,7 +297,7 @@ struct PlaylistRow: View {
                 }
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-                .lineLimit(1)
+                .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
             }
             .rowSeparatorAtText()
             Spacer(minLength: 0)

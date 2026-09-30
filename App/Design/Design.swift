@@ -38,8 +38,13 @@ enum Design {
     }
 
     enum Size {
-        /// Минимальная зона нажатия (HIG «Buttons»).
+        /// Минимальная зона нажатия (HIG «Buttons»): 44 pt на iPhone и iPad, 60 pt на Vision Pro — там нажимают взглядом и
+        /// щипком, и меньшая цель промахивается.
+        #if os(visionOS)
+        static let minTap: CGFloat = 60
+        #else
         static let minTap: CGFloat = 44
+        #endif
         /// Круги нажатия кнопок транспорта «Сейчас играет» (значок — половина круга): обычный и компактный вид (текст
         /// песни, низкое окно).
         static let playButton: CGFloat = 80
@@ -141,13 +146,26 @@ struct ControlGlassGroup<Content: View>: View {
 extension View {
     /// Значок управления: одноцветный, акцентом (системным) — только когда включён; `muted` — выключенный приглушён.
     func controlSymbol(active: Bool = false, muted: Bool = false) -> some View {
-        symbolRenderingMode(.monochrome)
-            .foregroundStyle(active ? AnyShapeStyle(.tint) : muted ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
+        modifier(ControlSymbol(active: active, muted: muted))
     }
 
     /// Значки не растут вместе с крупным шрифтом дальше, чем помещаются в ряд: подписи и время растут без границ.
     func iconTypeSize() -> some View {
         dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+    }
+}
+
+private struct ControlSymbol: ViewModifier {
+    let active: Bool
+    let muted: Bool
+    @Environment(\.secondaryOnTint) private var secondaryTint
+
+    func body(content: Content) -> some View {
+        // Приглушённый значок — на оттенке обложки, а не на системном фоне: цвет с запасом контраста (`Design.secondaryOnTint`)
+        content
+            .symbolRenderingMode(.monochrome)
+            .foregroundStyle(active ? AnyShapeStyle(.tint)
+                : muted ? AnyShapeStyle(secondaryTint) : AnyShapeStyle(.primary))
     }
 }
 

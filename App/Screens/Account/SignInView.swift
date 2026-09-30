@@ -233,14 +233,16 @@ struct RecoveryCodeView: View {
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
+                    // VoiceOver читает код по знакам, а не словами
+                    .accessibilityLabel(Text(verbatim: LinkTiming.spokenCode(LinkCode.grouped(LinkCode.recoveryCode(code) ?? code))))
                     .accessibilityIdentifier("account.recoveryCode.value")
-                HStack {
+                AdaptiveStack {
                     Button {
                         copy()
                     } label: {
                         Label(copied ? "account.copied" : "account.copy", systemImage: copied ? "checkmark" : "doc.on.doc")
                     }
-                    Spacer()
+                    AdaptiveSpacer()
                     ShareLink(item: code) {
                         Label("account.share", systemImage: "square.and.arrow.up")
                     }

@@ -50,7 +50,7 @@ struct TrackRow: View {
                     Text(track.title)
                         .font(.body)
                         .foregroundStyle(isCurrent ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
-                        .lineLimit(stacked ? 3 : 1)
+                        .lineLimit(stacked ? nil : 1)
                     if track.explicit {
                         Image(systemName: "e.square.fill")
                             .font(.footnote)
@@ -64,7 +64,7 @@ struct TrackRow: View {
                     Text(line)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                        .lineLimit(stacked ? 2 : 1)
+                        .lineLimit(stacked ? nil : 1)
                 }
                 // Крупный шрифт: длительность и метки уходят третьей строкой — справа им не хватает места, и название
                 // обрезалось до пяти букв
@@ -91,6 +91,8 @@ struct TrackRow: View {
         .opacity(dimmed || track.unavailable ? 0.38 : 1)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+        // Играющий трек VoiceOver называет: столбики вместо обложки для него — картинка
+        .accessibilityValue(isCurrent ? Text("queue.nowPlaying") : Text(verbatim: ""))
     }
 
     private var stacked: Bool { typeSize.isAccessibilitySize }
@@ -132,57 +134,77 @@ struct TrackRow: View {
 }
 
 /// Строка видео в выдаче YouTube (REWRITE §3.11.2): превью 16:9 с длительностью или «В ЭФИРЕ», название до двух строк,
-/// «канал · просмотры». Строки из ответа YouTube только показываются, числа из них не разбираются.
+/// «канал · просмотры». Строки из ответа YouTube только показываются, числа из них не разбираются. На размерах
+/// доступности превью встаёт над текстом во всю ширину (рядом 114 pt превью оставляли названию пять букв), текст переносится
+/// целиком, а значки на превью не растут с шрифтом.
 struct VideoRow: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     let track: Track
     var isCurrent = false
     var dimmed = false
 
     var body: some View {
         let track = model.displayed(track)
-        HStack(alignment: .top, spacing: 12) {
-            ZStack(alignment: .bottomTrailing) {
-                ArtworkView(url: track.artworkURL, size: 114, shape: .wide)
-                if track.videoType == VideoType.live {
-                    Text("badge.live")
-                        .font(.caption2.weight(.bold))
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 2)
-                        .background(.red, in: RoundedRectangle(cornerRadius: 4))
-                        .foregroundStyle(.white)
-                        .padding(4)
-                } else if let duration = track.durationLabel {
-                    Text(duration)
-                        .font(.caption2.weight(.semibold))
-                        .monospacedDigit()
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 2)
-                        .background(.black.opacity(0.7), in: RoundedRectangle(cornerRadius: 4))
-                        .foregroundStyle(.white)
-                        .padding(4)
-                }
-            }
+        let stacked = typeSize.isAccessibilitySize
+        AdaptiveStack(spacing: Design.Space.s, alignment: .top) {
+            thumbnail(track, stacked: stacked)
             VStack(alignment: .leading, spacing: 2) {
                 Text(track.title)
                     .font(.body)
                     .foregroundStyle(isCurrent ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
-                    .lineLimit(2)
+                    .lineLimit(stacked ? nil : 2)
                 Text([track.artistsText, track.viewsText].compactMap { $0 }.joined(separator: " · "))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    .lineLimit(stacked ? nil : 1)
             }
-            Spacer(minLength: 0)
+            AdaptiveSpacer()
         }
         .opacity(dimmed ? 0.38 : 1)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+        .accessibilityValue(isCurrent ? Text("queue.nowPlaying") : Text(verbatim: ""))
+    }
+
+    @ViewBuilder
+    private func thumbnail(_ track: Track, stacked: Bool) -> some View {
+        ZStack(alignment: .bottomTrailing) {
+            if stacked {
+                Color.clear.aspectRatio(16.0 / 9.0, contentMode: .fit)
+                    .overlay { GeometryReader { ArtworkView(url: track.artworkURL, size: $0.size.width, shape: .wide) } }
+            } else {
+                ArtworkView(url: track.artworkURL, size: 114, shape: .wide)
+            }
+            if track.videoType == VideoType.live {
+                Text("badge.live")
+                    .font(.caption2.weight(.bold))
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
+                    .background(.red, in: RoundedRectangle(cornerRadius: 4))
+                    .foregroundStyle(.white)
+                    .padding(4)
+                    .iconTypeSize()
+            } else if let duration = track.durationLabel {
+                Text(duration)
+                    .font(.caption2.weight(.semibold))
+                    .monospacedDigit()
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
+                    // «Понижение прозрачности»: подложка длительности почти сплошная — текст на кадре не зависит от просвета
+                    .background(.black.opacity(reduceTransparency ? 0.9 : 0.7), in: RoundedRectangle(cornerRadius: 4))
+                    .foregroundStyle(.white)
+                    .padding(4)
+                    .iconTypeSize()
+            }
+        }
     }
 }
 
 /// Строка альбома, исполнителя или плейлиста.
 struct CollectionRow: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     let item: MusicItem
 
     var body: some View {
@@ -221,9 +243,9 @@ struct CollectionRow: View {
 
     private func labels(_ title: String, _ subtitle: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(title).font(.body).lineLimit(1)
+            Text(title).font(.body).lineLimit(typeSize.isAccessibilitySize ? nil : 1)
             if !subtitle.isEmpty {
-                Text(subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                Text(subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(typeSize.isAccessibilitySize ? nil : 1)
             }
         }
         .rowSeparatorAtText()

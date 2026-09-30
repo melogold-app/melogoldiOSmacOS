@@ -47,10 +47,10 @@ struct AccountOverviewView: View {
             }
 
             Section {
-                HStack {
+                AdaptiveStack {
                     SyncStatusLine(status: model.sync.status)
                         .foregroundStyle(.secondary)
-                    Spacer()
+                    AdaptiveSpacer()
                     if model.sync.status == .syncing {
                         ProgressView()
                             .controlSize(.small)
@@ -229,7 +229,7 @@ struct AccountOverviewView: View {
         HStack(spacing: 12) {
             Image(systemName: DeviceSymbol.name(for: device.platform))
                 .font(.title3)
-                .frame(width: 32)
+                .frame(minWidth: 32)
                 .foregroundStyle(.tint)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
@@ -264,6 +264,18 @@ struct AccountOverviewView: View {
             }
         }
         #endif
+        // VoiceOver: одна строка — «Pixel, был в сети вчера»; действия меню и смахивания — в роторе «Действия»
+        .accessibilityElement(children: .combine)
+        .accessibilityActions {
+            if device.isCurrent {
+                Button("account.rename") {
+                    newName = device.customName ?? device.name
+                    renaming = true
+                }
+            } else {
+                Button("account.revoke") { revoking = device }
+            }
+        }
     }
 
     private func load() async {
@@ -433,7 +445,7 @@ struct AddDeviceView: View {
                 Image(systemName: DeviceSymbol.name(for: device.platform))
                     .font(.title)
                     .foregroundStyle(.tint)
-                    .frame(width: 40)
+                    .frame(minWidth: 40)
                     .accessibilityLabel(Text(DeviceSymbol.kind(for: device.platform)))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(verbatim: device.name).font(.headline)

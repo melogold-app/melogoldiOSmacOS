@@ -65,7 +65,7 @@ struct TrackDetailsSheet: View {
         #if os(macOS)
         .frame(minWidth: 440, minHeight: 360)
         #else
-        .presentationDetents([.medium, .large])
+        .sheetDetents([.medium, .large])
         #endif
     }
 

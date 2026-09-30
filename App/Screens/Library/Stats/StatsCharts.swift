@@ -1,3 +1,4 @@
+import Accessibility
 import Charts
 import SwiftUI
 import MelogoldCore
@@ -27,9 +28,8 @@ struct StatsBarsChart: View {
         }
         .chartYAxis(.hidden)
         .frame(height: 150)
-        .accessibilityElement()
-        .accessibilityLabel(Text("stats.when"))
-        .accessibilityValue(Text(verbatim: summary(busiest)))
+        // VoiceOver: «Аудиограф» — столбцы по дням с подписями и временем, а не по номерам 0…30
+        .accessibilityChartDescriptor(StatsBarsDescriptor(stats: stats, calendar: calendar, locale: locale, summary: summary(busiest)))
         .accessibilityIdentifier("stats.chart")
     }
 
@@ -71,13 +71,54 @@ struct StatsHoursChart: View {
         }
         .chartYAxis(.hidden)
         .frame(height: 110)
-        .accessibilityElement()
-        .accessibilityLabel(Text("stats.timeOfDay"))
-        .accessibilityValue(Text(verbatim: summary(peak)))
+        .accessibilityChartDescriptor(StatsHoursDescriptor(stats: stats, summary: summary(peak)))
     }
 
     private func summary(_ peak: Int?) -> String {
         guard let peak, let part = stats.favoriteDayPart else { return "" }
         return String(localized: "stats.hoursBusiest \(StatsFormat.hourLabel(peak)) \(String(localized: part.title))")
+    }
+}
+
+/// Описание «Когда слушал» для VoiceOver (аудиограф): по оси X — дни, месяцы или годы периода, по оси Y — время слушания.
+private struct StatsBarsDescriptor: AXChartDescriptorRepresentable {
+    let stats: ListeningStats
+    let calendar: Calendar
+    let locale: Locale
+    let summary: String
+
+    func makeChartDescriptor() -> AXChartDescriptor {
+        let bars = stats.bars
+        let titles = bars.map { StatsFormat.barTitle(stats.window, $0, calendar: calendar, locale: locale) }
+        let x = AXCategoricalDataAxisDescriptor(title: String(localized: "stats.when"), categoryOrder: titles)
+        let y = StatsAxis.minutes(bars.map { Double($0.ms) / 60_000 }, locale: locale)
+        let points = zip(titles, bars).map { AXDataPoint(x: $0, y: Double($1.ms) / 60_000) }
+        return AXChartDescriptor(title: String(localized: "stats.when"), summary: summary, xAxis: x, yAxis: y, additionalAxes: [],
+                                 series: [AXDataSeriesDescriptor(name: String(localized: "stats.listeningTime"), isContinuous: false, dataPoints: points)])
+    }
+}
+
+/// Описание «Времени суток» для VoiceOver: 24 часа по оси X.
+private struct StatsHoursDescriptor: AXChartDescriptorRepresentable {
+    let stats: ListeningStats
+    let summary: String
+
+    func makeChartDescriptor() -> AXChartDescriptor {
+        let titles = stats.hours.indices.map(StatsFormat.hourLabel)
+        let x = AXCategoricalDataAxisDescriptor(title: String(localized: "stats.timeOfDay"), categoryOrder: titles)
+        let y = StatsAxis.minutes(stats.hours.map { Double($0) / 60_000 }, locale: .current)
+        let points = zip(titles, stats.hours).map { AXDataPoint(x: $0, y: Double($1) / 60_000) }
+        return AXChartDescriptor(title: String(localized: "stats.timeOfDay"), summary: summary, xAxis: x, yAxis: y, additionalAxes: [],
+                                 series: [AXDataSeriesDescriptor(name: String(localized: "stats.listeningTime"), isContinuous: false, dataPoints: points)])
+    }
+}
+
+private enum StatsAxis {
+    /// Ось времени в минутах: значения читаются как «1 ч 20 мин», как везде в «Итогах».
+    static func minutes(_ values: [Double], locale: Locale) -> AXNumericDataAxisDescriptor {
+        AXNumericDataAxisDescriptor(title: String(localized: "stats.listeningTime"), range: 0 ... max(1, values.max() ?? 1),
+                                    gridlinePositions: []) { value in
+            StatsFormat.listeningTime(ms: Int64(value * 60_000), locale: locale)
+        }
     }
 }

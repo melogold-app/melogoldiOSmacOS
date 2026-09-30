@@ -25,7 +25,7 @@ struct TrendsView: View {
             }
             .overlay { stateOverlay(store) }
             .onChange(of: model.scrollToTopRequest(for: .trends)) {
-                withAnimation { proxy.scrollTo(ScrollTop.id, anchor: .top) }
+                withMotion { proxy.scrollTo(ScrollTop.id, anchor: .top) }
             }
         }
         .modifier(CardMetricsReader())

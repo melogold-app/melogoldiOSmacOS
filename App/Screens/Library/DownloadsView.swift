@@ -20,6 +20,7 @@ enum DownloadsSort: String, CaseIterable {
 /// пока их не сменят новые треки. Без сети экран работает полностью.
 struct DownloadsView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var entries: [DownloadEntry] = []
     @State private var collections: [DownloadCollection] = []
     @State private var cached: [Track] = []
@@ -51,16 +52,17 @@ struct DownloadsView: View {
                 Section {
                     ForEach(active) { entry in activeRow(entry, manager) }
                 } header: {
-                    HStack {
+                    AdaptiveStack(alignment: .firstTextBaseline) {
                         Text("downloads.active \(active.count)")
-                        Spacer()
+                        AdaptiveSpacer()
                         let paused = active.allSatisfy { $0.state == .paused }
                         if active.contains(where: { $0.wait == .botCheck }) {
                             // YouTube не пускает адрес: очередь стоит, «Повторить» проверяет его одним запросом
-                            Button("common.retry") { manager?.resumeAfterBotCheck() }.font(.subheadline)
+                            Button("common.retry") { manager?.resumeAfterBotCheck() }.font(.subheadline).tapTarget()
                         } else {
                             Button(paused ? "downloads.resume" : "downloads.pause") { manager?.setPaused(!paused) }
                                 .font(.subheadline)
+                                .tapTarget()
                         }
                     }
                 }
@@ -69,10 +71,10 @@ struct DownloadsView: View {
                 Section {
                     ForEach(failed) { entry in failedRow(entry, manager) }
                 } header: {
-                    HStack {
+                    AdaptiveStack(alignment: .firstTextBaseline) {
                         Text("downloads.failed \(failed.count)")
-                        Spacer()
-                        Button("downloads.retryAll") { manager?.retryFailed() }.font(.subheadline)
+                        AdaptiveSpacer()
+                        Button("downloads.retryAll") { manager?.retryFailed() }.font(.subheadline).tapTarget()
                     }
                 }
             }
@@ -133,8 +135,8 @@ struct DownloadsView: View {
                 .progressViewStyle(.circular)
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: entry.track?.title ?? entry.videoId).lineLimit(1)
-                Text(status(entry)).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+                Text(verbatim: entry.track?.title ?? entry.videoId).lineLimit(typeSize.isAccessibilitySize ? nil : 1)
+                Text(status(entry)).font(.subheadline).foregroundStyle(.secondary).lineLimit(typeSize.isAccessibilitySize ? nil : 2)
             }
             Spacer()
             Button { manager?.remove(entry.videoId) } label: {
@@ -152,8 +154,8 @@ struct DownloadsView: View {
         HStack(spacing: 12) {
             Image(systemName: "exclamationmark.circle.fill").foregroundStyle(.orange)
             VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: entry.track?.title ?? entry.videoId).lineLimit(1)
-                Text(failureText(entry.failure)).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                Text(verbatim: entry.track?.title ?? entry.videoId).lineLimit(typeSize.isAccessibilitySize ? nil : 1)
+                Text(failureText(entry.failure)).font(.subheadline).foregroundStyle(.secondary).lineLimit(typeSize.isAccessibilitySize ? nil : 1)
             }
             Spacer()
             Menu {
@@ -163,9 +165,10 @@ struct DownloadsView: View {
                     Button { model.searchOtherVersions(of: track) } label: { Label("menu.otherVersions", systemImage: "square.on.square") }
                 }
             } label: {
-                Image(systemName: "ellipsis").frame(width: 32, height: 44)
+                Image(systemName: "ellipsis").frame(width: Design.Size.minTap, height: Design.Size.minTap)
             }
             .buttonStyle(.borderless)
+            .accessibilityLabel(Text("menu.more"))
         }
     }
 

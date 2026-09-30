@@ -48,7 +48,7 @@ struct NowPlayingView: View {
         // iPhone и iPad: очередь — лист из «Сейчас играет»
         .sheet(isPresented: $model.queueVisible) {
             NavigationStack { QueueView(inSheet: true) }
-                .presentationDetents([.medium, .large])
+                .sheetDetents([.medium, .large])
         }
         #elseif os(visionOS)
         .sheet(isPresented: $model.queueVisible) {
@@ -177,7 +177,7 @@ struct NowPlayingView: View {
             if model.lyricsVisible {
                 CoverAboveControls(spacing: Design.Space.l) {
                     coverSlot(track)
-                    controls(track, compact: true, wide: false)
+                    scrollingAtLargeType { controls(track, compact: true, wide: false) }
                 }
                 .padding(.horizontal, margin)
                 .frame(width: half)
@@ -189,7 +189,7 @@ struct NowPlayingView: View {
                 artworkArea(track)
                     .padding(.horizontal, margin)
                     .frame(width: half)
-                controls(track, compact: short, wide: !short && size.width >= 900)
+                scrollingAtLargeType { controls(track, compact: short, wide: !short && size.width >= 900) }
                     .frame(maxWidth: 460)
                     .padding(.horizontal, margin)
                     .frame(width: half)
@@ -206,6 +206,19 @@ struct NowPlayingView: View {
         }
         .padding(.top, Metrics.topInset)
         .padding(.bottom, Design.Space.l)
+    }
+
+    /// Крупный Dynamic Type: название, полоса и кнопки не помещаются в низкую половину окна (iPhone боком) — управление
+    /// прокручивается. На обычном размере содержимое остаётся как есть.
+    @ViewBuilder
+    private func scrollingAtLargeType<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        if typeSize.isAccessibilitySize {
+            ScrollView { content().padding(.vertical, Design.Space.s) }
+                .scrollIndicators(.hidden)
+                .scrollBounceBehavior(.basedOnSize)
+        } else {
+            content()
+        }
     }
 
     /// Место под обложку, которое размеряет `CoverAboveControls`: квадрат по предложенному размеру; у кадра видео 16:9
@@ -251,7 +264,7 @@ struct NowPlayingView: View {
         let player = model.services.player
         let resting = !player.isPlaying && player.phase != .loading
         return Button {
-            withAnimation(.snappy) { model.lyricsVisible = true }
+            withMotion(.snappy) { model.lyricsVisible = true }
         } label: {
             NowPlayingArtwork(url: track.artworkURL, side: max(96, side))
                 .shadow(color: .black.opacity(resting ? 0.12 : 0.24), radius: resting ? 8 : 22, y: resting ? 4 : 12)
@@ -266,7 +279,7 @@ struct NowPlayingView: View {
     private func lyricsHeader(_ track: Track) -> some View {
         HStack(spacing: Design.Space.s) {
             Button {
-                withAnimation(.snappy) { model.lyricsVisible = false }
+                withMotion(.snappy) { model.lyricsVisible = false }
             } label: {
                 ArtworkView(url: track.artworkURL, size: 52, cornerRadius: Design.Radius.small)
                     .shadow(color: .black.opacity(0.15), radius: 6, y: 3)
@@ -275,7 +288,7 @@ struct NowPlayingView: View {
             .accessibilityLabel(Text("lyrics.artwork"))
             VStack(alignment: .leading, spacing: 2) {
                 Text(track.title).font(.headline).lineLimit(2)
-                PlayerStatusLine(font: .subheadline)
+                PlayerStatusLine(font: .subheadline, onTint: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             TrackActionCircles()
@@ -321,12 +334,13 @@ private struct CoverAboveControls: Layout {
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) {
         guard subviews.count == 2 else { return }
         let column = min(bounds.width, maxCover)
-        let natural = subviews[1].sizeThatFits(ProposedViewSize(width: column, height: nil)).height
+        // Управление не выше самого окна: прокручиваемое (крупный шрифт) отдаёт всю высоту содержимого и без этого вылезло бы за край
+        let natural = min(subviews[1].sizeThatFits(ProposedViewSize(width: column, height: nil)).height, bounds.height)
         let side = min(column, bounds.height - natural - spacing, maxCover)
         let showsCover = side >= minCover
         let controlsWidth = showsCover ? min(column, max(side, minControls)) : column
-        let controls = ProposedViewSize(width: controlsWidth, height: nil)
-        let controlsHeight = subviews[1].sizeThatFits(controls).height
+        let controlsHeight = min(subviews[1].sizeThatFits(ProposedViewSize(width: controlsWidth, height: nil)).height, bounds.height)
+        let controls = ProposedViewSize(width: controlsWidth, height: controlsHeight)
         let group = (showsCover ? side + spacing : 0) + controlsHeight
         var y = bounds.minY + max(0, (bounds.height - group) / 2)
         if showsCover {
@@ -424,7 +438,7 @@ struct NowPlayingArtwork: View {
 
     var body: some View {
         ArtworkView(url: url, size: side, shape: wide ? .wide : .rounded, cornerRadius: Design.Radius.cover)
-            .animation(.snappy, value: wide)
+            .motion(.snappy, value: wide)
             .task(id: url) {
                 wide = false
                 guard Thumbnails.isWide(url) else { return }

@@ -40,7 +40,7 @@ struct LyricsPanel: View {
             if lyrics.isCommunity {
                 Text("lyrics.community")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .secondaryOnTint()
                     .padding(.vertical, 6)
             }
         }
@@ -189,8 +189,10 @@ struct SyncedLyricsView: View {
         let active = LyricRows.activeIndex(rows, at: position)
         let following = manualUntil.map { $0 < Date() } ?? true
         GeometryReader { proxy in
-            // Крупный Dynamic Type растит текст до 1,7 раза: дальше слова длиннее ширины экрана и ломаются посередине
-            let fontSize = LyricsStyle.fontSize(in: proxy.size) * min(typeScale, 1.7)
+            // Крупный Dynamic Type растит текст до 1,7 раза, но не шире, чем позволяет область: ширина ÷ 300 (iPhone в портрете —
+            // 1,34; колонка текста боком — 1,05…1,25; от 510 pt — 1,7). Иначе длинное слово («клетчатый») не влезает в строку
+            // и ломается посередине.
+            let fontSize = LyricsStyle.fontSize(in: proxy.size) * min(typeScale, min(1.7, max(1, proxy.size.width / 300)))
             let scale = fontSize / LyricsStyle.baseSize
             let height = proxy.size.height
             // Точка, где встаёт середина текущей строки, от верха области: по обложке, но не ближе пятой части высоты к краю
@@ -249,7 +251,7 @@ struct SyncedLyricsView: View {
                     if !following, active >= 0 {
                         Button {
                             manualUntil = nil
-                            withAnimation { reader.scrollTo(active, anchor: anchorPoint(active, height: height, mid: mid)) }
+                            withMotion { reader.scrollTo(active, anchor: anchorPoint(active, height: height, mid: mid)) }
                         } label: {
                             Label("lyrics.backToCurrent", systemImage: "arrow.down")
                                 .font(.subheadline.weight(.semibold))
@@ -259,7 +261,7 @@ struct SyncedLyricsView: View {
                         .buttonStyle(.plain)
                         .controlGlass(Capsule(), interactive: true)
                         .padding(.bottom, Design.Space.s)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .slideUpTransition()
                     }
                 }
                 // Через 3 с после ручной прокрутки кнопка уходит, слежение возвращается.
@@ -317,6 +319,7 @@ private struct ActiveLinePill: View {
     let target: CGRect?
     let radius: CGFloat
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorSchemeContrast) private var contrast
     @State private var frame = CGRect.zero
     @State private var shown = false
 
@@ -325,7 +328,7 @@ private struct ActiveLinePill: View {
             #if os(visionOS)
             .fill(.regularMaterial)
             #else
-            .fill(Color.primary.opacity(0.08))
+            .fill(Color.primary.opacity(contrast == .increased ? 0.16 : 0.08))
             #endif
             .frame(width: frame.width, height: frame.height)
             .offset(x: frame.minX, y: frame.minY)
@@ -357,6 +360,7 @@ private struct ActiveLinePill: View {
 /// Строка текста: спетая — по словам, если есть время слов; проигрыш — три точки, пока он идёт.
 private struct LyricRowView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.colorSchemeContrast) private var contrast
     let row: LyricRow
     let index: Int
     let active: Int
@@ -426,7 +430,7 @@ private struct LyricRowView: View {
                     if let translation = line.translation {
                         Text(verbatim: translation)
                             .font(.system(size: fontSize * 0.57))
-                            .foregroundStyle(.secondary)
+                            .secondaryOnTint()
                     }
                 }
                 .multilineTextAlignment(line.side == .end ? .trailing : .leading)
@@ -443,14 +447,17 @@ private struct LyricRowView: View {
         }
         .buttonStyle(.plain)
         .animation(.easeOut(duration: 0.25), value: isActive)
+        // VoiceOver: строка целиком, подпевка и перевод — значением; текущая строка отмечена; двойное касание перематывает
         .accessibilityLabel(Text(verbatim: line.text))
+        .accessibilityValue(Text(verbatim: [line.background?.text, line.translation].compactMap { $0 }.joined(separator: ". ")))
         .accessibilityHint(Text("lyrics.tapToSeek"))
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 
-    /// Прошедшие строки приглушены сильнее будущих (docs/PROMPT.md §5.7).
+    /// Прошедшие строки приглушены сильнее будущих (docs/PROMPT.md §5.7), но обе читаются (`Design.lyricsDim`).
     private func color(isActive: Bool, isPast: Bool) -> AnyShapeStyle {
         if isActive { return AnyShapeStyle(.primary) }
-        return isPast ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.secondary)
+        return AnyShapeStyle(Design.lyricsDim(past: isPast, increasedContrast: contrast == .increased))
     }
 
     /// Слова загораются по времени; текущее — по мере звучания.
@@ -469,7 +476,9 @@ private struct LyricRowView: View {
             }
             var run = AttributedString(word.text)
             run.font = font
-            run.foregroundColor = Color.primary.opacity(0.35 + 0.65 * fill)
+            // Ещё не спетое слово — не тусклее следующей строки (`Design.lyricsDim`), спетое — полностью яркое
+            let floor = contrast == .increased ? 0.6 : 0.45
+            run.foregroundColor = Color.primary.opacity(floor + (1 - floor) * fill)
             line.append(run)
         }
         return Text(line)
@@ -507,6 +516,7 @@ private struct ShrinkWrap: Layout {
 private struct InterludeDots: View {
     let progress: Double
     var scale: CGFloat = 1
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 10 * scale) {
@@ -517,9 +527,10 @@ private struct InterludeDots: View {
                 Circle()
                     .fill(.primary)
                     .frame(width: 12 * scale, height: 12 * scale)
-                    .scaleEffect(popping ? 1.6 : (visible ? 1 : 0.2))
+                    // «Уменьшение движения»: точки не подпрыгивают и не лопаются, а проявляются и гаснут
+                    .scaleEffect(reduceMotion ? 1 : (popping ? 1.6 : (visible ? 1 : 0.2)))
                     .opacity(popping ? 0 : (visible ? 0.9 : 0))
-                    .animation(.spring(response: 0.35, dampingFraction: 0.55), value: visible)
+                    .animation(reduceMotion ? .easeOut(duration: 0.2) : .spring(response: 0.35, dampingFraction: 0.55), value: visible)
                     .animation(.easeIn(duration: 0.2), value: popping)
             }
         }

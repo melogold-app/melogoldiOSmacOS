@@ -8,7 +8,10 @@ import MelogoldData
 struct WrappedView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var typeSize
+    /// Крупные числа и названия карточек растут с Dynamic Type (база — прежние 88 и 52 pt).
+    @ScaledMetric(relativeTo: .largeTitle) private var hugeSize: CGFloat = 88
+    @ScaledMetric(relativeTo: .largeTitle) private var bigSize: CGFloat = 52
     let year: Int
 
     @State private var stats: ListeningStats?
@@ -31,11 +34,10 @@ struct WrappedView: View {
                 header(count: cards.count)
                 if let stats, !cards.isEmpty {
                     let card = cards[min(page, cards.count - 1)]
-                    cardView(card, stats)
+                    cardPage(card, stats, count: cards.count)
                         .id(card)
                         .transition(.opacity)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .overlay { tapZones(count: cards.count) }
                         .accessibilityElement(children: .contain)
                         .accessibilityLabel(Text("stats.wrapped.page \(min(page, cards.count - 1) + 1) \(cards.count)"))
                 } else if loaded {
@@ -96,6 +98,22 @@ struct WrappedView: View {
         .padding(.top, 12)
     }
 
+    /// Карточка. Крупный шрифт: она листается вниз, листать карточки — кнопками внизу и стрелками (касательные зоны
+    /// перехватили бы прокрутку); иначе — касание (левая треть — назад).
+    @ViewBuilder
+    private func cardPage(_ card: WrappedCard, _ stats: ListeningStats, count: Int) -> some View {
+        if typeSize.isAccessibilitySize {
+            GeometryReader { proxy in
+                ScrollView {
+                    cardView(card, stats).frame(minHeight: proxy.size.height)
+                }
+                .scrollBounceBehavior(.basedOnSize)
+            }
+        } else {
+            cardView(card, stats).overlay { tapZones(count: count) }
+        }
+    }
+
     private func footer(count: Int) -> some View {
         HStack {
             Button { step(-1, count: count) } label: {
@@ -106,7 +124,12 @@ struct WrappedView: View {
             if let shareImage {
                 ShareLink(item: shareImage, subject: Text("stats.share.text \(String(year))"), message: Text("stats.share.text \(String(year))"),
                           preview: SharePreview(String(localized: "stats.share.text \(String(year))"))) {
-                    Label("stats.share", systemImage: "square.and.arrow.up")
+                    // Крупный шрифт: значок без слова — подпись в большой капсуле не помещалась между стрелками («Поде-лить-ся»)
+                    if typeSize.isAccessibilitySize {
+                        Label("stats.share", systemImage: "square.and.arrow.up").labelStyle(.iconOnly)
+                    } else {
+                        Label("stats.share", systemImage: "square.and.arrow.up")
+                    }
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.white)
@@ -139,7 +162,7 @@ struct WrappedView: View {
     private func step(_ delta: Int, count: Int) {
         let target = page + delta
         guard (0 ..< count).contains(target) else { return }
-        if reduceMotion { page = target } else { withAnimation(.easeInOut(duration: 0.25)) { page = target } }
+        withMotion(.easeInOut(duration: 0.25)) { page = target }
     }
 
     // MARK: - Карточки
@@ -171,8 +194,8 @@ struct WrappedView: View {
     private func minutes(_ stats: ListeningStats) -> some View {
         VStack(spacing: 8) {
             Text(verbatim: stats.totalMinutes.formatted(.number.locale(locale)))
-                .font(.system(size: 88, weight: .heavy, design: .rounded))
-                .minimumScaleFactor(0.5)
+                .font(.system(size: hugeSize, weight: .heavy, design: .rounded))
+                .minimumScaleFactor(0.4)
                 .lineLimit(1)
                 .accessibilityIdentifier("wrapped.minutes")
             Text(verbatim: Self.plural("stats.wrapped.minutes", stats.totalMinutes))
@@ -189,8 +212,8 @@ struct WrappedView: View {
             Text("stats.wrapped.track").font(.headline).opacity(0.85)
             ArtworkView(url: top.track.thumbnailUrl, size: 240)
                 .shadow(color: .black.opacity(0.35), radius: 18, y: 8)
-            Text(verbatim: top.title).font(.title.weight(.bold)).lineLimit(3).minimumScaleFactor(0.7)
-            if let artist = top.artist { Text(verbatim: artist).font(.title3).opacity(0.85).lineLimit(1) }
+            Text(verbatim: top.title).font(.title.weight(.bold)).lineLimit(typeSize.isAccessibilitySize ? nil : 3).minimumScaleFactor(0.7)
+            if let artist = top.artist { Text(verbatim: artist).font(.title3).opacity(0.85).lineLimit(typeSize.isAccessibilitySize ? nil : 1) }
             Text(verbatim: "\(String(localized: "stats.playsCount \(top.plays)")) · \(StatsFormat.listeningTime(ms: top.ms, locale: locale))")
                 .font(.subheadline)
                 .opacity(0.75)
@@ -211,20 +234,29 @@ struct WrappedView: View {
             Text(title).font(.title2.weight(.bold))
             VStack(spacing: 12) {
                 ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                    let stacked = typeSize.isAccessibilitySize
                     HStack(spacing: 12) {
-                        Text(verbatim: "\(index + 1)").font(.title3.weight(.bold)).monospacedDigit().frame(width: 26)
+                        Text(verbatim: "\(index + 1)").font(.title3.weight(.bold)).monospacedDigit().frame(minWidth: 26)
                         ArtworkView(url: row.url, size: 48, shape: row.round ? .circle : .rounded)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(verbatim: row.title).font(.body.weight(.semibold)).lineLimit(1)
-                            if let subtitle = row.subtitle { Text(verbatim: subtitle).font(.subheadline).opacity(0.8).lineLimit(1) }
+                            Text(verbatim: row.title).font(.body.weight(.semibold)).lineLimit(stacked ? nil : 1)
+                            if let subtitle = row.subtitle { Text(verbatim: subtitle).font(.subheadline).opacity(0.8).lineLimit(stacked ? nil : 1) }
+                            // Крупный шрифт: время под названием, справа ему не хватает места
+                            if stacked { rowTime(row) }
                         }
-                        Spacer(minLength: 4)
-                        Text(verbatim: StatsFormat.listeningTime(ms: row.ms, locale: locale)).font(.subheadline).monospacedDigit().opacity(0.8)
+                        if !stacked {
+                            Spacer(minLength: 4)
+                            rowTime(row)
+                        }
                     }
                     .accessibilityElement(children: .combine)
                 }
             }
         }
+    }
+
+    private func rowTime(_ row: Row) -> some View {
+        Text(verbatim: StatsFormat.listeningTime(ms: row.ms, locale: locale)).font(.subheadline).monospacedDigit().opacity(0.8)
     }
 
     private func favorite(_ stats: ListeningStats) -> some View {
@@ -233,8 +265,8 @@ struct WrappedView: View {
                 VStack(spacing: 4) {
                     Text("stats.wrapped.month").font(.headline).opacity(0.85)
                     Text(verbatim: StatsFormat.capitalizedMonth(month, calendar: calendar, locale: locale))
-                        .font(.system(size: 52, weight: .heavy, design: .rounded))
-                        .minimumScaleFactor(0.6)
+                        .font(.system(size: bigSize, weight: .heavy, design: .rounded))
+                        .minimumScaleFactor(0.5)
                         .lineLimit(1)
                 }
             }
@@ -242,7 +274,8 @@ struct WrappedView: View {
                 VStack(spacing: 4) {
                     Text("stats.wrapped.time").font(.headline).opacity(0.85)
                     Text(part.title)
-                        .font(.system(size: 52, weight: .heavy, design: .rounded))
+                        .font(.system(size: bigSize, weight: .heavy, design: .rounded))
+                        .minimumScaleFactor(0.5)
                     if let hour = stats.peakHour {
                         Text("stats.wrapped.peak \(StatsFormat.hourLabel(hour))").font(.subheadline).opacity(0.75)
                     }
@@ -256,16 +289,16 @@ struct WrappedView: View {
         return VStack(spacing: 14) {
             Text("stats.wrapped.discoveries").font(.headline).opacity(0.85)
             Text(verbatim: (discoveries?.count ?? 0).formatted(.number.locale(locale)))
-                .font(.system(size: 88, weight: .heavy, design: .rounded))
-                .minimumScaleFactor(0.5)
+                .font(.system(size: hugeSize, weight: .heavy, design: .rounded))
+                .minimumScaleFactor(0.4)
             Text(verbatim: Self.plural("stats.wrapped.newTracks", discoveries?.count ?? 0)).font(.title3.weight(.medium))
             VStack(spacing: 10) {
                 ForEach(Array((discoveries?.top ?? []).prefix(3).enumerated()), id: \.element.id) { _, top in
                     HStack(spacing: 12) {
                         ArtworkView(url: top.track.thumbnailUrl, size: 44)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(verbatim: top.title).font(.body.weight(.semibold)).lineLimit(1)
-                            if let artist = top.artist { Text(verbatim: artist).font(.subheadline).opacity(0.8).lineLimit(1) }
+                            Text(verbatim: top.title).font(.body.weight(.semibold)).lineLimit(typeSize.isAccessibilitySize ? nil : 1)
+                            if let artist = top.artist { Text(verbatim: artist).font(.subheadline).opacity(0.8).lineLimit(typeSize.isAccessibilitySize ? nil : 1) }
                         }
                         Spacer(minLength: 0)
                     }

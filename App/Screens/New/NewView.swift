@@ -6,6 +6,7 @@ import MelogoldInnerTube
 /// по истории, лайкам и похожим.
 struct NewView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let store = model.services.explore
@@ -34,7 +35,7 @@ struct NewView: View {
                 .id(ScrollTop.id)
             }
             .onChange(of: model.scrollToTopRequest(for: .new)) {
-                withAnimation { proxy.scrollTo(ScrollTop.id, anchor: .top) }
+                withMotion { proxy.scrollTo(ScrollTop.id, anchor: .top) }
             }
         }
         .modifier(CardMetricsReader())
@@ -59,20 +60,20 @@ struct NewView: View {
         let store = model.services.forYou
         if let picks = store.picks, !picks.tracks.isEmpty {
             VStack(alignment: .leading, spacing: Design.Layout.headerGap) {
-                HStack(alignment: .firstTextBaseline) {
+                AdaptiveStack(spacing: Design.Space.xs, alignment: .firstTextBaseline) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("new.forYou").font(.title2.bold()).accessibilityAddTraits(.isHeader)
                         Text("new.forYou.basedOn \(picks.seeds.map(\.title).joined(separator: ", "))")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                            .lineLimit(2)
+                            .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
                         if store.fromCache {
                             Text("new.forYou.updated \(picks.loadedAt.formatted(.relative(presentation: .named)))")
                                 .font(.caption)
                                 .foregroundStyle(.tertiary)
                         }
                     }
-                    Spacer(minLength: 8)
+                    AdaptiveSpacer(minLength: 8)
                     Button { model.playAll(picks.tracks, shuffled: false) } label: {
                         Label("new.forYou.playAll", systemImage: "play.fill")
                     }

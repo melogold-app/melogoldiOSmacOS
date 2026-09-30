@@ -11,7 +11,8 @@ import MelogoldLyrics
 ///     -MelogoldSearchScope music|youtube                 область выдачи
 ///     -MelogoldOpenLink "https://youtu.be/…"             ссылка или текст — как вставка в Поиске
 ///     -MelogoldOpen album:<id>|artist:<id>|playlist:<id>|moods|releases|diagnostics|licenses|streamInfo|…
-///                                                       экран в текущем разделе
+///                                                       экран в текущем разделе; аккаунт без входа: server|signIn|register|
+///                                                       recover|signInByCode|enterCode|recoveryCode (образец кода)
 ///     -MelogoldShowNowPlaying YES                      открыть «Сейчас играет», как только появится трек
 ///     -MelogoldShowLyrics YES, -MelogoldLyricsEditor YES   вместе с ним — текст и редактор текста
 ///     -MelogoldShowQueue YES, -MelogoldSleep <мин>       очередь и таймер сна
@@ -293,6 +294,13 @@ enum DebugLaunch {
             case ("diagnostics", _): .diagnostics
             case ("licenses", _): .licenses
             case ("streamInfo", _): .streamInfo
+            case ("server", _): .server(prefill: nil, serverId: nil)
+            case ("signIn", _): .account(.signIn(login: nil))
+            case ("register", _): .account(.register)
+            case ("recover", _): .account(.recover(login: nil))
+            case ("signInByCode", _): .account(.signInByCode(enterCode: false))
+            case ("enterCode", _): .account(.signInByCode(enterCode: true))
+            case ("recoveryCode", _): .account(.recoveryCode(code: "K7QX-M2PD-9WVR-4HTC-B6NE-J3YA", createdAt: "2026-09-30T10:00:00Z"))
             default: nil
             }
             if let route { model.open(route) }

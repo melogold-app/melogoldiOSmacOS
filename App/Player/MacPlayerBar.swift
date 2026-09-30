@@ -106,7 +106,7 @@ struct MacPlayerBar: View {
     private func right(volume: Bool) -> some View {
         HStack(spacing: 2) {
             BarIconButton(symbol: "quote.bubble", activeSymbol: "quote.bubble.fill", active: model.lyricsShown, label: "player.lyrics") {
-                withAnimation(.snappy) { model.toggleLyrics() }
+                withMotion(.snappy) { model.toggleLyrics() }
             }
             BarIconButton(symbol: "list.bullet", active: model.queueVisible, label: "player.queue") {
                 model.toggleQueue()
@@ -188,7 +188,7 @@ private struct BarIconButton: View {
                 }
                 .hoverHighlight(RoundedRectangle(cornerRadius: Design.Radius.small, style: .continuous))
                 .contentShape(Rectangle())
-                .contentTransition(.symbolEffect(.replace))
+                .symbolReplace()
         }
         .buttonStyle(.plain)
         .help(Text(label))

@@ -4,10 +4,14 @@ import MelogoldCore
 /// Размеры карточек полок: на iPhone мельче, на iPad, Mac и Vision крупнее.
 struct CardMetrics {
     let compact: Bool
+    /// Размеры доступности (AX1–AX5): карточки шире, иначе подпись делится на слоги посреди слова («Monar-ch»). Следующая
+    /// карточка всё так же выглядывает из-за края.
+    var accessibility = false
 
-    var square: CGFloat { compact ? 150 : 176 }
-    var wide: CGFloat { compact ? 240 : 280 }
-    var avatar: CGFloat { compact ? 110 : 132 }
+    private var factor: CGFloat { accessibility ? 1.45 : 1 }
+    var square: CGFloat { (compact ? 150 : 176) * factor }
+    var wide: CGFloat { (compact ? 240 : 280) * factor }
+    var avatar: CGFloat { (compact ? 110 : 132) * factor }
     /// Поля страницы: как у больших заголовков и строк списка — 16 pt на iPhone, 20 pt на широком экране.
     var margin: CGFloat { Design.Layout.rowMargin(regular: !compact) }
     /// Между карточками в карусели и сетке.
@@ -27,15 +31,16 @@ extension EnvironmentValues {
 
 /// Задаёт `cardMetrics` по классу ширины (на Mac — всегда крупные).
 struct CardMetricsReader: ViewModifier {
+    @Environment(\.dynamicTypeSize) private var typeSize
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var sizeClass
     #endif
 
     func body(content: Content) -> some View {
         #if os(iOS)
-        content.environment(\.cardMetrics, CardMetrics(compact: sizeClass != .regular))
+        content.environment(\.cardMetrics, CardMetrics(compact: sizeClass != .regular, accessibility: typeSize.isAccessibilitySize))
         #else
-        content.environment(\.cardMetrics, CardMetrics(compact: false))
+        content.environment(\.cardMetrics, CardMetrics(compact: false, accessibility: typeSize.isAccessibilitySize))
         #endif
     }
 }
@@ -56,7 +61,7 @@ struct ShelfHeader: View {
         layout {
             title
                 .font(.title2.bold())
-                .lineLimit(2)
+                .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
                 .accessibilityAddTraits(.isHeader)
             if typeSize.isAccessibilitySize == false { Spacer(minLength: 0) }
             if let more {
@@ -68,11 +73,13 @@ struct ShelfHeader: View {
                         Image(systemName: "chevron.forward").imageScale(.small).fontWeight(.semibold).accessibilityHidden(true)
                     }
                     .font(.subheadline)
-                    .contentShape(Rectangle().inset(by: -12))
+                    // Рамка доступности и зона нажатия — 44 pt (HIG «Buttons»); лишняя высота втянута в отступы заголовка
+                    .tapTarget()
                 }
                 .buttonStyle(.borderless)
             }
         }
+        .padding(.vertical, more != nil && !typeSize.isAccessibilitySize ? -Design.Space.xs : 0)
     }
 }
 
@@ -177,12 +184,12 @@ struct ItemCard: View {
             .padding(.bottom, Design.Space.xxs)
             Text(title)
                 .font(.subheadline)
-                .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
+                .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
             if !subtitle.isEmpty {
                 Text(subtitle)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-                    .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
+                    .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
             }
         }
         .frame(width: fill ? nil : width, alignment: .leading)
@@ -193,15 +200,18 @@ struct ItemCard: View {
 /// оттенка поверх системной заливки — плитка читается в светлой и тёмной теме, а без цвета в ответе остаётся нейтральной.
 /// (Прежняя полоска цвета у прозрачных цветов рисовалась бледной линией — выглядела как ошибка.)
 struct MoodTileLabel: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @ScaledMetric(relativeTo: .subheadline) private var minHeight: CGFloat = 52
     let mood: MoodItem
 
     var body: some View {
         Text(mood.title)
             .font(.subheadline.weight(.semibold))
-            .lineLimit(2)
+            .lineLimit(typeSize.isAccessibilitySize ? nil : 2)
             .multilineTextAlignment(.leading)
-            .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .leading)
             .padding(.horizontal, Design.Space.s)
+            .padding(.vertical, typeSize.isAccessibilitySize ? Design.Space.s : 0)
             .background {
                 let shape = RoundedRectangle(cornerRadius: Design.Radius.medium, style: .continuous)
                 ZStack {
@@ -300,11 +310,11 @@ struct TrackGrid: View {
                         Text(track.title)
                             .font(.body)
                             .foregroundStyle(isCurrent ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
-                            .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
+                            .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
                         Text(track.artistsText ?? "")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                            .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
+                            .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
                     }
                     Spacer(minLength: 0)
                 }

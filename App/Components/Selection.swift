@@ -103,6 +103,7 @@ struct SelectionMenuItems: View {
 /// выбора; Mac — от двух выделенных строк.
 struct SelectionBar: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var typeSize
     let tracks: [Track]
     var removal: SelectionRemoval?
     var collectionName: String?
@@ -112,35 +113,16 @@ struct SelectionBar: View {
 
     var body: some View {
         let empty = tracks.isEmpty
-        HStack(spacing: 4) {
+        // Крупный шрифт: «Выбрано: N» над рядом кнопок, а не рядом с ними — четыре значка справа вытесняли подпись
+        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 4)) : AnyLayout(HStackLayout(spacing: 4))
+        layout {
             Text("selection.count \(tracks.count)")
                 .font(.subheadline.weight(.medium))
                 .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-            Spacer(minLength: 8)
-            Button { model.playSelection(tracks); done() } label: {
-                Label("selection.play", systemImage: "play.fill")
-            }
-            .disabled(empty)
-            Button { model.likeSelection(tracks); done() } label: {
-                Label("selection.favorite", systemImage: "heart")
-            }
-            .disabled(empty)
-            if model.services.downloads != nil {
-                Button { model.downloadSelection(tracks); done() } label: {
-                    Label("selection.download", systemImage: "arrow.down.circle")
-                }
-                .disabled(empty)
-            }
-            Menu {
-                SelectionMenuItems(tracks: tracks, removal: removal, collectionName: collectionName,
-                                   selectAll: selectAll, clear: clear, done: done)
-            } label: {
-                Label("menu.more", systemImage: "ellipsis")
-                    .frame(minWidth: 32, minHeight: 32)
-            }
-            .disabled(empty)
+                .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
+                .minimumScaleFactor(typeSize.isAccessibilitySize ? 1 : 0.8)
+            if !typeSize.isAccessibilitySize { Spacer(minLength: 8) }
+            actions(empty: empty)
         }
         .labelStyle(.iconOnly)
         .buttonStyle(.borderless)
@@ -149,6 +131,37 @@ struct SelectionBar: View {
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .contain)
+    }
+
+    @ViewBuilder
+    private func actions(empty: Bool) -> some View {
+        HStack(spacing: 4) {
+            Button { model.playSelection(tracks); done() } label: {
+                Label("selection.play", systemImage: "play.fill")
+                    .tapTarget()
+            }
+            .disabled(empty)
+            Button { model.likeSelection(tracks); done() } label: {
+                Label("selection.favorite", systemImage: "heart")
+                    .tapTarget()
+            }
+            .disabled(empty)
+            if model.services.downloads != nil {
+                Button { model.downloadSelection(tracks); done() } label: {
+                    Label("selection.download", systemImage: "arrow.down.circle")
+                        .tapTarget()
+                }
+                .disabled(empty)
+            }
+            Menu {
+                SelectionMenuItems(tracks: tracks, removal: removal, collectionName: collectionName,
+                                   selectAll: selectAll, clear: clear, done: done)
+            } label: {
+                Label("menu.more", systemImage: "ellipsis")
+                    .tapTarget()
+            }
+            .disabled(empty)
+        }
     }
 }
 
@@ -246,7 +259,7 @@ struct SelectableList<Content: View>: View {
 
     #if !os(macOS)
     private func toggleSelecting() {
-        withAnimation { editMode.wrappedValue = isSelecting ? .inactive : .active }
+        withMotion { editMode.wrappedValue = isSelecting ? .inactive : .active }
         if !isSelecting { selection = [] }
     }
     #endif
@@ -255,7 +268,7 @@ struct SelectableList<Content: View>: View {
         #if os(macOS)
         selection = []
         #else
-        withAnimation { editMode.wrappedValue = .inactive }
+        withMotion { editMode.wrappedValue = .inactive }
         selection = []
         #endif
     }

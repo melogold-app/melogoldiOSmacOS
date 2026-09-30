@@ -51,6 +51,10 @@ struct MiniPlayer: View {
             }
             .padding(.horizontal, Design.Space.s)
             .contentShape(Rectangle())
+            #if os(visionOS)
+            // Нажатие без кнопки: отклик на взгляд — свой, а не системный (у `onTapGesture` его нет)
+            .hoverEffect()
+            #endif
             .onTapGesture { model.showNowPlaying = true }
             .gesture(
                 DragGesture(minimumDistance: 20)
@@ -58,13 +62,15 @@ struct MiniPlayer: View {
                         if abs(value.translation.width) > abs(value.translation.height) { dragOffset = value.translation.width / 3 }
                     }
                     .onEnded { value in
-                        withAnimation(.snappy) { dragOffset = 0 }
+                        withMotion(.snappy) { dragOffset = 0 }
                         guard abs(value.translation.width) > 60, abs(value.translation.width) > abs(value.translation.height) else { return }
                         if value.translation.width < 0 { player.next() } else { player.previous() }
                     }
             )
             .accessibilityElement(children: .combine)
             .accessibilityLabel(Text(verbatim: "\(track.title), \(track.artistsText ?? "")"))
+            .accessibilityValue(Text(player.isPlaying ? "player.playing" : "player.paused"))
+            .accessibilityAddTraits(.isButton)
             .accessibilityHint(Text("player.openNowPlaying"))
             .accessibilityAction { model.showNowPlaying = true }
             .accessibilityAction(named: Text("player.previousTrack")) { player.previous() }
@@ -89,7 +95,7 @@ struct ToastHost: View {
                         Button {
                             model.undoPending()
                         } label: {
-                            Text("common.undo").fontWeight(.semibold)
+                            Text("common.undo").fontWeight(.semibold).tapTarget()
                         }
                         .buttonStyle(.borderless)
                     }
@@ -103,7 +109,7 @@ struct ToastHost: View {
                                 action()
                                 model.toast = nil
                             } label: {
-                                Text(title).fontWeight(.semibold)
+                                Text(title).fontWeight(.semibold).tapTarget()
                             }
                             .buttonStyle(.borderless)
                         }
@@ -123,9 +129,21 @@ struct ToastHost: View {
                 }
             }
         }
-        .animation(.snappy, value: model.toast)
-        .animation(.snappy, value: model.pending?.id)
-        .animation(.snappy, value: player.notice)
+        .motion(.snappy, value: model.toast)
+        .motion(.snappy, value: model.pending?.id)
+        .motion(.snappy, value: player.notice)
+        // Плашка держится секунды — VoiceOver её не найдёт: объявляем текст сами
+        .onChange(of: model.toast) { _, toast in
+            if let toast { AccessibilityNotification.Announcement(toast.text).post() }
+        }
+        .onChange(of: model.pending?.id) {
+            if let pending = model.pending { AccessibilityNotification.Announcement(pending.text).post() }
+        }
+        .onChange(of: player.notice) { _, notice in
+            if let notice {
+                AccessibilityNotification.Announcement(String(localized: "player.skipped \(notice.skippedTitle) \(String(localized: PlaybackFailure(kind: notice.reason, videoId: nil).shortText))")).post()
+            }
+        }
     }
 
     private func capsule<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
@@ -137,7 +155,7 @@ struct ToastHost: View {
             .controlGlass(Capsule())
             .padding(.horizontal, Design.Space.m)
             .padding(.bottom, Design.Space.xs)
-            .transition(.move(edge: .bottom).combined(with: .opacity))
+            .slideUpTransition()
             .accessibilityAddTraits(.isStaticText)
     }
 }

@@ -12,6 +12,7 @@ struct LyricsSearchSheet: View {
     let track: Track
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var pending: LrcLibTrack?
     @State private var query = ""
     @State private var results: [LrcLibTrack] = []
@@ -36,8 +37,8 @@ struct LyricsSearchSheet: View {
                             choose(result)
                         } label: {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(verbatim: result.trackName).lineLimit(1)
-                                HStack(spacing: 6) {
+                                Text(verbatim: result.trackName).lineLimit(typeSize.isAccessibilitySize ? nil : 1)
+                                AdaptiveStack(spacing: 6, alignment: .firstTextBaseline) {
                                     Text(verbatim: result.artistName)
                                     Text(verbatim: Durations.format(Int64(result.duration * 1000)))
                                         .monospacedDigit()
@@ -51,9 +52,10 @@ struct LyricsSearchSheet: View {
                                 }
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
-                                .lineLimit(1)
+                                .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
                             }
                             .contentShape(Rectangle())
+                            .accessibilityElement(children: .combine)
                         }
                         .buttonStyle(.plain)
                     }

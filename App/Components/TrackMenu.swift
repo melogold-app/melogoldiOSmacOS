@@ -115,6 +115,7 @@ struct TrackMenuItems: View {
 
 /// Кнопка «…» в строке трека (iPhone, iPad, Vision). На Mac меню — правым щелчком.
 struct TrackMenuButton: View {
+    @Environment(AppModel.self) private var model
     let track: Track
     var context: TrackMenuContext?
 
@@ -133,7 +134,8 @@ struct TrackMenuButton: View {
         .menuStyle(.button)
         .buttonStyle(.plain)
         .menuIndicator(.hidden)
-        .accessibilityLabel(Text("menu.more"))
+        // В длинном списке «Ещё» без названия не отличить одну кнопку от другой: VoiceOver называет трек
+        .accessibilityLabel(Text("menu.moreFor \(model.displayed(track).title)"))
         #endif
     }
 }

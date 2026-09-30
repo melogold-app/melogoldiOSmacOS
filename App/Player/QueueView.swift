@@ -53,7 +53,12 @@ struct QueueView: View {
                         }
                         .buttonStyle(.bordered)
                         .buttonBorderShape(.capsule)
+                        #if os(macOS)
                         .controlSize(.small)
+                        #else
+                        // Зона нажатия не ниже 44 pt (HIG «Buttons»); у `.small` кнопки были 28 pt
+                        .controlSize(.large)
+                        #endif
                         .labelStyle(.titleAndIcon)
                         .lineLimit(1)
                         .fixedSize()
@@ -134,10 +139,12 @@ struct QueueView: View {
 /// Строка очереди: у текущего — столбики вместо обложки; меню — короткое (REWRITE §3.10.4).
 private struct QueueRow: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var typeSize
     let item: QueueItem
     let isCurrent: Bool
 
     var body: some View {
+        let stacked = typeSize.isAccessibilitySize
         HStack(spacing: 12) {
             ZStack {
                 ArtworkView(url: item.track.artworkURL, size: 44)
@@ -147,15 +154,20 @@ private struct QueueRow: View {
                 }
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.track.title).lineLimit(1).foregroundStyle(isCurrent ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
-                Text(item.track.subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                Text(item.track.title).lineLimit(stacked ? nil : 1).foregroundStyle(isCurrent ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
+                Text(item.track.subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(stacked ? nil : 1)
+                // Крупный шрифт: длительность третьей строкой — справа названию не хватало места
+                if stacked, let duration = item.track.durationLabel { durationText(duration) }
             }
-            Spacer(minLength: 4)
-            if let duration = item.track.durationLabel {
-                Text(duration).font(.subheadline).monospacedDigit().foregroundStyle(.secondary)
+            if !stacked {
+                Spacer(minLength: 4)
+                if let duration = item.track.durationLabel { durationText(duration) }
             }
         }
         .contentShape(Rectangle())
+        #if os(visionOS)
+        .hoverEffect()
+        #endif
         .onTapGesture(count: 2) { if !isCurrent { model.services.player.jump(to: item.id) } }
         #if !os(macOS)
         .onTapGesture { if !isCurrent { model.services.player.jump(to: item.id) } }
@@ -175,7 +187,15 @@ private struct QueueRow: View {
             }
         }
         .accessibilityElement(children: .combine)
+        // VoiceOver: строка — кнопка «играть с неё»; текущая отмечена и называется
+        .accessibilityAddTraits(isCurrent ? [.isButton, .isSelected] : .isButton)
+        .accessibilityValue(isCurrent ? Text("queue.nowPlaying") : Text(verbatim: ""))
+        .accessibilityAction { if !isCurrent { model.services.player.jump(to: item.id) } }
         .accessibilityAction(named: Text("menu.removeFromQueue")) { if !isCurrent { model.removeFromQueue(item) } }
+    }
+
+    private func durationText(_ text: String) -> some View {
+        Text(text).font(.subheadline).monospacedDigit().foregroundStyle(.secondary)
     }
 }
 

@@ -6676,6 +6676,23 @@
         }
       }
     },
+    "menu.moreFor %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "More: %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ещё: %@"
+          }
+        }
+      }
+    },
     "menu.newPlaylist" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7800,6 +7817,23 @@
         }
       }
     },
+    "player.paused" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paused"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "На паузе"
+          }
+        }
+      }
+    },
     "player.play" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7817,6 +7851,23 @@
         }
       }
     },
+    "player.playing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playing"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Играет"
+          }
+        }
+      }
+    },
     "player.position" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7830,6 +7881,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Позиция"
+          }
+        }
+      }
+    },
+    "player.positionValue %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ of %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ из %@"
           }
         }
       }

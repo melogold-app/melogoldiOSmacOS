@@ -241,7 +241,7 @@ struct LinkModeSheet: View {
                 ToolbarItem(placement: .confirmationAction) { Button("common.done") { dismiss() } }
             }
         }
-        .presentationDetents([.medium])
+        .sheetDetents([.medium])
     }
 
     private func option(_ mode: LibraryPlaylist.YouTubeLink, title: LocalizedStringResource, note: LocalizedStringResource,
@@ -261,10 +261,11 @@ struct LinkModeSheet: View {
                     Text(note).font(.footnote).foregroundStyle(.secondary)
                 }
                 Spacer()
-                if playlist.link == mode { Image(systemName: "checkmark").foregroundStyle(.tint) }
+                if playlist.link == mode { Image(systemName: "checkmark").foregroundStyle(.tint).accessibilityHidden(true) }
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(playlist.link == mode ? .isSelected : [])
     }
 }

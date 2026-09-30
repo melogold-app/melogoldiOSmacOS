@@ -7,6 +7,7 @@ import MelogoldCore
 /// поэтому при переключении разделов он сохраняется.
 struct SplitShell: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         @Bindable var model = model
@@ -17,6 +18,8 @@ struct SplitShell: View {
             .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
             #else
             .navigationTitle(Text(verbatim: "Melogold"))
+            // Крупный шрифт: «Тренды» и «Библиотека» в 320 pt делились по слогам — панель на AX шире
+            .navigationSplitViewColumnWidth(min: 280, ideal: typeSize.isAccessibilitySize ? 440 : 320, max: 500)
             #endif
         } detail: {
             NavigationStack(path: model.path(for: model.section)) {
@@ -51,10 +54,10 @@ struct SplitShell: View {
         .overlay {
             if model.showNowPlaying {
                 NowPlayingView()
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .slideUpTransition()
             }
         }
-        .animation(.snappy, value: model.showNowPlaying)
+        .motion(.snappy, value: model.showNowPlaying)
         // Пробел и ⌘A не мешают вводу текста: курсор в поле — из AppKit, а не из флага самого поля
         .background { TextInputWatcher(model: model) }
         #else

@@ -27,6 +27,9 @@ struct PlayerMoreMenu: View {
                 .contentShape(circle ? AnyShape(Circle()) : AnyShape(Rectangle()))
                 .modifier(ActionCircleGlass(enabled: circle))
                 .hoverHighlight(Circle(), enabled: !circle)
+                // Стеклянный круг 38 pt, зона нажатия и рамка доступности — 44 pt
+                .frame(minWidth: circle ? Design.Size.minTap : 0, minHeight: circle ? Design.Size.minTap : 0)
+                .contentShape(Rectangle())
         }
         .menuStyle(.button)
         .buttonStyle(.plain)
@@ -128,6 +131,7 @@ struct PlayerChips: View {
                     .padding(.horizontal, Design.Space.s)
                     .padding(.vertical, 6)
                     .controlGlass(Capsule(), interactive: true)
+                    .tapTarget()
                 }
                 .menuStyle(.button)
                 .buttonStyle(.plain)
@@ -143,6 +147,7 @@ struct PlayerChips: View {
                         .padding(.horizontal, Design.Space.s)
                         .padding(.vertical, 6)
                         .controlGlass(Capsule(), interactive: true)
+                        .tapTarget()
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Text("settings.speed"))

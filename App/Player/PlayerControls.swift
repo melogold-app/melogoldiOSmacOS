@@ -7,8 +7,12 @@ import MelogoldPlayback
 /// «Недоступно в стране «Россия»: … открыл трек в 122 других странах…», задание 0010), в мини-плеере и шапке — коротко.
 struct PlayerStatusLine: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.secondaryOnTint) private var secondaryTint
     var font: Font = .subheadline
     var detailed = false
+    /// Строка стоит на оттенке обложки («Сейчас играет»): второстепенный цвет — с запасом контраста (`Design.secondaryOnTint`);
+    /// на стекле (мини-плеер, панель Mac) — системный.
+    var onTint = false
     /// Нажатие на исполнителя (панель воспроизведения Mac: «по исполнителю — исполнитель», docs/PROMPT.md §5.4).
     var onArtistTap: (() -> Void)?
 
@@ -30,20 +34,24 @@ struct PlayerStatusLine: View {
                     .foregroundStyle(.orange)
                 } else if player.phase == .loading, let since = player.loadingSince, context.date.timeIntervalSince(since) >= 15 {
                     Text("player.slow")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(secondary)
                 } else if player.phase == .loading, let since = player.loadingSince, context.date.timeIntervalSince(since) >= 3 {
                     Text("player.gettingStream")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(secondary)
                 } else if let onArtistTap, player.currentTrack?.primaryArtistId != nil {
                     LinkText(text: player.currentTrack?.artistsText ?? "", hint: "menu.goToArtist", action: onArtistTap)
                 } else {
                     Text(player.currentTrack?.artistsText ?? "")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(secondary)
                 }
             }
             .font(font)
             .lineLimit(detailed && player.phase == .failed ? 5 : 1)
         }
+    }
+
+    private var secondary: AnyShapeStyle {
+        onTint ? AnyShapeStyle(secondaryTint) : AnyShapeStyle(.secondary)
     }
 }
 
@@ -171,10 +179,10 @@ struct PlayPauseButton: View {
                         .frame(width: glass?.diameter ?? Design.Size.minTap, height: glass?.diameter ?? Design.Size.minTap)
                 } else {
                     TransportSymbol(name: symbol, size: size, glass: glass)
-                        .contentTransition(.symbolEffect(.replace))
+                        .symbolReplace()
                 }
             }
-            .animation(.snappy(duration: 0.25), value: symbol)
+            .motion(.snappy(duration: 0.25), value: symbol)
         }
         .transportGlass(glass, id: "playPause")
         .sensoryFeedback(.impact(weight: .medium), trigger: taps)
@@ -301,7 +309,7 @@ struct SeekBar: View {
                         right
                     }
                     .font(.playerTime)
-                    .foregroundStyle(.secondary)
+                    .secondaryOnTint()
                     .accessibilityHidden(true)
                 }
             } else {
@@ -337,7 +345,9 @@ struct SeekBar: View {
         .sensoryFeedback(.selection, trigger: ended)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("player.position"))
-        .accessibilityValue(Text(verbatim: Durations.format(seconds: value)))
+        // «1:23 из 4:05»: где стоим и сколько всего; время обновляется каждую секунду — VoiceOver не зачитывает его само
+        .accessibilityValue(Text("player.positionValue \(Durations.format(seconds: value)) \(Durations.format(seconds: player.duration))"))
+        .accessibilityAddTraits(.updatesFrequently)
         .accessibilityAdjustableAction { direction in
             let step = direction == .increment ? 10.0 : -10.0
             player.seek(to: min(duration, max(0, player.position + step)))
@@ -400,9 +410,12 @@ struct LikeButton: View {
                     .frame(minWidth: circle ? Design.Size.actionCircle : tap,
                            minHeight: circle ? Design.Size.actionCircle : tap)
                     .contentShape(circle ? AnyShape(Circle()) : AnyShape(Rectangle()))
-                    .contentTransition(.symbolEffect(.replace))
+                    .symbolReplace()
                     .modifier(ActionCircleGlass(enabled: circle))
                     .hoverHighlight(Circle(), enabled: !circle)
+                    // Стеклянный круг 38 pt, зона нажатия и рамка доступности — 44 pt
+                    .frame(minWidth: circle ? Design.Size.minTap : 0, minHeight: circle ? Design.Size.minTap : 0)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .sensoryFeedback(.impact(weight: .medium), trigger: taps)
@@ -499,7 +512,7 @@ struct VolumeBar: View {
                         }
                         .onEnded { _ in dragStart = nil }
                 )
-                .animation(.snappy(duration: 0.2), value: thickness)
+                .motion(.snappy(duration: 0.2), value: thickness)
             }
             .frame(height: 16)
             Image(systemName: "speaker.wave.3.fill").foregroundStyle(.secondary).font(.caption)

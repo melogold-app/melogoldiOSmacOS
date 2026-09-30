@@ -214,7 +214,7 @@ struct CollectionHeader<Art: View, Subtitle: View, Actions: View>: View {
             Text(title)
                 .font(leading ? .largeTitle.bold() : .title2.bold())
                 .multilineTextAlignment(leading ? .leading : .center)
-                .lineLimit(3)
+                .lineLimit(typeSize.isAccessibilitySize ? nil : 3)
                 .frame(maxWidth: .infinity, alignment: leading ? .leading : .center)
                 .accessibilityAddTraits(.isHeader)
             subtitle()
@@ -266,6 +266,7 @@ extension CollectionHeader where Art == ArtworkView {
 /// «Слушать» — главная кнопка коллекции. Значок и текст — одним рядом: внутри `Label` значок на главной кнопке
 /// рисовался цветом фона и пропадал.
 struct PlayButton: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     let action: () -> Void
 
     var body: some View {
@@ -274,8 +275,9 @@ struct PlayButton: View {
                 Image(systemName: "play.fill").accessibilityHidden(true)
                 Text("collection.play")
             }
+            // Крупный шрифт: слово сжимается до половины, а не делится по слогам («Переме-шать»)
             .lineLimit(1)
-            .minimumScaleFactor(0.75)
+            .minimumScaleFactor(typeSize.isAccessibilitySize ? 0.5 : 0.75)
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.borderedProminent)
@@ -284,6 +286,7 @@ struct PlayButton: View {
 
 /// «Перемешать» (у канала — «Перемешать видео»).
 struct ShuffleButton: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     var title: LocalizedStringResource = "collection.shuffle"
     let action: () -> Void
 
@@ -293,8 +296,9 @@ struct ShuffleButton: View {
                 Image(systemName: "shuffle").accessibilityHidden(true)
                 Text(title)
             }
+            // Крупный шрифт: слово сжимается до половины, а не делится по слогам («Переме-шать»)
             .lineLimit(1)
-            .minimumScaleFactor(0.75)
+            .minimumScaleFactor(typeSize.isAccessibilitySize ? 0.5 : 0.75)
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.bordered)

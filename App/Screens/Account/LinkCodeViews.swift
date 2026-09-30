@@ -146,7 +146,9 @@ struct SignInByCodeView: View {
     private func waitingSection(_ title: LocalizedStringKey) -> some View {
         Section {
             HStack(spacing: 12) {
+                // Значок ожидания — украшение: слово рядом уже говорит, чего ждём
                 ProgressView()
+                    .accessibilityHidden(true)
                 Text(title)
                     .foregroundStyle(.secondary)
             }
@@ -169,15 +171,16 @@ struct SignInByCodeView: View {
 /// Код входа крупно: `K7QX-M2PD`, моноширинный, в одну строку (уменьшается, но не рвётся посередине);
 /// VoiceOver читает его по знакам.
 struct LinkCodeBlock: View {
+    @ScaledMetric(relativeTo: .largeTitle) private var size: CGFloat = 45
     let code: String
 
     private var display: String { LinkCode.grouped(LinkCode.userCode(code) ?? code) }
 
     var body: some View {
         Text(verbatim: display)
-            .font(.system(size: 45, weight: .semibold, design: .monospaced))
+            .font(.system(size: size, weight: .semibold, design: .monospaced))
             .lineLimit(1)
-            .minimumScaleFactor(0.4)
+            .minimumScaleFactor(0.3)
             .textSelection(.enabled)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
@@ -188,13 +191,14 @@ struct LinkCodeBlock: View {
 
 /// Число, которое выбирают на другом устройстве: огромное, жирное.
 struct LinkNumberBlock: View {
+    @ScaledMetric(relativeTo: .largeTitle) private var size: CGFloat = 120
     let number: String
 
     var body: some View {
         Text(verbatim: number)
-            .font(.system(size: 120, weight: .bold, design: .rounded))
+            .font(.system(size: size, weight: .bold, design: .rounded))
             .lineLimit(1)
-            .minimumScaleFactor(0.5)
+            .minimumScaleFactor(0.3)
             .frame(maxWidth: .infinity)
             .accessibilityLabel(Text("account.link.spokenNumber \(number)"))
             .accessibilityIdentifier("account.link.verifyCode")
@@ -209,7 +213,7 @@ struct LinkStatusRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 12) {
+            AdaptiveStack(spacing: 12) {
                 let now = Date.now
                 Text("account.link.validFor \(Text(timerInterval: now ... max(now, expiresAt), countsDown: true))")
                     .monospacedDigit()
@@ -218,9 +222,10 @@ struct LinkStatusRow: View {
                     Text(waiting)
                         .foregroundStyle(.secondary)
                 }
-                Spacer()
+                AdaptiveSpacer()
                 ProgressView()
                     .controlSize(.small)
+                    .accessibilityHidden(true)
             }
             if reconnecting {
                 Text("account.link.reconnecting")

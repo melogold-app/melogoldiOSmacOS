@@ -9,6 +9,7 @@ import MelogoldData
 /// из Истории, без сети.
 struct StatsView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var period: StatsPeriod = .month
     @State private var offset = 0
     @State private var devices = DeviceFilterState()
@@ -80,29 +81,48 @@ struct StatsView: View {
         }
     }
 
-    /// ‹ Сентябрь 2026 ›: назад — пока История начинается раньше, вперёд — не дальше текущего периода.
+    /// ‹ Сентябрь 2026 ›: назад — пока История начинается раньше, вперёд — не дальше текущего периода. На крупном шрифте
+    /// название периода занимает всю ширину, а стрелки стоят под ним (рядом название переносилось по слогам: «Сен-тябрь»).
     private func navigator(_ stats: ListeningStats) -> some View {
-        HStack {
-            Button { offset -= 1 } label: {
-                Label("stats.previous", systemImage: "chevron.left")
-                    .labelStyle(.iconOnly)
-                    .frame(minWidth: 44, minHeight: 44)
+        let title = Text(verbatim: StatsFormat.windowTitle(stats.window, today: Date(), calendar: calendar, locale: locale))
+            .font(.headline)
+            .monospacedDigit()
+            .multilineTextAlignment(.center)
+            .accessibilityAddTraits(.isHeader)
+            .accessibilityIdentifier("stats.windowTitle")
+        let previous = Button { offset -= 1 } label: {
+            Label("stats.previous", systemImage: "chevron.left")
+                .labelStyle(.iconOnly)
+                .frame(minWidth: 44, minHeight: 44)
+        }
+        .disabled(!stats.hasEarlier)
+        .accessibilityIdentifier("stats.previous")
+        let next = Button { offset += 1 } label: {
+            Label("stats.next", systemImage: "chevron.right")
+                .labelStyle(.iconOnly)
+                .frame(minWidth: 44, minHeight: 44)
+        }
+        .disabled(stats.window.isCurrent)
+        .accessibilityIdentifier("stats.next")
+        return Group {
+            if typeSize.isAccessibilitySize {
+                VStack(spacing: Design.Space.xxs) {
+                    title.frame(maxWidth: .infinity)
+                    HStack {
+                        previous
+                        Spacer()
+                        next
+                    }
+                }
+            } else {
+                HStack {
+                    previous
+                    Spacer()
+                    title
+                    Spacer()
+                    next
+                }
             }
-            .disabled(!stats.hasEarlier)
-            .accessibilityIdentifier("stats.previous")
-            Spacer()
-            Text(verbatim: StatsFormat.windowTitle(stats.window, today: Date(), calendar: calendar, locale: locale))
-                .font(.headline)
-                .monospacedDigit()
-                .accessibilityIdentifier("stats.windowTitle")
-            Spacer()
-            Button { offset += 1 } label: {
-                Label("stats.next", systemImage: "chevron.right")
-                    .labelStyle(.iconOnly)
-                    .frame(minWidth: 44, minHeight: 44)
-            }
-            .disabled(stats.window.isCurrent)
-            .accessibilityIdentifier("stats.next")
         }
         .buttonStyle(.borderless)
     }
@@ -201,8 +221,9 @@ struct StatsView: View {
                     .foregroundStyle(.secondary)
                 Text(verbatim: StatsFormat.listeningTime(ms: stats.totalMs, locale: locale))
                     .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    .minimumScaleFactor(0.6)
-                    .lineLimit(1)
+                    // Крупный шрифт: число переносится по словам («2 ч / 49 мин»), а не сжимается до нечитаемого
+                    .minimumScaleFactor(typeSize.isAccessibilitySize ? 1 : 0.6)
+                    .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
                     .accessibilityIdentifier("stats.time")
                 if let change = changeText(stats) {
                     Text(verbatim: change)
@@ -212,7 +233,7 @@ struct StatsView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            HStack(alignment: .top, spacing: Design.Space.s) {
+            AdaptiveStack(spacing: Design.Space.s, alignment: .top) {
                 tile(stats.plays, "stats.plays", id: "stats.plays")
                 tile(stats.tracks, "stats.tracks", id: "stats.tracks")
                 tile(stats.artists, "stats.artists", id: "stats.artists")
@@ -225,14 +246,14 @@ struct StatsView: View {
             Text(verbatim: value.formatted(.number))
                 .font(.title2.weight(.semibold))
                 .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
+                .minimumScaleFactor(typeSize.isAccessibilitySize ? 1 : 0.7)
                 .accessibilityIdentifier(id)
             Text(label)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .lineLimit(typeSize.isAccessibilitySize ? nil : 1)
+                .minimumScaleFactor(typeSize.isAccessibilitySize ? 1 : 0.8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
@@ -282,7 +303,8 @@ struct StatsView: View {
 
     /// Исполнитель или альбом топа: нажатие открывает страницу YouTube Music, а у своего названия без неё — ищет его.
     private func groupRow(_ group: TopGroup, number: Int, circle: Bool, key: String) -> some View {
-        TapTarget(target: openTarget(group, isArtist: circle)) {
+        let stacked = typeSize.isAccessibilitySize
+        return TapTarget(target: openTarget(group, isArtist: circle)) {
             HStack(spacing: 12) {
                 Text(verbatim: "\(number)")
                     .font(.body)
@@ -292,22 +314,30 @@ struct StatsView: View {
                 ArtworkView(url: group.thumbnailUrl, size: Design.Layout.rowArtwork, shape: circle ? .circle : .rounded,
                             cornerRadius: Design.Radius.artwork(Design.Layout.rowArtwork))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(verbatim: group.name).font(.body).lineLimit(1)
+                    Text(verbatim: group.name).font(.body).lineLimit(stacked ? nil : 1)
                     Text(verbatim: String(localized: "stats.playsCount \(group.plays)"))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(stacked ? nil : 1)
+                    // Крупный шрифт: время третьей строкой, как в строке трека (справа ему не хватало места)
+                    if stacked { groupTime(group) }
                 }
-                Spacer(minLength: 8)
-                Text(verbatim: StatsFormat.listeningTime(ms: group.ms, locale: locale))
-                    .font(.subheadline)
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
+                if !stacked {
+                    Spacer(minLength: 8)
+                    groupTime(group)
+                }
             }
             .contentShape(Rectangle())
             .accessibilityElement(children: .combine)
         }
         .tag(RowID.make(key, group.key))
+    }
+
+    private func groupTime(_ group: TopGroup) -> some View {
+        Text(verbatim: StatsFormat.listeningTime(ms: group.ms, locale: locale))
+            .font(.subheadline)
+            .monospacedDigit()
+            .foregroundStyle(.secondary)
     }
 
     private func openTarget(_ group: TopGroup, isArtist: Bool) -> RowTarget {
@@ -324,7 +354,7 @@ struct StatsView: View {
     private func showAll(count: Int, expanded: Binding<Bool>, id: String) -> some View {
         if count > Self.shown {
             Button(expanded.wrappedValue ? "stats.showLess" : "stats.showAll") {
-                withAnimation { expanded.wrappedValue.toggle() }
+                withMotion { expanded.wrappedValue.toggle() }
             }
             .accessibilityIdentifier(id)
         }

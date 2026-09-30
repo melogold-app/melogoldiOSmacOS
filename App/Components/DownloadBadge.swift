@@ -46,6 +46,8 @@ struct DownloadBadge: View {
 /// Кольцо с долей: 14 pt, как у значков строки. У только что начатой загрузки видна короткая дуга.
 struct DownloadRing: View {
     let fraction: Double
+    /// Кольцо растёт вместе со шрифтом строки (значки рядом с ним — текст `.footnote`).
+    @ScaledMetric(relativeTo: .footnote) private var side: CGFloat = 14
 
     var body: some View {
         ZStack {
@@ -55,7 +57,7 @@ struct DownloadRing: View {
                 .stroke(.tint, style: StrokeStyle(lineWidth: 2, lineCap: .round))
                 .rotationEffect(.degrees(-90))
         }
-        .frame(width: 14, height: 14)
+        .frame(width: side, height: side)
         .padding(1)
     }
 }

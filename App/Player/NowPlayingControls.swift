@@ -19,7 +19,7 @@ struct NowPlayingTitle: View {
                     .font(large ? Font.title.weight(.bold) : .playerTitle)
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                PlayerStatusLine(font: large ? .title3 : .playerArtist, detailed: true)
+                PlayerStatusLine(font: large ? .title3 : .playerArtist, detailed: true, onTint: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             TrackActionCircles(size: large ? .title3 : .body)
@@ -77,6 +77,7 @@ struct TransportRow: View {
 
 /// Кнопка нижнего ряда: значок приглушён, включённый — ярче, заливкой и на мягкой подложке (как «Текст» у Apple Music).
 private struct ActionSymbol: View {
+    @Environment(\.secondaryOnTint) private var secondaryTint
     let name: String
     var activeName: String?
     let active: Bool
@@ -86,14 +87,14 @@ private struct ActionSymbol: View {
         Image(systemName: active ? (activeName ?? name) : name)
             .font(size)
             .symbolRenderingMode(.monochrome)
-            .foregroundStyle(active ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+            .foregroundStyle(active ? AnyShapeStyle(.primary) : AnyShapeStyle(secondaryTint))
             .frame(width: Design.Size.minTap, height: Design.Size.minTap)
             .background {
                 RoundedRectangle(cornerRadius: Design.Radius.medium, style: .continuous)
                     .fill(.primary.opacity(active ? 0.12 : 0))
             }
             .contentShape(Rectangle())
-            .contentTransition(.symbolEffect(.replace))
+            .symbolReplace()
     }
 }
 
@@ -104,7 +105,7 @@ struct LyricsToggleButton: View {
 
     var body: some View {
         Button {
-            withAnimation(.snappy) { model.lyricsVisible.toggle() }
+            withMotion(.snappy) { model.lyricsVisible.toggle() }
         } label: {
             ActionSymbol(name: "quote.bubble", activeName: "quote.bubble.fill", active: model.lyricsVisible, size: size)
         }
@@ -163,7 +164,7 @@ struct VolumeRow: View {
             Image(systemName: "speaker.wave.3.fill")
         }
         .font(.footnote)
-        .foregroundStyle(.secondary)
+        .secondaryOnTint()
         .accessibilityElement(children: .contain)
     }
 }

@@ -19,6 +19,7 @@ struct LyricsEditorView: View {
 
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var draft = LyricsDraft(lines: [])
     @State private var history: [LyricsDraft] = []
     @State private var text = ""
@@ -52,7 +53,15 @@ struct LyricsEditorView: View {
                         }
                 case .marks:
                     marksList
-                    controls
+                    if typeSize.isAccessibilitySize {
+                        // Крупный шрифт: панель управления прокручивается в своих 380 pt — список строк остаётся на экране
+                        ScrollView { controls }
+                            .scrollBounceBehavior(.basedOnSize)
+                            .frame(maxHeight: 380)
+                            .background(.bar)
+                    } else {
+                        controls
+                    }
                 }
             }
             .navigationTitle(Text("player.lyrics"))
@@ -111,18 +120,19 @@ struct LyricsEditorView: View {
             }
             .listStyle(.plain)
             .onChange(of: draft.cursor) { _, cursor in
-                withAnimation { proxy.scrollTo(min(cursor, max(0, draft.lines.count - 1)), anchor: .center) }
+                withMotion { proxy.scrollTo(min(cursor, max(0, draft.lines.count - 1)), anchor: .center) }
             }
         }
     }
 
     private func row(_ index: Int, _ line: DraftLine) -> some View {
         let isCursor = index == draft.cursor
-        return HStack(alignment: .firstTextBaseline, spacing: 10) {
+        let stacked = typeSize.isAccessibilitySize
+        return AdaptiveStack(spacing: 10, alignment: .firstTextBaseline) {
             Text(line.startMs.map(timestamp) ?? "—:—")
                 .font(.footnote.monospacedDigit())
                 .foregroundStyle(line.startMs == nil ? .tertiary : .secondary)
-                .frame(width: 64, alignment: .leading)
+                .frame(width: stacked ? nil : 64, alignment: .leading)
             VStack(alignment: line.side == .end ? .trailing : .leading, spacing: 2) {
                 if draft.timing == .word, isCursor {
                     wordsLine(line)
@@ -249,7 +259,7 @@ struct LyricsEditorView: View {
             }
             .iconTypeSize()
             if let selected, draft.lines.indices.contains(selected) {
-                HStack {
+                AdaptiveStack(columnAlignment: .center) {
                     Button("editor.minus01") { change(draft.nudge(selected, by: -100)) }
                     Button("editor.plus01") { change(draft.nudge(selected, by: 100)) }
                     Button(draft.lines[selected].side == .end ? "editor.sideStart" : "editor.sideEnd") {

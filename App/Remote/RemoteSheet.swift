@@ -48,7 +48,7 @@ private struct DeviceList: View {
                     HStack(spacing: 12) {
                         Image(systemName: DeviceSymbol.name(for: model.account.identity.platform))
                             .font(.title3)
-                            .frame(width: 32)
+                            .frame(minWidth: 32)
                             .accessibilityHidden(true)
                         Text("remote.thisDevice")
                         Spacer()
@@ -66,7 +66,7 @@ private struct DeviceList: View {
                     Text("remote.audioOutput")
                     Spacer()
                     RoutePickerButton()
-                        .frame(width: 30, height: 30)
+                        .frame(width: Design.Size.hitTarget, height: Design.Size.hitTarget)
                         .accessibilityLabel(Text("player.airplay"))
                 }
                 #endif
@@ -124,7 +124,7 @@ private struct RemoteDeviceRow: View {
         HStack(spacing: 12) {
             Image(systemName: DeviceSymbol.name(for: device.platform))
                 .font(.title3)
-                .frame(width: 32)
+                .frame(minWidth: 32)
                 .foregroundStyle(device.online ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
                 .accessibilityLabel(Text(DeviceSymbol.kind(for: device.platform)))
             VStack(alignment: .leading, spacing: 2) {
@@ -250,7 +250,8 @@ struct RemotePlayerView: View {
                     }
                 )
                 .disabled(duration <= 0)
-                .accessibilityLabel(Text("player.seek"))
+                .accessibilityLabel(Text("player.position"))
+                .accessibilityValue(Text("player.positionValue \(Durations.format(Int64((scrubbing ?? live) * 1000))) \(Durations.format(Int64(duration * 1000)))"))
                 HStack {
                     Text(verbatim: Durations.format(Int64((scrubbing ?? live) * 1000)))
                     Spacer()
@@ -275,7 +276,7 @@ struct RemotePlayerView: View {
                 Image(systemName: playing ? "pause.fill" : "play.fill")
                     .font(.system(size: 40, weight: .semibold))
                     .frame(width: 76, height: 76)
-                    .contentTransition(.symbolEffect(.replace))
+                    .symbolReplace()
             }
             .buttonStyle(TransportPressStyle(diameter: 76))
             .accessibilityLabel(Text(playing ? "player.pause" : "player.play"))
@@ -294,6 +295,7 @@ struct RemotePlayerView: View {
 /// управляет другим устройством — значок того устройства, акцентом.
 struct DeviceButton: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.secondaryOnTint) private var secondaryTint
 
     var body: some View {
         if model.account.isSignedIn, model.account.supportsRemote, let remote = model.remoteBridge?.remote {
@@ -301,10 +303,10 @@ struct DeviceButton: View {
                 Image(systemName: remote.isActive ? DeviceSymbol.name(for: remote.target?.platform ?? "") : "airplay.audio")
                     .font(.title3)
                     .symbolRenderingMode(.monochrome)
-                    .foregroundStyle(remote.isActive ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                    .foregroundStyle(remote.isActive ? AnyShapeStyle(.tint) : AnyShapeStyle(secondaryTint))
                     .frame(width: Design.Size.minTap, height: Design.Size.minTap)
                     .contentShape(Rectangle())
-                    .contentTransition(.symbolEffect(.replace))
+                    .symbolReplace()
             }
             .buttonStyle(.plain)
             .accessibilityLabel(Text("remote.device"))
@@ -322,6 +324,7 @@ struct DeviceButton: View {
 /// «Играет на «Pixel»»: пока пульт управляет другим устройством, над нижним рядом «Сейчас играет»; нажатие — пульт.
 struct RemotePlayingPill: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         if let remote = model.remoteBridge?.remote, remote.isActive, let target = remote.target {
@@ -337,9 +340,10 @@ struct RemotePlayingPill: View {
                 .padding(.horizontal, Design.Space.s)
                 .padding(.vertical, 6)
                 .controlGlass(Capsule(), interactive: true)
+                .tapTarget()
             }
             .buttonStyle(.plain)
-            .transition(.opacity.combined(with: .scale(scale: 0.9)))
+            .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.9)))
         }
     }
 }

@@ -170,7 +170,7 @@ struct ImportProgressView: View {
         #if os(macOS)
         .frame(minWidth: 440, minHeight: 380)
         #endif
-        .presentationDetents(state.isRunning ? [.medium] : [.medium, .large])
+        .sheetDetents(state.isRunning ? [.medium] : [.medium, .large])
     }
 
     /// Итог: значок, заголовок и текст прокручиваются, кнопки — внизу.

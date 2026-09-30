@@ -54,10 +54,10 @@ struct HistoryView: View {
                 .labelsHidden()
                 .listRowSeparator(.hidden)
                 if settings.historyPaused {
-                    HStack {
+                    AdaptiveStack {
                         Label("history.paused", systemImage: "pause.circle")
                             .foregroundStyle(.secondary)
-                        Spacer()
+                        AdaptiveSpacer()
                         Button("history.resume") { settings.historyPaused = false }
                             .buttonStyle(.borderless)
                     }

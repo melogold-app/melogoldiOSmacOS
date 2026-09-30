@@ -12,7 +12,7 @@ struct RoutePickerButton: NSViewRepresentable {
         let view = AVRoutePickerView()
         view.isRoutePickerButtonBordered = false
         // Как соседние значки панели: приглушённый, акцентом — пока звук идёт на другое устройство
-        view.setRoutePickerButtonColor(.secondaryLabelColor, for: .normal)
+        view.setRoutePickerButtonColor(.labelColor.withAlphaComponent(0.75), for: .normal)
         view.setRoutePickerButtonColor(.labelColor, for: .normalHighlighted)
         view.setRoutePickerButtonColor(.controlAccentColor, for: .active)
         view.setRoutePickerButtonColor(.controlAccentColor, for: .activeHighlighted)
@@ -32,7 +32,11 @@ struct RoutePickerButton: UIViewRepresentable {
         let view = AVRoutePickerView()
         view.prioritizesVideoDevices = false
         // Как «Текст» и «Очередь» в нижнем ряду: приглушённый, акцентом — пока звук идёт на другое устройство
-        view.tintColor = .secondaryLabel
+        // Не `secondaryLabel`: на оттенке обложки он 3,2 к 1 (`Design.secondaryOnTint`); при повышенной контрастности ярче
+        view.tintColor = UIColor { trait in
+            let alpha: CGFloat = trait.accessibilityContrast == .high ? 0.9 : (trait.userInterfaceStyle == .dark ? 0.85 : 0.66)
+            return UIColor.label.resolvedColor(with: trait).withAlphaComponent(alpha)
+        }
         view.activeTintColor = .tintColor
         return view
     }

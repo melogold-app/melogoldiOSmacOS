@@ -148,12 +148,15 @@ private struct SearchRootView: View {
                                 }
                             }
                         } header: {
-                            HStack {
+                            // Крупный шрифт: подпись и «Очистить» друг под другом, а не по слогам в одной строке
+                            AdaptiveStack(alignment: .firstTextBaseline) {
                                 Text("search.recent")
-                                Spacer()
+                                AdaptiveSpacer()
                                 Button("search.clearRecent") { search.clearRecent() }
                                     .font(.subheadline)
+                                    .tapTarget()
                             }
+                            .padding(.vertical, -Design.Space.xs)
                         }
                     }
                     RecentlyPlayedSection(entries: recentPlays)
@@ -273,23 +276,33 @@ private struct AllResultsList: View {
     }
 
     private func sectionHeader(_ title: String, more scope: SearchModel.Scope) -> some View {
-        HStack(alignment: .firstTextBaseline) {
+        SearchSectionHeader(title: title) { model.search.scope = scope }
+    }
+}
+
+/// Заголовок секции выдачи: название и «Ещё ›». На крупном шрифте «Ещё» встаёт под название; зона нажатия — 44 pt.
+private struct SearchSectionHeader: View {
+    let title: String
+    let more: () -> Void
+
+    var body: some View {
+        AdaptiveStack(alignment: .firstTextBaseline) {
             Text(verbatim: title)
                 .font(.title3.bold())
                 .foregroundStyle(Color.primary)
-            Spacer()
-            Button {
-                model.search.scope = scope
-            } label: {
+                .accessibilityAddTraits(.isHeader)
+            AdaptiveSpacer()
+            Button(action: more) {
                 HStack(spacing: 2) {
                     Text("common.more")
                     Image(systemName: "chevron.forward").imageScale(.small).fontWeight(.semibold).accessibilityHidden(true)
                 }
-                .contentShape(Rectangle().inset(by: -12))
+                .tapTarget()
             }
             .font(.subheadline)
             .buttonStyle(.borderless)
         }
+        .padding(.vertical, -Design.Space.xs)
         .textCase(nil)
     }
 }
@@ -396,10 +409,10 @@ private struct UnavailableSourceRow: View {
     let retry: () -> Void
 
     var body: some View {
-        HStack {
+        AdaptiveStack {
             Text("search.sourceUnavailable \(source)")
                 .foregroundStyle(.secondary)
-            Spacer()
+            AdaptiveSpacer()
             Button("common.retry", action: retry)
         }
     }
