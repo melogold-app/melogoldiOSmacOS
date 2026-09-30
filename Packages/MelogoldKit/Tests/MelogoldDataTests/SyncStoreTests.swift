@@ -195,7 +195,7 @@ struct SyncStoreTests {
     }
 
     /// Прослушивание с сервера без устройства (`deviceId: null`, API §4.8) — не своё: его нет в «Это устройство» и среди
-    /// неотправленных, в устройствах прослушиваний оно — пустой строкой («Другое устройство»).
+    /// неотправленных, в устройствах прослушиваний оно — пустой строкой (в фильтре Истории такого устройства нет).
     @Test func serverPlayWithoutDeviceIsNotOwn() async throws {
         let library = Library(database: database)
         library.recordPlay(Track(videoId: "aaaaaaaaaaa", title: "A"), playTimeMs: 10_000, endedAt: 1_000)

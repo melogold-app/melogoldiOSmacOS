@@ -654,7 +654,7 @@ public final class PlayerEngine {
         let startTime = CMTime(seconds: max(0, offset), preferredTimescale: 44_100)
         generation = pipeline.reset(to: startTime)
         levelTimeline.removeAll()
-        let segment = makeSegment(for: current, start: .zero)
+        let segment = makeSegment(for: current, start: .zero, userInitiated: tapped)
         segment.startOffset = max(0, offset)
         segments = [segment]
         protectCache()
@@ -674,8 +674,11 @@ public final class PlayerEngine {
         }
     }
 
-    private func makeSegment(for item: QueueItem, start: CMTime) -> Segment {
-        let source = StreamSource(videoId: item.track.videoId, resolver: resolver, cache: cache, downloads: downloads, session: session)
+    /// `userInitiated` — трек начат действием пользователя (нажатие, «Далее», «Повторить»): при закрытом адресе YouTube он
+    /// пробует один запрос. Следующий трек, который подаётся сам, и повторы движка — фон: закрытый адрес их не пробует.
+    private func makeSegment(for item: QueueItem, start: CMTime, userInitiated: Bool = false) -> Segment {
+        let source = StreamSource(videoId: item.track.videoId, resolver: resolver, cache: cache, downloads: downloads,
+                                  session: session, userInitiated: userInitiated)
         return Segment(item: item, reader: TrackReader(source: source), start: start)
     }
 
@@ -912,6 +915,13 @@ public final class PlayerEngine {
         guard element.id == current?.id else {
             // Следующий трек не подготовился — попробуем, когда до него дойдёт очередь.
             segments.removeAll { $0.item.id == element.id }
+            return
+        }
+        if error.stopsQueue {
+            // Проверка на бота: YouTube закрыл адрес, а не трек. Ни повтора, ни пропуска, ни плашки «Пропущен…» — карточка
+            // с причиной сразу; «Повторить» — одно новое обращение, когда пользователь сменил сервер VPN или подождал.
+            wantsToPlay = false
+            fail(PlaybackFailure(error, videoId: element.track.videoId))
             return
         }
         let tries = attempts[element.id, default: 0]

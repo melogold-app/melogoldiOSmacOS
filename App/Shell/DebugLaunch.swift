@@ -2,6 +2,7 @@
 import SwiftUI
 import MelogoldCore
 import MelogoldData
+import MelogoldLyrics
 
 /// Только отладочная сборка: параметры запуска для проверки на симуляторе без нажатий.
 ///
@@ -14,6 +15,10 @@ import MelogoldData
 ///     -MelogoldShowNowPlaying YES                      открыть «Сейчас играет», как только появится трек
 ///     -MelogoldShowLyrics YES, -MelogoldLyricsEditor YES   вместе с ним — текст и редактор текста
 ///     -MelogoldShowQueue YES, -MelogoldSleep <мин>       очередь и таймер сна
+///     -MelogoldSeedLyrics YES|editor                    свой синхронный текст играющему треку: короткая и длинная строка,
+///                                                       подпевка, вторая сторона дуэта, перевод, проигрыш 26–34 с; `editor` —
+///                                                       обычный текст без времени, первая строка — длинная японская (редактор)
+///     -MelogoldSeek <с> [-MelogoldSeekPause YES]        перемотать после старта (и встать на паузу) — снимки без гонки со временем
 ///     -MelogoldSeedLibrary YES                          пример библиотеки для снимков: лайки, плейлист, история, альбом
 ///     -MelogoldMiniPlayer YES                            Mac: открыть и окно мини-плеера
 ///     -MelogoldSeedPlays YES                            два своих прослушивания без сети — История и её фильтр
@@ -21,6 +26,10 @@ import MelogoldData
 ///     -MelogoldOpen stats, -MelogoldOpenWrapped <год>   «Итоги» и «Итоги года» на весь экран
 ///     -MelogoldOpenRemote YES                           лист «Устройство» (пульт, задание 0020)
 ///     -MelogoldOpenDetails <videoId>, -MelogoldPreselect <n>   «Сведения о треке»; первые n строк выделены
+///     -MelogoldExport <videoId> -MelogoldExportDir <папка>   «Сохранить файлом» без окна: .m4a с тегами ложится в папку
+///                                                       (трек — по сети, как при нажатии; звук не играет)
+///     -MelogoldSeedDownloads YES                        без сети: любимые треки в разных состояниях загрузки (42 %, скачан,
+///                                                       сбой, пауза), трек в кэше и трансляция — кольцо, меню, «Хранилище»
 enum DebugLaunch {
     /// Прослушивания за 14 месяцев без сети и без плеера: восемь треков с обложками, вечерний пик, разные исполнители и
     /// альбомы. Повторный запуск ничего не дублирует.
@@ -64,6 +73,63 @@ enum DebugLaunch {
         }
     }
 
+    /// Загрузки в разных состояниях без сети и без звука (задание 0009): «Скачивается 42 %», «Скачано», сбой, пауза, трек
+    /// в кэше (12 МБ) и трансляция, которую скачать нельзя. Треки любимые — видны в «Избранном». Строки пишутся через
+    /// две секунды после старта: раньше загрузчик при запуске поставил бы «скачивается» обратно в очередь.
+    @MainActor
+    static func seedDownloads(_ model: AppModel) async {
+        guard let library = model.library?.library, let store = model.services.downloads?.store, store.entries().isEmpty else { return }
+        try? await Task.sleep(for: .seconds(2))
+        func track(_ id: String, _ title: String, _ artist: String, album: String? = nil, type: String = VideoType.song) -> Track {
+            Track(videoId: id, title: title, artists: [ArtistRef(id: "UC_" + id, name: artist)], artistsText: artist,
+                  albumTitle: album, durationMs: 240_000, thumbnailUrl: "https://i.ytimg.com/vi/\(id)/hqdefault.jpg", videoType: type)
+        }
+        let downloading = track("fJ9rUzIMcZQ", "Bohemian Rhapsody", "Queen", album: "A Night at the Opera")
+        let done = track("hTWKbfoikeg", "Smells Like Teen Spirit", "Nirvana", album: "Nevermind")
+        let failed = track("dQw4w9WgXcQ", "Never Gonna Give You Up", "Rick Astley", album: "Whenever You Need Somebody")
+        let paused = track("kJQP7kiw5Fk", "Despacito", "Luis Fonsi", album: "Vida")
+        let cached = track("9bZkp7q19f0", "Gangnam Style", "PSY", type: VideoType.video)
+        let plain = track("JGwWNGJdvx8", "Shape of You", "Ed Sheeran", album: "÷")
+        let live = track("jfKfPfyJRdk", "lofi hip hop radio - beats to relax/study to", "Lofi Girl", type: VideoType.live)
+        for item in [downloading, done, failed, paused, cached, plain, live] { library.setLiked(item, true) }
+        for (item, length) in [(downloading, 1000), (done, 100)] as [(Track, Int)] {
+            store.requestTrack(item)
+            store.prepare(item.videoId, itag: 140, mimeType: "audio/mp4", contentLength: Int64(length), durationMs: 240_000, loudnessDb: nil)
+        }
+        store.write(downloading.videoId, offset: 0, data: Data(count: 420))
+        store.setState(downloading.videoId, .downloading)
+        store.write(done.videoId, offset: 0, data: Data(count: 100))
+        store.requestTrack(failed)
+        store.setState(failed.videoId, .failed, failure: "network")
+        store.requestTrack(paused)
+        store.setState(paused.videoId, .paused)
+        if let cache = model.services.cache {
+            let size = 12 << 20
+            cache.prepare(videoId: cached.videoId, itag: 140, mimeType: "audio/mp4", contentLength: Int64(size), durationMs: 240_000, loudnessDb: nil)
+            cache.write(cached.videoId, offset: 0, data: Data(count: size), total: Int64(size))
+            model.refreshCached()
+        }
+    }
+
+    /// `-MelogoldExport <videoId> -MelogoldExportDir <папка>`: тот же путь, что у «Сохранить файлом», но результат —
+    /// в папку, а не в «Музыку». Сведения о треке — образец для проверки тегов и обложки; итог — в журнал.
+    @MainActor
+    static func exportTrack(_ model: AppModel, videoId: String, directory: URL) async {
+        let track = Track(videoId: videoId, title: "Never Gonna Give You Up", artists: [ArtistRef(id: "UCuAXFkgsw1L7xaCfnd5JJOw", name: "Rick Astley")],
+                          artistsText: "Rick Astley", albumTitle: "Whenever You Need Somebody", durationMs: 213_000,
+                          thumbnailUrl: "https://i.ytimg.com/vi/\(videoId)/hq720.jpg", videoType: VideoType.song)
+        do {
+            let file = try await FileExport.export(track, services: model.services)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let target = directory.appendingPathComponent(file.lastPathComponent)
+            try? FileManager.default.removeItem(at: target)
+            try FileManager.default.moveItem(at: file, to: target)
+            Log.info("export", "debug: \(target.path)")
+        } catch {
+            Log.warning("export", "debug: \(error)")
+        }
+    }
+
     /// Пример библиотеки из живого альбома «Группа крови»: лайки, плейлист, прослушивания, сохранённые альбом и
     /// исполнитель. Повторный запуск ничего не дублирует.
     @MainActor
@@ -81,6 +147,42 @@ enum DebugLaunch {
         }
         library.setAlbumSaved(album.album, tracks: tracks, true)
         library.setArtistSaved(ArtistItem(browseId: "UCL9NQ06h7I0CRUcGxPWMtkQ", name: "Кино", thumbnailUrl: nil), true)
+    }
+
+    /// Свой синхронный текст играющему треку для снимков «Сейчас играет»: короткая строка (узкая подложка), длинная с
+    /// переносом, строка с подпевкой, строка второй стороны дуэта с переводом и проигрыш 26–34 с (подложки нет).
+    @MainActor
+    static func seedLyrics(_ model: AppModel, track: Track, plainForEditor: Bool = false) {
+        if plainForEditor {
+            // Для редактора «Синхронизация»: ни одной отметки времени, «Далее» — длинные строки целиком
+            let long = "夜空を見上げて 君の名前を呼んだ 遠い街の灯りが 滲んで見える 風に乗せた言葉は どこまで届くのだろう それでも歩き続けるよ 明日の光を信じて"
+            let veryLong = Array(repeating: long, count: 5).joined(separator: " ")
+            model.services.lyrics.load(track)
+            model.services.lyrics.saveOwn(videoId: track.videoId, synced: "", plain: [long, veryLong, "Обычная строка (подпевка)", "Ещё одна строка"].joined(separator: "\n"),
+                                          source: LyricsSources.user)
+            return
+        }
+        func line(_ start: Int64, _ end: Int64, _ text: String, side: VocalSide = .start, backing: String? = nil, translation: String? = nil) -> SyncedLine {
+            SyncedLine(startMs: start, endMs: end, text: text, agent: side == .end ? "v2" : "v1", side: side,
+                       background: backing.map { BackingVocals(startMs: start, endMs: end, words: [SyncedWord(startMs: start, endMs: end, text: $0)]) },
+                       translation: translation)
+        }
+        let lines = [
+            line(6_000, 9_000, "Привет"),
+            line(9_000, 14_000, "Это очень длинная строка текста песни, которая обязательно не поместится в одну строку и перенесётся на две или даже на три строки"),
+            line(14_000, 18_000, "Мягкое кресло, клетчатый плед", backing: "(эхо)"),
+            line(18_000, 22_000, "Ответ второго голоса", side: .end),
+            line(22_000, 26_000, "Строка с переводом", side: .end, translation: "A line with a translation"),
+            line(34_000, 38_000, "После проигрыша"),
+            line(38_000, 42_000, "Ещё одна строка"),
+            line(42_000, 46_000, "И ещё одна"),
+            line(46_000, 50_000, "Последняя строка для прокрутки"),
+        ]
+        let synced = SyncedLyrics(lines: lines, timing: .line,
+                                  agents: [LyricsAgent(id: "v1", side: .start), LyricsAgent(id: "v2", side: .end)])
+        model.services.lyrics.load(track)
+        model.services.lyrics.saveOwn(videoId: track.videoId, synced: TtmlFormat.write(synced),
+                                      plain: lines.map(\.text).joined(separator: "\n"), source: LyricsSources.user)
     }
 
     /// Два прослушивания этого устройства без сети и без плеера (звук не нужен) — для Истории и фильтра по устройствам
@@ -121,6 +223,10 @@ enum DebugLaunch {
             Task { await seedLibrary(model) }
         }
         if defaults.bool(forKey: "MelogoldSeedPlays") { seedPlays(model) }
+        if defaults.bool(forKey: "MelogoldSeedDownloads") { Task { await seedDownloads(model) } }
+        if let videoId = defaults.string(forKey: "MelogoldExport"), let directory = defaults.string(forKey: "MelogoldExportDir") {
+            Task { await exportTrack(model, videoId: videoId, directory: URL(fileURLWithPath: directory, isDirectory: true)) }
+        }
         if defaults.bool(forKey: "MelogoldSeedStats") { seedStats(model) }
         // -MelogoldOpenDetails <videoId> — лист «Сведения о треке» (снимок; трек уже в библиотеке)
         if let videoId = defaults.string(forKey: "MelogoldOpenDetails"), let track = model.library?.library.track(videoId) {
@@ -128,10 +234,13 @@ enum DebugLaunch {
         }
         if defaults.object(forKey: "MelogoldOpenWrapped") != nil { model.wrappedYear = defaults.integer(forKey: "MelogoldOpenWrapped") }
         if defaults.bool(forKey: "MelogoldOpenRemote") { model.remoteSheet = true }
-        if defaults.bool(forKey: "MelogoldShowNowPlaying") || defaults.bool(forKey: "MelogoldShowQueue") {
+        if defaults.bool(forKey: "MelogoldShowNowPlaying") || defaults.bool(forKey: "MelogoldShowQueue") || defaults.string(forKey: "MelogoldSeedLyrics") != nil {
             Task {
                 for _ in 0..<300 where model.services.player.currentTrack == nil {
                     try? await Task.sleep(for: .milliseconds(100))
+                }
+                if let seed = defaults.string(forKey: "MelogoldSeedLyrics"), let track = model.services.player.currentTrack {
+                    seedLyrics(model, track: track, plainForEditor: seed == "editor")
                 }
                 model.lyricsVisible = defaults.bool(forKey: "MelogoldShowLyrics")
                 model.showNowPlaying = defaults.bool(forKey: "MelogoldShowNowPlaying") && model.services.player.currentTrack != nil
@@ -141,9 +250,22 @@ enum DebugLaunch {
                     try? await Task.sleep(for: .seconds(3))
                     model.queueVisible = true
                 }
-                if defaults.bool(forKey: "MelogoldLyricsEditor") {
+                if defaults.string(forKey: "MelogoldLyricsEditor") != nil {
                     try? await Task.sleep(for: .seconds(4))
                     model.openLyricsEditor()
+                }
+                if let seconds = defaults.string(forKey: "MelogoldSeek").flatMap(Double.init) {
+                    let player = model.services.player
+                    // Ждём звук, затем перематываем, пока позиция не встанет (первая перемотка на старте бывает потеряна)
+                    for _ in 0..<300 where player.phase != .playing || player.duration <= 0 {
+                        try? await Task.sleep(for: .milliseconds(100))
+                    }
+                    for _ in 0..<20 {
+                        if abs(player.position - seconds) < 2 { break }
+                        player.seek(to: seconds)
+                        try? await Task.sleep(for: .seconds(1))
+                    }
+                    if defaults.bool(forKey: "MelogoldSeekPause") { player.pause() }
                 }
             }
         }

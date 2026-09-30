@@ -66,6 +66,7 @@ struct MelogoldApp: App {
                 .onAppear {
                     applyMacAppearance()
                     #if DEBUG
+                    DebugSnapshot.applyWindowSize()
                     DebugSnapshot.scheduleIfRequested()
                     #endif
                 }

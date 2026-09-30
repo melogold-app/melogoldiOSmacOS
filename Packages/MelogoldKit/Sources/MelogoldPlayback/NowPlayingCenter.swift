@@ -113,11 +113,11 @@ final class NowPlayingCenter {
     }
 
     /// Квадрат из центра картинки: система сама режет обложку квадратом, и не всегда по центру (задание 0008).
-    /// У кадра видео сначала срезаются чёрные поля (`FrameBars`), потом берётся середина.
+    /// Сначала срезаются обводка скана и, у кадра видео, поля (`FrameBars`), потом берётся середина.
     static func squareImage(from data: Data, stripBars: Bool) -> PlatformImage? {
         guard let source = CGImageSourceCreateWithData(data as CFData, nil),
               let decoded = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
-        let square = FrameCrop.centerSquare(stripBars ? FrameCrop.withoutBars(decoded) : decoded)
+        let square = FrameCrop.centerSquare(FrameCrop.withoutBars(decoded, bars: stripBars))
         #if canImport(UIKit)
         return UIImage(cgImage: square)
         #else

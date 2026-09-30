@@ -5,10 +5,13 @@ public enum ArtworkSession {
     nonisolated(unsafe) private static var configuredCache: URLCache?
     private static let lock = NSLock()
 
+    /// Размер дискового кэша обложек: заполнится — новые обложки займут место тех, что дольше всех не показывали.
+    public static let diskCapacity = 256 << 20
+
     /// Задать кэш обложек до первого запроса (папка `Caches/Melogold/Artwork`).
     public static func configure(directory: URL) {
         lock.withLock {
-            configuredCache = URLCache(memoryCapacity: 32 << 20, diskCapacity: 256 << 20, directory: directory)
+            configuredCache = URLCache(memoryCapacity: 32 << 20, diskCapacity: diskCapacity, directory: directory)
         }
     }
 

@@ -30,28 +30,38 @@ struct SplitShell: View {
             .id(model.section)
             #if !os(visionOS)
             // Очередь — колонка справа (docs/PROMPT.md §5.4, iPad — §5.3).
-            .inspector(isPresented: $model.queueVisible) {
+            // Пока открыт «Сейчас играет», колонка очереди — его собственная: окно под ним не перестраивается (иначе SwiftUI
+            // возвращает в панель окна скрытые название и кнопки)
+            .inspector(isPresented: Binding(get: { model.queueVisible && !model.showNowPlaying }, set: { model.queueVisible = $0 })) {
                 QueueView()
                     .inspectorColumnWidth(min: 300, ideal: 340, max: 460)
             }
             #endif
             #if os(macOS)
-            .onExitCommand { model.goBack() }
+            // Esc: сначала «Сейчас играет», потом шаг назад в стеке раздела (docs/PROMPT.md §5.4)
+            .onExitCommand {
+                if model.showNowPlaying { model.showNowPlaying = false } else { model.goBack() }
+            }
             #endif
         }
         #if os(macOS)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        // Панель воспроизведения — плавающее стекло внизу окна во всю ширину; боковая панель и колонка детали
+        // заканчиваются над ней, содержимое уходит под неё с мягким затуханием
+        .safeAreaBar(edge: .bottom, spacing: 0) {
             MacPlayerBar()
         }
+        // «Сейчас играет» — слой поверх окна; пока он открыт, панель инструментов окна (поле поиска, заголовок раздела)
+        // скрыта (`NowPlayingChrome`), чтобы не спорить с ним, а кнопки окна остаются
         .overlay {
             if model.showNowPlaying {
                 NowPlayingView()
-                    .transition(.move(edge: .bottom))
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .animation(.snappy, value: model.showNowPlaying)
         #else
-        .fullScreenCover(isPresented: $model.showNowPlaying) {
+        // iPad: лист во всю высоту с системным grabber, закрывается смахиванием вниз
+        .sheet(isPresented: $model.showNowPlaying) {
             NowPlayingView()
         }
         #endif
@@ -75,7 +85,7 @@ struct MiniPlayerBar: ViewModifier {
                 if model.services.player.currentTrack != nil {
                     MiniPlayer()
                         .padding(.vertical, 8)
-                        .glassEffect(.regular, in: .capsule)
+                        .controlGlass(Capsule())
                         .padding(.horizontal, 16)
                         .padding(.bottom, 8)
                 }

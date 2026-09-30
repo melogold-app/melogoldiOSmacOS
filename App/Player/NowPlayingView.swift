@@ -2,78 +2,42 @@ import SwiftUI
 import MelogoldCore
 import MelogoldPlayback
 
-/// «Сейчас играет» (docs/PROMPT.md §5.7): обложка (нажатие — текст), название, исполнитель, ♡, ползунок перемотки,
-/// ⇄ ⏮ ⏯ ⏭ ⟲, «Текст», AirPlay. В широком окне и на iPhone боком — обложка слева, управление справа (REWRITE
-/// §3.10.11); с текстом — слева обложка и управление, справа текст. На узком экране текст встаёт на место обложки,
-/// а название — в строку над ним. Очередь, таймер и фон по цвету обложки — в срезе 7.
+/// «Сейчас играет» (docs/PROMPT.md §5.7) на iPhone, iPad, Mac и Vision.
+///
+/// - Фон — мягкий статичный оттенок цвета обложки (`NowPlayingBackground`, §5.1); стекло — только у управления.
+/// - Закрытие: на iPhone и iPad это лист (`.sheet`) с системным grabber и закрытием смахиванием вниз, на Mac — Esc
+///   и кнопка в углу, на Vision — окно.
+/// - Обложка — крупно, нажатие включает текст; на узком экране портретный вид: обложка, название, полоса, транспорт на
+///   стекле, панель действий; с текстом — маленькая шапка, текст, компактный транспорт под ним.
+/// - iPhone боком, iPad и Mac в широком окне (REWRITE §3.10.11): обложка слева, управление справа; с текстом слева
+///   обложка (если помещается) и компактное управление, справа текст.
+/// - Крупный Dynamic Type: обложка и управление прокручиваются, значки не растут дальше ряда.
 struct NowPlayingView: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Рамка обложки в широкой раскладке: по ней встаёт середина текущей строки текста.
+    @State private var coverFrame: CGRect?
 
     var body: some View {
         @Bindable var model = model
         let player = model.services.player
         GeometryReader { proxy in
-            let wide = proxy.size.width > proxy.size.height * 1.1
             Group {
                 if let track = player.currentTrack {
-                    if wide {
-                        HStack(spacing: 40) {
-                            if model.lyricsVisible {
-                                VStack(spacing: 20) {
-                                    artwork(track, side: min(proxy.size.height * 0.42, proxy.size.width * 0.3))
-                                    controls(track)
-                                }
-                                .frame(maxWidth: 420)
-                                lyricsColumn
-                            } else {
-                                artwork(track, side: min(proxy.size.height - 80, proxy.size.width / 2 - 60))
-                                controls(track).frame(maxWidth: 440)
-                            }
-                        }
-                        .padding(.horizontal, 40)
-                        .padding(.top, 56)
-                        .padding(.bottom, 24)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else if model.lyricsVisible {
-                        VStack(spacing: 12) {
-                            compactHeader(track)
-                                .padding(.top, 56)
-                            lyricsColumn
-                            controls(track, showsTitle: false)
-                                .padding(.bottom, 12)
-                        }
-                        .padding(.horizontal, 24)
-                    } else {
-                        VStack(spacing: 28) {
-                            Spacer(minLength: 0)
-                            artwork(track, side: min(proxy.size.width - 48, proxy.size.height * 0.5))
-                            controls(track)
-                            Spacer(minLength: 0)
-                        }
-                        .padding(.horizontal, 24)
-                    }
+                    content(track, size: proxy.size)
                 } else {
                     ContentUnavailableView { Label("player.nothingPlaying", systemImage: "music.note") }
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
+            .coordinateSpace(name: nowPlayingSpace)
+            .onPreferenceChange(CoverFrameKey.self) { coverFrame = $0 }
         }
-        .background(.background)
-        .overlay(alignment: .topLeading) {
-            Button { dismiss(); model.showNowPlaying = false } label: {
-                Image(systemName: "chevron.down")
-                    .font(.title3.weight(.semibold))
-                    .frame(width: 44, height: 44)
-            }
-            .buttonStyle(.plain)
-            .padding()
-            .accessibilityLabel(Text("common.collapse"))
-            .keyboardShortcut(.cancelAction)
-        }
+        .modifier(NowPlayingChrome())
         .sheet(item: $model.lyricsSearch) { LyricsSearchSheet(track: $0) }
         #if os(iOS)
-        // iPhone: очередь — лист; iPad с боковой панелью — колонка справа в окне (`SplitShell`).
+        // iPhone и iPad: очередь — лист из «Сейчас играет»
         .sheet(isPresented: $model.queueVisible) {
             NavigationStack { QueueView(inSheet: true) }
                 .presentationDetents([.medium, .large])
@@ -90,93 +54,354 @@ struct NowPlayingView: View {
         #endif
     }
 
-    private var lyricsColumn: some View {
-        LyricsPanel()
-            .overlay(alignment: .topTrailing) { LyricsMenu() }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    // MARK: - Раскладки
+
+    @ViewBuilder
+    private func content(_ track: Track, size: CGSize) -> some View {
+        let landscape = size.width > size.height * 1.1
+        let margin = size.width >= 700 ? Design.Space.xl : Design.Space.l
+        let short = size.height < 520
+        Group {
+            if landscape {
+                landscapeLayout(track, size: size, margin: margin, short: short)
+            } else if model.lyricsVisible {
+                stackedLyrics(track, size: size, margin: margin)
+            } else if typeSize.isAccessibilitySize {
+                scrollingCover(track, size: size, margin: margin)
+            } else {
+                stackedCover(track, size: size, margin: margin)
+            }
+        }
+        .transition(.opacity)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.35), value: model.lyricsVisible)
     }
 
-    private func artwork(_ track: Track, side: CGFloat) -> some View {
-        Button {
+    /// Портрет, как у Apple Music: обложка у верха во всю ширину (пока влезает управление), под ней название с ♡ и «…»,
+    /// полоса, ряд транспорта, громкость и нижний ряд — ровным шагом; лишняя высота уходит в зазор под обложкой.
+    private func stackedCover(_ track: Track, size: CGSize, margin: CGFloat) -> some View {
+        let wide = size.width >= 700
+        #if os(iOS)
+        let volume = size.height >= 760
+        #else
+        let volume = false
+        #endif
+        return VStack(spacing: 0) {
+            // Обложка берёт место первой (приоритет); что осталось — треть над ней, две трети под ней
+            Spacer(minLength: 0)
+            artworkArea(track)
+                .frame(maxHeight: size.width - 2 * margin)
+                .layoutPriority(1)
+            Spacer(minLength: Design.Space.l)
+            Spacer(minLength: 0)
+            VStack(spacing: 0) {
+                NowPlayingTitle(track: track, large: wide)
+                SeekBar()
+                    .padding(.top, Design.Space.m)
+                PlayerChips()
+                TransportRow()
+                    .padding(.top, Design.Space.xs)
+                #if os(iOS)
+                if volume {
+                    VolumeRow()
+                        .padding(.top, Design.Space.s)
+                }
+                #endif
+                PlayerActionBar()
+                    .padding(.top, volume ? Design.Space.m : Design.Space.l)
+            }
+            .frame(maxWidth: 560)
+        }
+        .padding(.horizontal, margin)
+        .padding(.top, Metrics.topInset + Design.Space.xs)
+        .padding(.bottom, Design.Space.xs)
+    }
+
+    /// Крупный Dynamic Type без текста: всё в прокрутке, обложка не сжимается до точки.
+    private func scrollingCover(_ track: Track, size: CGSize, margin: CGFloat) -> some View {
+        ScrollView {
+            VStack(spacing: Design.Space.l) {
+                artworkButton(track, side: min(size.width - 2 * margin, 320))
+                controls(track, compact: false, wide: false)
+            }
+            .padding(.horizontal, margin)
+            .padding(.top, Metrics.topInset)
+            .padding(.bottom, Design.Space.l)
+        }
+        .scrollIndicators(.hidden)
+    }
+
+    /// Портрет с текстом: шапка — маленькая обложка, название, ♡ и «…»; текст; под ним полоса, компактный транспорт и
+    /// нижний ряд.
+    private func stackedLyrics(_ track: Track, size: CGSize, margin: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            lyricsHeader(track)
+                .padding(.horizontal, margin)
+            LyricsPanel()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            VStack(spacing: 0) {
+                SeekBar()
+                PlayerChips()
+                TransportRow(compact: true)
+                PlayerActionBar()
+                    .padding(.top, Design.Space.xs)
+            }
+            .frame(maxWidth: 560)
+            .padding(.horizontal, margin)
+        }
+        .padding(.top, Metrics.topInset + Design.Space.xs)
+        .padding(.bottom, Design.Space.xs)
+    }
+
+    /// Боком и в широком окне — две равные половины, граница ровно по середине окна (решение пользователя, 2026-09-30):
+    /// - без текста: обложка по центру левой половины, управление по центру правой;
+    /// - с текстом: слева обложка, под ней сразу название, полоса и кнопки — одной группой по центру половины и по
+    ///   вертикали, справа колонка текста по центру своей половины (строки — по левому краю, ширина не больше 620 pt);
+    ///   середина текущей строки стоит на уровне середины обложки (`lyricsCoverMid`), нет обложки — верх области.
+    private func landscapeLayout(_ track: Track, size: CGSize, margin: CGFloat, short: Bool) -> some View {
+        #if os(macOS)
+        // Колонка очереди справа внутри «Сейчас играет»: половины делят остальное окно
+        let queueWidth: CGFloat = model.queueVisible ? 320 + Design.Space.l : 0
+        #else
+        let queueWidth: CGFloat = 0
+        #endif
+        let half = (size.width - queueWidth) / 2
+        return HStack(spacing: 0) {
+            if model.lyricsVisible {
+                CoverAboveControls(spacing: Design.Space.l) {
+                    coverSlot(track)
+                    controls(track, compact: true, wide: false)
+                }
+                .padding(.horizontal, margin)
+                .frame(width: half)
+                LyricsPanel()
+                    .environment(\.lyricsCoverMid, coverFrame?.midY)
+                    .frame(width: min(half - 2 * margin, 620))
+                    .frame(width: half)
+            } else {
+                artworkArea(track)
+                    .padding(.horizontal, margin)
+                    .frame(width: half)
+                controls(track, compact: short, wide: !short && size.width >= 900)
+                    .frame(maxWidth: 460)
+                    .padding(.horizontal, margin)
+                    .frame(width: half)
+            }
+            #if os(macOS)
+            if model.queueVisible {
+                QueueView()
+                    .frame(width: 320)
+                    .clipShape(RoundedRectangle(cornerRadius: Design.Radius.medium, style: .continuous))
+                    .padding(.leading, Design.Space.l)
+                    .padding(.trailing, margin)
+            }
+            #endif
+        }
+        .padding(.top, Metrics.topInset)
+        .padding(.bottom, Design.Space.l)
+    }
+
+    /// Место под обложку, которое размеряет `CoverAboveControls`: квадрат по предложенному размеру; у кадра видео 16:9
+    /// обложка стоит посередине квадрата, поэтому середина обложки не прыгает при смене формы.
+    private func coverSlot(_ track: Track) -> some View {
+        GeometryReader { slot in
+            let side = min(slot.size.width, slot.size.height)
+            if side >= 96 {
+                artworkButton(track, side: side)
+                    .background {
+                        GeometryReader { cover in
+                            Color.clear.preference(key: CoverFrameKey.self, value: cover.frame(in: .named(nowPlayingSpace)))
+                        }
+                    }
+                    .frame(width: slot.size.width, height: slot.size.height)
+            }
+        }
+    }
+
+    // MARK: - Части
+
+    /// Обложка в квадрате, вписанном в оставшееся место. Меньше `minSide` — не показывается вовсе (низкое окно с текстом).
+    private func artworkArea(_ track: Track, minSide: CGFloat = 0) -> some View {
+        GeometryReader { area in
+            // На iPad и в большом окне обложка не растёт шире 600 pt: рядом с управлением она остаётся обложкой, а не обоями
+            let side = min(area.size.width, area.size.height, 600)
+            if side >= max(minSide, 1) {
+                artworkButton(track, side: side)
+                    .background {
+                        GeometryReader { cover in
+                            Color.clear.preference(key: CoverFrameKey.self, value: cover.frame(in: .named(nowPlayingSpace)))
+                        }
+                    }
+                    .frame(width: area.size.width, height: area.size.height)
+            }
+        }
+        .frame(minHeight: 0, maxHeight: .infinity)
+    }
+
+    /// Обложка — кнопка «Текст». В паузе она отступает (как у Apple Music): чуть меньше и с короткой тенью, при игре
+    /// пружиной возвращается; место в раскладке не меняется, середина та же.
+    private func artworkButton(_ track: Track, side: CGFloat) -> some View {
+        let player = model.services.player
+        let resting = !player.isPlaying && player.phase != .loading
+        return Button {
             withAnimation(.snappy) { model.lyricsVisible = true }
         } label: {
-            NowPlayingArtwork(url: track.artworkURL, side: max(120, side))
-                .shadow(color: .black.opacity(0.2), radius: 16, y: 8)
+            NowPlayingArtwork(url: track.artworkURL, side: max(96, side))
+                .shadow(color: .black.opacity(resting ? 0.12 : 0.24), radius: resting ? 8 : 22, y: resting ? 4 : 12)
+                .scaleEffect(resting && !reduceMotion ? 0.84 : 1)
+                .animation(reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.72), value: resting)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text("player.lyrics"))
     }
 
-    /// Узкий экран с текстом: маленькая обложка и название над текстом; нажатие по обложке — обратно к обложке.
-    private func compactHeader(_ track: Track) -> some View {
-        HStack(spacing: 12) {
+    /// Шапка над текстом: маленькая обложка возвращает к обложке, справа ♡ и «…» (в нём и пункты текста).
+    private func lyricsHeader(_ track: Track) -> some View {
+        HStack(spacing: Design.Space.s) {
             Button {
                 withAnimation(.snappy) { model.lyricsVisible = false }
             } label: {
-                ArtworkView(url: track.artworkURL, size: 56)
+                ArtworkView(url: track.artworkURL, size: 52, cornerRadius: Design.Radius.small)
+                    .shadow(color: .black.opacity(0.15), radius: 6, y: 3)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(Text("lyrics.artwork"))
             VStack(alignment: .leading, spacing: 2) {
-                Text(track.title).font(.headline).lineLimit(1)
+                Text(track.title).font(.headline).lineLimit(2)
                 PlayerStatusLine(font: .subheadline)
             }
-            Spacer(minLength: 8)
-            LikeButton(size: .title3)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            TrackActionCircles()
         }
     }
 
-    private func controls(_ track: Track, showsTitle: Bool = true) -> some View {
-        VStack(spacing: showsTitle ? 20 : 12) {
-            if showsTitle {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(track.title)
-                            .font(.title2.weight(.bold))
-                            .lineLimit(2)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        PlayerStatusLine(font: .title3)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    LikeButton(size: .title2)
-                }
-            }
+    /// Название, полоса перемотки, транспорт, громкость, нижний ряд — широкая раскладка. Компактный вид — рядом с
+    /// текстом и в низком окне.
+    @ViewBuilder
+    private func controls(_ track: Track, compact: Bool, wide: Bool, showsTitle: Bool = true) -> some View {
+        VStack(spacing: 0) {
+            if showsTitle { NowPlayingTitle(track: track, large: wide && !compact) }
             SeekBar()
-            HStack(spacing: 28) {
-                ShuffleToggle(size: .title3)
-                PreviousButton(size: .title)
-                PlayPauseButton(size: .largeTitle)
-                NextButton(size: .title)
-                RepeatToggle(size: .title3)
-            }
+                .padding(.top, showsTitle ? (compact ? Design.Space.s : Design.Space.m) : 0)
             PlayerChips()
-            HStack(spacing: 32) {
-                Button {
-                    withAnimation(.snappy) { model.lyricsVisible.toggle() }
-                } label: {
-                    Image(systemName: model.lyricsVisible ? "quote.bubble.fill" : "quote.bubble")
-                        .font(.title3)
-                        .frame(width: 44, height: 44)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(model.lyricsVisible ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-                .accessibilityLabel(Text("player.lyrics"))
-                Button {
-                    model.queueVisible.toggle()
-                } label: {
-                    Image(systemName: "list.bullet")
-                        .font(.title3)
-                        .frame(width: 44, height: 44)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(model.queueVisible ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-                .accessibilityLabel(Text("player.queue"))
-                RoutePickerButton()
-                    .frame(width: 44, height: 44)
-                    .accessibilityLabel(Text("player.airplay"))
-                PlayerMoreMenu()
-            }
+            TransportRow(compact: compact)
+                .padding(.top, compact ? 0 : Design.Space.xs)
+            #if os(macOS)
+            if wide { VolumeBar().frame(height: 24).padding(.top, Design.Space.s) }
+            #elseif os(iOS)
+            if wide { VolumeRow().padding(.top, Design.Space.s) }
+            #endif
+            PlayerActionBar()
+                .padding(.top, compact ? Design.Space.xs : Design.Space.l)
         }
+        .frame(maxWidth: 520)
+    }
+}
+
+/// Обложка над блоком управления — одна группа по центру своей половины и по вертикали, без провала между ними:
+/// обложка берёт высоту, которая осталась от управления (не выше 560 pt); не помещается (низкое окно) — остаётся одно
+/// управление. Ширина управления — ширина обложки, но не меньше 320 pt.
+private struct CoverAboveControls: Layout {
+    var spacing: CGFloat
+    let maxCover: CGFloat = 560
+    let minCover: CGFloat = 96
+    let minControls: CGFloat = 320
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) -> CGSize {
+        CGSize(width: proposal.width ?? maxCover, height: proposal.height ?? maxCover)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) {
+        guard subviews.count == 2 else { return }
+        let column = min(bounds.width, maxCover)
+        let natural = subviews[1].sizeThatFits(ProposedViewSize(width: column, height: nil)).height
+        let side = min(column, bounds.height - natural - spacing, maxCover)
+        let showsCover = side >= minCover
+        let controlsWidth = showsCover ? min(column, max(side, minControls)) : column
+        let controls = ProposedViewSize(width: controlsWidth, height: nil)
+        let controlsHeight = subviews[1].sizeThatFits(controls).height
+        let group = (showsCover ? side + spacing : 0) + controlsHeight
+        var y = bounds.minY + max(0, (bounds.height - group) / 2)
+        if showsCover {
+            subviews[0].place(at: CGPoint(x: bounds.midX, y: y), anchor: .top, proposal: ProposedViewSize(width: side, height: side))
+            y += side + spacing
+        } else {
+            subviews[0].place(at: CGPoint(x: bounds.midX, y: y), anchor: .top, proposal: ProposedViewSize(width: 0, height: 0))
+        }
+        subviews[1].place(at: CGPoint(x: bounds.midX, y: y), anchor: .top, proposal: controls)
+    }
+}
+
+/// Рамка обложки рядом с текстом в пространстве «Сейчас играет» (`nowPlayingSpace`).
+private struct CoverFrameKey: PreferenceKey {
+    static let defaultValue: CGRect? = nil
+
+    static func reduce(value: inout CGRect?, nextValue: () -> CGRect?) {
+        if let next = nextValue() { value = next }
+    }
+}
+
+/// Размеры по платформе.
+private enum Metrics {
+    /// Верхний отступ содержимого: на iPhone и iPad — место под grabber листа, на Mac — под кнопками окна.
+    static var topInset: CGFloat {
+        #if os(macOS)
+        56
+        #elseif os(iOS)
+        28
+        #else
+        Design.Space.l
+        #endif
+    }
+}
+
+#if os(iOS)
+/// Лист «Сейчас играет» на iPad — во всю ширину и высоту окна (docs/PROMPT.md §5.3: «во весь экран»), а не карточка
+/// `.page`: в ней «Сейчас играет» боком не получает широкой раскладки. Grabber и закрытие смахиванием остаются системными.
+private struct FullSheetSizing: PresentationSizing {
+    func proposedSize(for root: PresentationSizingRoot, context: PresentationSizingContext) -> ProposedViewSize {
+        // Просим больше любого экрана: система ужимает лист до доступного места окна
+        ProposedViewSize(width: 10_000, height: 10_000)
+    }
+}
+#endif
+
+/// Фон и способ показа: лист с grabber на iPhone и iPad, слой поверх окна на Mac (кнопка закрытия и Esc), Vision — стекло
+/// окна без своего фона.
+private struct NowPlayingChrome: ViewModifier {
+    @Environment(AppModel.self) private var model
+
+    func body(content: Content) -> some View {
+        #if os(iOS)
+        content
+            .presentationBackground { NowPlayingBackground(tint: model.coverTint) }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            .presentationSizing(FullSheetSizing())
+        #elseif os(macOS)
+        content
+            .background { NowPlayingBackground(tint: model.coverTint) }
+            // Панель инструментов окна скрыта, пока открыт «Сейчас играет»: в ней поле поиска и заголовок раздела из
+            // экрана под ним. Скрывает её AppKit, а не `toolbar(.hidden, for: .windowToolbar)` — тот гасит и кнопки окна.
+            .background { MacToolbarHidden() }
+            .overlay(alignment: .topTrailing) {
+                Button {
+                    model.showNowPlaying = false
+                } label: {
+                    Image(systemName: "chevron.down")
+                        .font(.body.weight(.semibold))
+                        .frame(width: 36, height: 36)
+                        .contentShape(Circle())
+                        .controlGlass(Circle(), interactive: true)
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.cancelAction)
+                .padding(Design.Space.m)
+                .help(Text("common.collapse"))
+                .accessibilityLabel(Text("common.collapse"))
+            }
+        #else
+        content
+        #endif
     }
 }
 
@@ -190,7 +415,7 @@ struct NowPlayingArtwork: View {
     @State private var wide = false
 
     var body: some View {
-        ArtworkView(url: url, size: side, shape: wide ? .wide : .rounded)
+        ArtworkView(url: url, size: side, shape: wide ? .wide : .rounded, cornerRadius: Design.Radius.cover)
             .animation(.snappy, value: wide)
             .task(id: url) {
                 wide = false
@@ -202,3 +427,53 @@ struct NowPlayingArtwork: View {
             }
     }
 }
+
+#if os(macOS)
+/// Прячет панель инструментов окна на время жизни вида и возвращает её при уходе, как «Вид › Скрыть панель
+/// инструментов»: кнопки окна (красная, жёлтая, зелёная) остаются на месте, название раздела в строке заголовка
+/// тоже скрыто, содержимое окна — под прозрачной строкой заголовка.
+private struct MacToolbarHidden: NSViewRepresentable {
+    func makeNSView(context: Context) -> ToolbarHiderView { ToolbarHiderView() }
+
+    func updateNSView(_ view: ToolbarHiderView, context: Context) { view.hide() }
+
+    static func dismantleNSView(_ view: ToolbarHiderView, coordinator: ()) { view.restore() }
+
+    final class ToolbarHiderView: NSView {
+        private weak var hiddenIn: NSWindow?
+        private var wasVisible = true
+        private var title = NSWindow.TitleVisibility.visible
+        private var observer: (any NSObjectProtocol)?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            hide()
+            guard let window, observer == nil else { return }
+            // SwiftUI возвращает название окна при любой перестройке панели (открылась очередь, сменился раздел под экраном):
+            // держим его скрытым на каждом такте обновления окна
+            observer = NotificationCenter.default.addObserver(forName: NSWindow.didUpdateNotification, object: window, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.hide() }
+            }
+        }
+
+        func hide() {
+            guard let window, let toolbar = window.toolbar else { return }
+            if hiddenIn == nil {
+                hiddenIn = window
+                wasVisible = toolbar.isVisible
+                title = window.titleVisibility
+            }
+            if toolbar.isVisible { toolbar.isVisible = false }
+            if window.titleVisibility != .hidden { window.titleVisibility = .hidden }
+        }
+
+        func restore() {
+            if let observer { NotificationCenter.default.removeObserver(observer) }
+            observer = nil
+            hiddenIn?.toolbar?.isVisible = wasVisible
+            hiddenIn?.titleVisibility = title
+            hiddenIn = nil
+        }
+    }
+}
+#endif

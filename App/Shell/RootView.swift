@@ -70,6 +70,15 @@ struct RootView: View {
             }
             #endif
             .modifier(LibraryTransferModifier())
+            // Оттенок обложки для фона «Сейчас играет»: считается при смене трека, до открытия плеера
+            .task(id: model.services.player.currentTrack?.artworkURL) {
+                let url = model.services.player.currentTrack?.artworkURL
+                if let hit = CoverPalette.cached(url) {
+                    model.coverTint = hit
+                } else {
+                    model.coverTint = await CoverPalette.shared.tint(for: url)
+                }
+            }
             .onAppear { model.undoManager = undoManager }
             .onChange(of: undoManager) { model.undoManager = undoManager }
             .onChange(of: scenePhase) { _, phase in

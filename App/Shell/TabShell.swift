@@ -46,8 +46,12 @@ struct TabShell: View {
         // иначе оно появляется в каждом разделе.
         #if os(iOS)
         .tabViewSearchActivation(.searchTabSelection)
+        // Панель вкладок сворачивается при прокрутке вниз; мини-плеер при этом встаёт рядом с ней в компактном виде
+        // (`MiniPlayer` читает `tabViewBottomAccessoryPlacement`)
+        .tabBarMinimizeBehavior(.onScrollDown)
         .modifier(MiniPlayerAccessory(hasTrack: hasTrack, namespace: playerNamespace))
-        .fullScreenCover(isPresented: $model.showNowPlaying) {
+        // Лист с системным grabber: закрывается смахиванием вниз, переход `zoom` от мини-плеера
+        .sheet(isPresented: $model.showNowPlaying) {
             NowPlayingView()
                 .navigationTransition(.zoom(sourceID: "nowPlaying", in: playerNamespace))
         }

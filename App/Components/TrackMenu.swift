@@ -47,7 +47,7 @@ struct TrackMenuItems: View {
             #endif
         }
         Section {
-            downloadItem
+            DownloadMenuItem(track: track)
             Button { model.searchOtherVersions(of: track) } label: {
                 Label("menu.otherVersions", systemImage: "square.on.square")
             }
@@ -111,31 +111,6 @@ struct TrackMenuItems: View {
             }
         }
     }
-
-    /// «Скачать» или состояние загрузки (REWRITE §4.7.5a): отменить, скачать снова, удалить.
-    @ViewBuilder
-    private var downloadItem: some View {
-        switch model.library?.downloadStates[track.videoId] {
-        case .completed?:
-            Button(role: .destructive) { model.removeDownload(track) } label: {
-                Label("menu.removeDownload", systemImage: "trash")
-            }
-        case .failed?:
-            Button { model.services.downloads?.retry(track.videoId) } label: {
-                Label("menu.downloadAgain", systemImage: "arrow.clockwise")
-            }
-        case .some:
-            Button { model.services.downloads?.remove(track.videoId) } label: {
-                Label("menu.cancelDownload", systemImage: "xmark.circle")
-            }
-        case nil:
-            if model.services.downloads != nil, track.videoType != VideoType.live {
-                Button { model.download(track) } label: {
-                    Label("menu.download", systemImage: "arrow.down.circle")
-                }
-            }
-        }
-    }
 }
 
 /// Кнопка «…» в строке трека (iPhone, iPad, Vision). На Mac меню — правым щелчком.
@@ -148,13 +123,16 @@ struct TrackMenuButton: View {
         Menu {
             TrackMenuItems(track: track, context: context)
         } label: {
+            // Нейтральный значок (`Design`): `.borderless` перекрашивал его в синий акцент; акцент — только у включённого
             Image(systemName: "ellipsis")
-                .font(.body)
+                .font(.body.weight(.semibold))
                 .foregroundStyle(.secondary)
-                .frame(width: 32, height: 44)
+                .frame(width: Design.Size.minTap, height: Design.Size.minTap)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.borderless)
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
         .accessibilityLabel(Text("menu.more"))
         #endif
     }

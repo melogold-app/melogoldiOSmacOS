@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import MelogoldCore
 
-/// Чёрные поля кадра видео (задание 0008): те же случаи, что `FrameBarsTests` у Windows.
+/// Поля кадра видео (задание 0008): те же случаи, что `FrameBarsTests` у Windows, и поля не чёрного цвета.
 @Suite("Поля кадра видео")
 struct FrameBarsTests {
     /// Кадр RGBA: `paint` даёт яркость пикселя (x, y).
@@ -61,6 +61,90 @@ struct FrameBarsTests {
         // Редкие светлые пиксели в поле (шум JPEG) — всё равно поле
         let pixels = frame(320, 180) { x, y in (70..<250).contains(x) ? picture(x, y) : (x == 10 && y == 50 ? 200 : 8) }
         #expect(FrameBars.content(pixels, width: 320, height: 180) == PixelRect(x: 70, y: 0, width: 180, height: 180))
+    }
+
+    /// Кадр RGBA по цвету пикселя.
+    private func colored(_ width: Int, _ height: Int, _ paint: (Int, Int) -> (UInt8, UInt8, UInt8)) -> [UInt8] {
+        var pixels = [UInt8](repeating: 255, count: width * height * 4)
+        for y in 0..<height {
+            for x in 0..<width {
+                let (r, g, b) = paint(x, y)
+                let i = (y * width + x) * 4
+                pixels[i] = r
+                pixels[i + 1] = g
+                pixels[i + 2] = b
+            }
+        }
+        return pixels
+    }
+
+    @Test func brownSideBarsAreBarsToo() {
+        // «Группа крови»: обложка посередине кадра, по бокам ровные коричневые поля с шумом JPEG
+        let pixels = colored(320, 180) { x, y in
+            if (70..<250).contains(x) { let v = picture(x, y); return (v, v, v) }
+            let noise = UInt8((x + y) % 9)
+            return (90 + noise, 45 + noise, 25 + noise)
+        }
+        #expect(FrameBars.content(pixels, width: 320, height: 180) == PixelRect(x: 70, y: 0, width: 180, height: 180))
+    }
+
+    @Test func blackRingInsideBrownBarsGoesToo() {
+        // «Группа крови» целиком: коричневые поля, внутри них обложка в чёрной обводке 6 px
+        let pixels = colored(320, 180) { x, y in
+            guard (70..<250).contains(x) else { return (90, 45, 25) }
+            if x < 76 || x >= 244 || y < 6 || y >= 174 { return (8, 8, 8) }
+            let v = picture(x, y)
+            return (v, v, v)
+        }
+        #expect(FrameBars.content(pixels, width: 320, height: 180) == PixelRect(x: 77, y: 7, width: 166, height: 166))
+    }
+
+    @Test func thickFrameIsNotARing() {
+        // Светлая рамка 12 % с каждой стороны внутри кадра без полей — это часть картинки, не обводка
+        let pixels = colored(200, 200) { x, y in
+            (24..<176).contains(x) && (24..<176).contains(y) ? { let v = picture(x, y); return (v, v, v) }() : (240, 240, 240)
+        }
+        let rect = FrameBars.content(pixels, width: 200, height: 200)
+        // Поля с четырёх сторон по 24 px (12 % — больше 3 % вместе) срезаются как поля, а не как обводка
+        #expect(rect == PixelRect(x: 24, y: 24, width: 152, height: 152))
+    }
+
+    @Test func pictureWithoutRingStays() {
+        // Кадр без полей и без обводки: край — сама картинка
+        #expect(FrameBars.content(frame(200, 200, picture), width: 200, height: 200) == nil)
+    }
+
+    @Test func squareCoverLosesOnlyItsRing() {
+        // Квадратная обложка YouTube Music — скан в чёрной обводке 5 px; поля не ищутся
+        let pixels = colored(200, 200) { x, y in
+            if x < 5 || x >= 195 || y < 5 || y >= 195 { return (6, 6, 6) }
+            let v = picture(x, y)
+            return (v, v, v)
+        }
+        #expect(FrameBars.content(pixels, width: 200, height: 200, bars: false) == PixelRect(x: 6, y: 6, width: 188, height: 188))
+    }
+
+    @Test func squareCoverOnPlainBackgroundKeepsItsBackground() {
+        // Без поиска полей широкий ровный фон обложки (25 % стороны) не срезается: это сама обложка
+        let pixels = colored(200, 200) { x, y in
+            (50..<150).contains(x) && (50..<150).contains(y) ? { let v = picture(x, y); return (v, v, v) }() : (0, 0, 0)
+        }
+        #expect(FrameBars.content(pixels, width: 200, height: 200, bars: false) == nil)
+    }
+
+    @Test func differentColorsOnTheSidesAreNotBars() {
+        // Слева коричневая стена, справа синее небо — это кадр, а не поля
+        let pixels = colored(320, 180) { x, y in
+            if (70..<250).contains(x) { let v = picture(x, y); return (v, v, v) }
+            return x < 70 ? (90, 45, 25) : (40, 90, 200)
+        }
+        #expect(FrameBars.content(pixels, width: 320, height: 180) == nil)
+    }
+
+    @Test func plainSkyOnOneSideIsNotABar() {
+        // Ровное светлое небо только слева — полей нет
+        let pixels = colored(320, 180) { x, y in x < 110 ? (200, 220, 250) : { let v = picture(x, y); return (v, v, v) }() }
+        #expect(FrameBars.content(pixels, width: 320, height: 180) == nil)
     }
 
     @Test func rowPaddingIsRespected() {

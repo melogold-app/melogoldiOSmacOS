@@ -215,7 +215,7 @@ struct HistoryView: View {
     }
 
     private func deviceName(_ device: HistoryDevice) -> String {
-        device.name ?? String(localized: "history.device.other")
+        device.name ?? ""
     }
 
     /// Выбранное устройство под заголовком; «Все устройства» — без подзаголовка.

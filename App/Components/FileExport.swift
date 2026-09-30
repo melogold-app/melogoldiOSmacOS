@@ -1,33 +1,37 @@
-import AVFoundation
+import ImageIO
 import SwiftUI
 import UniformTypeIdentifiers
 import MelogoldCore
 import MelogoldData
 import MelogoldPlayback
 
-/// «Сохранить файлом» (docs/PROMPT.md §4, Android `FileExport.kt`): .m4a без перекодирования, с тегами и обложкой —
-/// `AVAssetExportSession` passthrough с метаданными. Байты — из загрузок или кэша, недостающее — из сети тем же путём,
-/// что плеер. Mac — в `~/Music/Melogold`, iPhone и iPad — системное окно сохранения в «Файлы».
+/// «Сохранить файлом» (задание 0009, docs/PROMPT.md §4, Android `FileExport.kt`): .m4a без перекодирования, с тегами
+/// и обложкой. Файл пишет свой `Mp4Writer`: DASH-m4a YouTube — фрагментированный MP4, а `AVAssetExportSession` читает его
+/// целиком и удваивает длительность (§9 п. 21). Байты — из загрузок или кэша, недостающее — из сети тем же путём, что
+/// плеер. Mac — в `~/Music/Melogold`, iPhone и iPad — системное окно сохранения в «Файлы».
 enum FileExport {
     enum Failure: Error {
-        case noFile, exportFailed(String)
+        case noFile
     }
 
     /// Готовый файл во временной папке.
     static func export(_ track: Track, services: Services) async throws -> URL {
         let source = try await completeFile(track, services: services)
-        let asset = AVURLAsset(url: source)
-        guard let session = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetPassthrough) else {
-            throw Failure.exportFailed("нет сеанса экспорта")
+        defer {
+            if source.path.hasPrefix(FileManager.default.temporaryDirectory.path) { try? FileManager.default.removeItem(at: source) }
         }
-        let name = fileName(track)
         let output = FileManager.default.temporaryDirectory.appendingPathComponent("export-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
-        let target = output.appendingPathComponent(name).appendingPathExtension("m4a")
-        session.metadata = await metadata(track)
-        try await session.export(to: target, as: .m4a)
-        if source.path.hasPrefix(FileManager.default.temporaryDirectory.path) { try? FileManager.default.removeItem(at: source) }
+        let target = output.appendingPathComponent(fileName(track)).appendingPathExtension("m4a")
+        let tags = Mp4Tags(title: track.title, artist: track.artistsText, album: track.albumTitle, cover: await cover(artwork: track.artworkURL))
+        try await convert(source, to: target, tags: tags)
         return target
+    }
+
+    /// Запись файла — вне главного потока.
+    @concurrent
+    private static func convert(_ source: URL, to target: URL, tags: Mp4Tags) async throws {
+        try Mp4Writer.write(fragmentedFile: source, to: target, tags: tags)
     }
 
     /// «Исполнитель — Название» без символов, которые файловая система не любит.
@@ -62,23 +66,31 @@ enum FileExport {
         return file
     }
 
-    private static func metadata(_ track: Track) async -> [AVMetadataItem] {
-        var items: [AVMetadataItem] = []
-        func item(_ identifier: AVMetadataIdentifier, _ value: any NSCopying & NSObjectProtocol) {
-            let metadata = AVMutableMetadataItem()
-            metadata.identifier = identifier
-            metadata.value = value
-            metadata.extendedLanguageTag = "und"
-            items.append(metadata)
+    /// Обложка для тегов: JPEG или PNG. Кадр видео 16:9 берётся серединой в квадрате (как в приложении, задание 0008),
+    /// WebP и прочее — в JPEG.
+    @concurrent
+    private static func cover(artwork: String?) async -> Data? {
+        guard let url = Thumbnails.sized(artwork, px: 1200).flatMap(URL.init(string:)),
+              let (data, _) = try? await ArtworkSession.shared.data(from: url) else { return nil }
+        return coverImage(data, square: Thumbnails.isWide(artwork))
+    }
+
+    nonisolated static func coverImage(_ data: Data, square: Bool) -> Data? {
+        let isJPEG = data.starts(with: [0xFF, 0xD8]), isPNG = data.starts(with: [0x89, 0x50, 0x4E, 0x47])
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
+        let side = min(image.width, image.height)
+        let needsCrop = square && image.width != image.height
+        if (isJPEG || isPNG) && !needsCrop { return data }
+        var picture = image
+        if needsCrop, let cropped = image.cropping(to: CGRect(x: (image.width - side) / 2, y: (image.height - side) / 2,
+                                                              width: side, height: side)) {
+            picture = cropped
         }
-        item(.commonIdentifierTitle, track.title as NSString)
-        if let artist = track.artistsText { item(.commonIdentifierArtist, artist as NSString) }
-        if let album = track.albumTitle { item(.commonIdentifierAlbumName, album as NSString) }
-        if let url = Thumbnails.sized(track.artworkURL, px: 1200).flatMap(URL.init(string:)),
-           let (data, _) = try? await ArtworkSession.shared.data(from: url) {
-            item(.commonIdentifierArtwork, data as NSData)
-        }
-        return items
+        let output = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(output, UTType.jpeg.identifier as CFString, 1, nil) else { return nil }
+        CGImageDestinationAddImage(destination, picture, [kCGImageDestinationLossyCompressionQuality: 0.9] as CFDictionary)
+        return CGImageDestinationFinalize(destination) ? output as Data : nil
     }
 
     #if os(macOS)

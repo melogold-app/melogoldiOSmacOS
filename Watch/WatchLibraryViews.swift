@@ -182,8 +182,13 @@ struct WatchTrackMenu: View {
         }
         if let downloads = model.services.downloads {
             if library?.downloadStates[track.videoId] == nil {
-                Button { model.download(track) } label: {
-                    Label("menu.download", systemImage: "arrow.down.circle")
+                if track.videoType == VideoType.live {
+                    Button {} label: { Label("menu.download.live", systemImage: "arrow.down.circle") }
+                        .disabled(true)
+                } else {
+                    Button { model.download(track) } label: {
+                        Label("menu.download", systemImage: "arrow.down.circle")
+                    }
                 }
             } else {
                 Button(role: .destructive) { downloads.remove(track.videoId) } label: {

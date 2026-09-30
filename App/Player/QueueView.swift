@@ -22,7 +22,9 @@ struct QueueView: View {
         List(selection: $selection) {
             if let item = player.current {
                 Section {
+                    // Текущий трек — мягкая плашка акцента: строка списка — контент, стекла под ним нет
                     QueueRow(item: item, isCurrent: true)
+                        .listRowBackground(Color.accentColor.opacity(0.12))
                 } header: {
                     Text("queue.nowPlaying")
                 }
@@ -50,6 +52,7 @@ struct QueueView: View {
                                 .disabled(upcoming.isEmpty)
                         }
                         .buttonStyle(.bordered)
+                        .buttonBorderShape(.capsule)
                         .controlSize(.small)
                         .labelStyle(.titleAndIcon)
                         .lineLimit(1)

@@ -269,5 +269,59 @@ struct LibraryTests {
         store.removeTrack("a1aaaaaaaaa")
         #expect(store.entry("a1aaaaaaaaa") == nil)
     }
+
+    /// Проверка на бота: `hold` ставит всю очередь «ждёт» с причиной и не трогает порядок, скачанное, ошибки и паузу;
+    /// `release` возвращает в очередь только тех, кого остановил `hold`.
+    @Test func downloadHoldKeepsPlacesAndReleaseReturnsOnlyHeld() throws {
+        let store = DownloadStore(database: database, directory: FileManager.default.temporaryDirectory
+            .appendingPathComponent("dl-\(UUID().uuidString)"))
+        let ids = ["a1aaaaaaaaa", "b2bbbbbbbbb", "c3ccccccccc", "d4ddddddddd", "e5eeeeeeeee", "f6fffffffff"]
+        for id in ids {
+            store.requestTrack(track(id, id))
+            Thread.sleep(forTimeInterval: 0.003)
+        }
+        let created = store.entries().map(\.createdAt).sorted()
+        store.setState("b2bbbbbbbbb", .waiting, wait: .wifi)
+        store.setState("c3ccccccccc", .failed, failure: "geo")
+        store.prepare("d4ddddddddd", itag: 140, mimeType: "audio/mp4", contentLength: 4, durationMs: 1000, loudnessDb: nil)
+        #expect(store.write("d4ddddddddd", offset: 0, data: Data(repeating: 1, count: 4)))
+        store.setState("e5eeeeeeeee", .paused)
+        // a и f — в очереди, b — ждёт Wi‑Fi: все три встают с причиной; ошибка, скачанное и пауза — нет
+        #expect(store.hold(.botCheck) == 3)
+        #expect(store.hold(.botCheck) == 0, "повторно ничего не меняется")
+        func state(_ id: String) -> (DownloadState, DownloadWait?)? { store.entry(id).map { ($0.state, $0.wait) } }
+        #expect(state("a1aaaaaaaaa")! == (.waiting, .botCheck))
+        #expect(state("b2bbbbbbbbb")! == (.waiting, .botCheck))
+        #expect(state("c3ccccccccc")! == (.failed, nil))
+        #expect(state("d4ddddddddd")! == (.completed, nil))
+        #expect(state("e5eeeeeeeee")! == (.paused, nil))
+        #expect(state("f6fffffffff")! == (.waiting, .botCheck))
+        #expect(store.entries().map(\.createdAt).sorted() == created, "места не меняются")
+        #expect(store.pending(limit: 10) == ["a1aaaaaaaaa", "b2bbbbbbbbb", "f6fffffffff"])
+        // Ждущий по другой причине, появившийся позже, снятие не задевает
+        store.setState("b2bbbbbbbbb", .waiting, wait: .storage)
+        store.release(.botCheck)
+        #expect(state("a1aaaaaaaaa")! == (.queued, nil))
+        #expect(state("f6fffffffff")! == (.queued, nil))
+        #expect(state("b2bbbbbbbbb")! == (.waiting, .storage))
+        #expect(state("c3ccccccccc")! == (.failed, nil) && state("e5eeeeeeeee")! == (.paused, nil))
+    }
+
+    /// Кольцо в строке трека и «Отменить загрузку · 42 %»: доля — из строки `downloads`, только у нескачанных.
+    @Test func downloadFractionsForRowsAndMenu() throws {
+        let store = DownloadStore(database: database, directory: FileManager.default.temporaryDirectory
+            .appendingPathComponent("dl-\(UUID().uuidString)"))
+        store.requestTrack(track("a1aaaaaaaaa", "A"))
+        store.requestTrack(track("b2bbbbbbbbb", "B"))
+        #expect(store.fractions().isEmpty) // длина ещё неизвестна
+        store.prepare("a1aaaaaaaaa", itag: 140, mimeType: "audio/mp4", contentLength: 100, durationMs: 1000, loudnessDb: nil)
+        store.prepare("b2bbbbbbbbb", itag: 140, mimeType: "audio/mp4", contentLength: 10, durationMs: 1000, loudnessDb: nil)
+        #expect(store.fractions().isEmpty) // ничего не скачано
+        store.write("a1aaaaaaaaa", offset: 0, data: Data(repeating: 1, count: 42))
+        #expect(store.fractions() == ["a1aaaaaaaaa": 0.42])
+        // Скачанный целиком из долей уходит: у него значок «Скачано»
+        #expect(store.write("b2bbbbbbbbb", offset: 0, data: Data(repeating: 2, count: 10)))
+        #expect(store.fractions() == ["a1aaaaaaaaa": 0.42])
+    }
 }
 

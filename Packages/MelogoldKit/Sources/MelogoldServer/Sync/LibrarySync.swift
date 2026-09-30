@@ -27,7 +27,7 @@ public struct AccountWarning: Equatable, Sendable, Identifiable {
 /// Устройство, чьи прослушивания лежат в Истории (задание 0002 §3.5).
 public struct HistoryDevice: Equatable, Sendable, Identifiable {
     public let id: String
-    /// Имя из списка устройств аккаунта; `nil` — устройства в аккаунте уже нет («Другое устройство»).
+    /// Имя из списка устройств аккаунта. Удалённых из аккаунта устройств в фильтре нет вовсе.
     public let name: String?
     public let platform: String?
 }
@@ -732,7 +732,8 @@ public final class LibrarySync {
     /// (`devicesRevision`: `devices.updated` и переподключение потока событий), сменился сеанс или появились прослушивания
     /// устройства, которого при прошлом запросе не было. Без связи — прошлый список, и после запуска: он хранится в
     /// `sync_state`; неудавшийся запрос повторяется при тех же поводах, при возврате сети и выходе на передний план, а не с
-    /// каждой правкой истории. Устройство, которого нет в аккаунте, — без имени («Другое устройство»).
+    /// каждой правкой истории. Устройства, которого нет в аккаунте, в списке нет вовсе — ни «Другого устройства», ни
+    /// «Удалённого устройства»: его прослушивания видны только во «Всех устройствах».
     public func historyDevices() async -> [HistoryDevice] {
         guard let session = account.session, let store, let ids = try? await store.historyDeviceIds() else { return [] }
         let others = ids.subtracting([session.deviceId])
@@ -767,8 +768,10 @@ public final class LibrarySync {
         }
         let known = accountDevices?.session == key ? accountDevices?.devices ?? [] : []
         let byId = Dictionary(known.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        return others.map { HistoryDevice(id: $0, name: byId[$0]?.name, platform: byId[$0]?.platform) }
-            .sorted { ($0.name ?? "\u{10FFFF}", $0.id) < ($1.name ?? "\u{10FFFF}", $1.id) }
+        // Устройства, которого уже нет в аккаунте, в фильтре нет вовсе — ни «Другое устройство», ни «Удалённое
+        // устройство» (решение пользователя 2026-09-30): его прослушивания — только во «Все устройства»
+        return others.compactMap { id in byId[id].map { HistoryDevice(id: id, name: $0.name, platform: $0.platform) } }
+            .sorted { ($0.name ?? "", $0.id) < ($1.name ?? "", $1.id) }
     }
 
     // MARK: - Живые события (API §6)

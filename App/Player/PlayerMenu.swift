@@ -8,6 +8,8 @@ import MelogoldPlayback
 struct PlayerMoreMenu: View {
     @Environment(AppModel.self) private var model
     var size: Font = .title3
+    /// В стеклянном круге (`TrackActionCircles`), а не просто значком.
+    var circle = false
 
     var body: some View {
         Menu {
@@ -15,13 +17,17 @@ struct PlayerMoreMenu: View {
                 PlayerMenuItems(track: track)
             }
         } label: {
-            Image(systemName: "ellipsis.circle")
-                .font(size)
-                .frame(minWidth: 44, minHeight: 44)
-                .contentShape(Rectangle())
+            Image(systemName: "ellipsis")
+                .font(circle ? size.weight(.semibold) : size)
+                .controlSymbol()
+                .frame(minWidth: circle ? Design.Size.actionCircle : Design.Size.minTap,
+                       minHeight: circle ? Design.Size.actionCircle : Design.Size.minTap)
+                .contentShape(circle ? AnyShape(Circle()) : AnyShape(Rectangle()))
+                .modifier(ActionCircleGlass(enabled: circle))
         }
         .menuStyle(.button)
         .buttonStyle(.plain)
+        .menuIndicator(.hidden)
         .accessibilityLabel(Text("menu.more"))
     }
 }
@@ -35,13 +41,8 @@ struct PlayerMenuItems: View {
             Button { model.playlistPicker = PlaylistPickerRequest(tracks: [track]) } label: {
                 Label("menu.addToPlaylist", systemImage: "text.badge.plus")
             }
-            if model.services.downloads != nil {
-                if model.library?.downloadStates[track.videoId] == .completed {
-                    Button(role: .destructive) { model.removeDownload(track) } label: { Label("menu.removeDownload", systemImage: "trash") }
-                } else if model.library?.downloadStates[track.videoId] == nil {
-                    Button { model.download(track) } label: { Label("menu.download", systemImage: "arrow.down.circle") }
-                }
-            }
+            // Как в меню трека: «Скачать» → «Отменить загрузку · 42 %» → «Удалить загрузку» (задание 0009)
+            DownloadMenuItem(track: track)
             Button { model.searchOtherVersions(of: track); model.showNowPlaying = false } label: {
                 Label("menu.otherVersions", systemImage: "square.on.square")
             }
@@ -59,18 +60,7 @@ struct PlayerMenuItems: View {
             ShareLink(item: ShareLinks.track(track)) { Label("menu.share", systemImage: "square.and.arrow.up") }
         }
         if model.lyricsVisible, model.showNowPlaying {
-            Section {
-                let lyrics = model.services.lyrics
-                if lyrics.synced != nil {
-                    Button { lyrics.preferSynced.toggle() } label: {
-                        Label(lyrics.showingSynced ? "lyrics.plainView" : "lyrics.syncedView", systemImage: "text.alignleft")
-                    }
-                }
-                Button { model.openLyricsSearch() } label: { Label("lyrics.find", systemImage: "magnifyingglass") }
-                #if !os(visionOS)
-                Button { model.openLyricsEditor() } label: { Label("lyrics.edit", systemImage: "pencil") }
-                #endif
-            }
+            Section { LyricsMenuItems() }
         }
         Section {
             SleepTimerMenu()
@@ -132,9 +122,9 @@ struct PlayerChips: View {
                         }
                     }
                     .font(.footnote.weight(.semibold))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(.fill.tertiary, in: Capsule())
+                    .padding(.horizontal, Design.Space.s)
+                    .padding(.vertical, 6)
+                    .controlGlass(Capsule(), interactive: true)
                 }
                 .menuStyle(.button)
                 .buttonStyle(.plain)
@@ -147,9 +137,9 @@ struct PlayerChips: View {
                 } label: {
                     Text(verbatim: SpeedFormat.label(Double(player.speed)))
                         .font(.footnote.weight(.semibold).monospacedDigit())
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(.fill.tertiary, in: Capsule())
+                        .padding(.horizontal, Design.Space.s)
+                        .padding(.vertical, 6)
+                        .controlGlass(Capsule(), interactive: true)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Text("settings.speed"))

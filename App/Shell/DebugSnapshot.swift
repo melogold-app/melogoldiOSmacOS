@@ -6,7 +6,20 @@ import AppKit
 ///
 ///     Melogold.app/Contents/MacOS/Melogold -MelogoldSnapshotPath /tmp/shot.png [-MelogoldSnapshotDelay 3] \
 ///         [-MelogoldSnapshotQuit YES] [-shell.lastTab settings]
+///
+/// `-MelogoldWindowSize 720x480` — размер содержимого окна при запуске (проверка узкого окна).
 enum DebugSnapshot {
+    @MainActor
+    static func applyWindowSize() {
+        guard let text = UserDefaults.standard.string(forKey: "MelogoldWindowSize") else { return }
+        let parts = text.split(separator: "x").compactMap { Double($0) }
+        guard parts.count == 2 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            NSApp.windows.first(where: { $0.isVisible && $0.contentView != nil })?
+                .setContentSize(NSSize(width: parts[0], height: parts[1]))
+        }
+    }
+
     @MainActor
     static func scheduleIfRequested() {
         let defaults = UserDefaults.standard

@@ -55,11 +55,12 @@ struct WatchNowPlayingView: View {
 }
 
 extension PlaybackFailure {
+    /// Часы — коротко: у проверки на бота полный текст карточки (два предложения) слишком длинный для экрана часов.
     var watchText: LocalizedStringResource {
         switch kind {
         case .noAudioRoute: "player.error.noRoute"
         case .network: "player.error.network"
-        case .botCheck: "player.error.botCheck"
+        case .botCheck: "player.skip.botCheck"
         case .geo: "player.error.geo"
         case .unavailable: "player.error.unavailable"
         case .age: "player.error.age"
