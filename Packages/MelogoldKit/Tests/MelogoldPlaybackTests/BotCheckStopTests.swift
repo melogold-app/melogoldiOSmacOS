@@ -93,8 +93,9 @@ final class TestClock: @unchecked Sendable {
     func advance(_ seconds: TimeInterval) { lock.withLock { current = current.addingTimeInterval(seconds) } }
 }
 
-/// Проверка на бота — это адрес, а не клиент и не трек: один запрос, и всё встаёт. Ни другого клиента, ни диагноза, ни
-/// повтора, ни пропуска (YouTube считает запросы гостей по адресу, лишний запрос углубляет блок).
+/// Проверка на бота — это адрес, а не трек: каждый клиент потока спрашивается один раз, и когда отказали все, всё встаёт.
+/// Ни диагноза, ни повтора, ни пропуска (YouTube считает запросы гостей по адресу, лишний запрос углубляет блок). Тесты
+/// по умолчанию — с одним клиентом (VISIONOS): один запрос на резолв; с двумя — отдельные тесты.
 @Suite("Проверка на бота — всё сразу", .serialized)
 struct BotCheckStopTests {
     static let loginRequired = #"{"playabilityStatus":{"status":"LOGIN_REQUIRED","reason":"Sign in to confirm you’re not a bot"}}"#
@@ -106,12 +107,14 @@ struct BotCheckStopTests {
 
     /// Резолвер на заглушке; `visitorData` уже есть, чтобы к делу не примешивался запрос WEB_REMIX. `now` — часы
     /// резолвера (срок метки «адрес закрыт»).
-    func resolver(now: @escaping @Sendable () -> Date = { Date() },
+    func resolver(now: @escaping @Sendable () -> Date = { Date() }, clients: [ClientProfile] = [.visionOS],
                   _ respond: @escaping @Sendable (YouTubeStub.Seen) -> YouTubeStub.Reply) async -> (StreamResolver, YouTubeMusic) {
         let client = InnerTubeClient(session: YouTubeStub.session(respond), preferredLanguages: ["en-US"])
         await client.setVisitorData("test-visitor")
         let catalog = YouTubeMusic(client: client)
-        return (StreamResolver(catalog: catalog, now: now), catalog)
+        let resolver = StreamResolver(catalog: catalog, now: now)
+        await resolver.setClients(clients)
+        return (resolver, catalog)
     }
 
     /// Класс ошибки, которой закончился `resolve` (`nil` — поток получен).
@@ -153,8 +156,8 @@ struct BotCheckStopTests {
 
     // MARK: Резолвер
 
-    @Test func botCheckFromTheFirstClientNeverAsksTheSecond() async {
-        let (resolver, _) = await resolver { _ in .json(Self.loginRequired) }
+    @Test func botCheckAsksEachClientOnceThenStops() async {
+        let (resolver, _) = await resolver(clients: [.visionOS, .androidVR]) { _ in .json(Self.loginRequired) }
         do {
             _ = try await resolver.resolve("dQw4w9WgXcQ")
             Issue.record("проверка на бота не должна давать поток")
@@ -163,8 +166,20 @@ struct BotCheckStopTests {
         } catch {
             Issue.record("не StreamError: \(error)")
         }
-        // Один запрос, первому клиенту: ни ANDROID_VR, ни диагноза клиентом WEB
-        #expect(YouTubeStub.requests == [.init(clientId: "101", videoId: "dQw4w9WgXcQ")])
+        // По одному запросу каждому клиенту, без диагноза клиентом WEB и без повторов
+        #expect(YouTubeStub.requests == [.init(clientId: "101", videoId: "dQw4w9WgXcQ"), .init(clientId: "28", videoId: "dQw4w9WgXcQ")])
+        #expect(await resolver.blockedError?.kind == .botCheck)
+    }
+
+    /// Бот у одного клиента, поток у другого (выход VPN в Германии, 30.09.2026): поток есть, адрес не помечается.
+    @Test func aBotCheckFromOneClientStillTriesTheNext() async throws {
+        let (resolver, _) = await resolver(clients: [.visionOS, .androidVR]) { seen in
+            seen.clientId == "101" ? .json(Self.loginRequired) : .json(Self.streamOK)
+        }
+        let info = try await resolver.resolve("dQw4w9WgXcQ")
+        #expect(info.source == "ANDROID_VR")
+        #expect(YouTubeStub.requests.map(\.clientId) == ["101", "28"])
+        #expect(await resolver.blockedError == nil)
     }
 
     /// 403 и 429 от самого `player` — тоже проверка на бота (`YouTubeError.blocked`): один запрос и стоп.
@@ -184,7 +199,7 @@ struct BotCheckStopTests {
 
     /// Обратное: сбой самого клиента (не бот) по-прежнему переходит к следующему клиенту.
     @Test func otherFailuresStillFallBackToTheNextClient() async throws {
-        let (resolver, _) = await resolver { seen in
+        let (resolver, _) = await resolver(clients: [.visionOS, .androidVR]) { seen in
             seen.clientId == "101" ? .json("", status: 500) : .json(Self.streamOK)
         }
         let info = try await resolver.resolve("dQw4w9WgXcQ")
@@ -216,8 +231,8 @@ struct BotCheckStopTests {
         #expect(engine.index == 0, "пропуска нет")
         #expect(engine.notice == nil, "плашки «Пропущен…» нет")
         let seen = YouTubeStub.requests
-        #expect(seen.filter { $0.videoId == "aaaaaaaaaaa" }.count == 1, "повтора нет, второго клиента нет")
-        #expect(seen.allSatisfy { $0.clientId == "101" }, "ни ANDROID_VR, ни диагноза WEB: \(seen)")
+        #expect(seen.filter { $0.videoId == "aaaaaaaaaaa" }.count == 1, "повтора нет")
+        #expect(seen.allSatisfy { $0.clientId == "101" }, "ни диагноза WEB: \(seen)")
         // Заготовка двух следующих треков идёт по одному: одна из них могла уйти вместе с первым треком (какая — как
         // успеет), вторая — уже нет (адрес закрыт)
         #expect(seen.filter { $0.videoId != "aaaaaaaaaaa" }.count <= 1, "заготовка — не больше одного запроса: \(seen)")
