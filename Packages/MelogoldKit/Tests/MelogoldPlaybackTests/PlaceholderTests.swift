@@ -26,7 +26,10 @@ struct StreamRulesTests {
             .deletingLastPathComponent().deletingLastPathComponent()
             .appendingPathComponent("Config/stream-clients.json")
         let clients = try #require(StreamClients.parse(try Data(contentsOf: file)))
-        #expect(clients.map(\.name) == ["VISIONOS"])
+        #expect(clients.map(\.name) == ["VISIONOS", "ANDROID_VR"])
+        // Файл и встроенный список совпадают: без сети приложение играет теми же клиентами
+        #expect(clients == StreamClients.builtIn)
+        #expect(clients.last?.mediaUserAgent == clients.last?.userAgent, "googlevideo читается с User-Agent клиента")
         #expect(StreamClients.parse(Data("{\"schema\":2,\"clients\":[]}".utf8)) == nil)
         #expect(StreamClients.parse(Data("{\"schema\":1,\"clients\":[{\"name\":\"X\"}]}".utf8)) == nil)
     }

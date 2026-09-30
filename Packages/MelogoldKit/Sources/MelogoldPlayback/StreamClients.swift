@@ -8,7 +8,9 @@ import MelogoldInnerTube
 public enum StreamClients {
     public static let url = URL(string: "https://raw.githubusercontent.com/melogold-app/melogoldiOSmacOS/main/Config/stream-clients.json")!
     public static let schema = 1
-    public static let builtIn: [ClientProfile] = [.visionOS]
+    /// VISIONOS, запасной — ANDROID_VR (свой User-Agent и для googlevideo): «подтвердите, что вы не бот» у одного
+    /// клиента не должно останавливать воспроизведение.
+    public static let builtIn: [ClientProfile] = [.visionOS, .androidVR]
 
     private struct Config: Decodable {
         struct Entry: Decodable {
