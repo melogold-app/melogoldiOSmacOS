@@ -31,7 +31,7 @@ public enum StatsFormat {
             return String(calendar.component(.year, from: first))
         case .month:
             // Без «г.» русского шаблона: месяц сам по себе и год цифрами, как на Android
-            let name = first.formatted(Date.FormatStyle(locale: locale, calendar: calendar).month(.wide))
+            let name = first.formatted(Date.FormatStyle(locale: locale, calendar: calendar, timeZone: calendar.timeZone).month(.wide))
             return capitalized(name, locale) + " " + String(calendar.component(.year, from: first))
         case .week:
             let sameMonth = calendar.component(.month, from: first) == calendar.component(.month, from: last)
@@ -45,8 +45,8 @@ public enum StatsFormat {
     /// Что за столбец: «14 сентября», «Сентябрь», «2026».
     public static func barTitle(_ window: StatsWindow, _ bar: StatsBar, calendar: Calendar, locale: Locale) -> String {
         switch window.period {
-        case .week, .month: bar.date.formatted(Date.FormatStyle(locale: locale, calendar: calendar).day().month(.wide))
-        case .year: capitalized(bar.date.formatted(Date.FormatStyle(locale: locale, calendar: calendar).month(.wide)), locale)
+        case .week, .month: bar.date.formatted(Date.FormatStyle(locale: locale, calendar: calendar, timeZone: calendar.timeZone).day().month(.wide))
+        case .year: capitalized(bar.date.formatted(Date.FormatStyle(locale: locale, calendar: calendar, timeZone: calendar.timeZone).month(.wide)), locale)
         case .allTime: String(calendar.component(.year, from: bar.date))
         }
     }
@@ -55,11 +55,11 @@ public enum StatsFormat {
     public static func barLabel(_ window: StatsWindow, _ bar: StatsBar, index: Int, count: Int, calendar: Calendar, locale: Locale) -> String? {
         switch window.period {
         case .week:
-            bar.date.formatted(Date.FormatStyle(locale: locale, calendar: calendar).weekday(.abbreviated))
+            bar.date.formatted(Date.FormatStyle(locale: locale, calendar: calendar, timeZone: calendar.timeZone).weekday(.abbreviated))
         case .month:
             index % 7 == 0 ? String(calendar.component(.day, from: bar.date)) : nil
         case .year:
-            bar.date.formatted(Date.FormatStyle(locale: locale, calendar: calendar).month(.narrow)).uppercased(with: locale)
+            bar.date.formatted(Date.FormatStyle(locale: locale, calendar: calendar, timeZone: calendar.timeZone).month(.narrow)).uppercased(with: locale)
         case .allTime:
             count <= 6 || index % 2 == 0 ? String(calendar.component(.year, from: bar.date)) : nil
         }
@@ -70,7 +70,7 @@ public enum StatsFormat {
 
     /// «Март» — месяц отдельно, с большой буквы («Любимый месяц» в итогах года).
     public static func capitalizedMonth(_ date: Date, calendar: Calendar, locale: Locale) -> String {
-        capitalized(date.formatted(Date.FormatStyle(locale: locale, calendar: calendar).month(.wide)), locale)
+        capitalized(date.formatted(Date.FormatStyle(locale: locale, calendar: calendar, timeZone: calendar.timeZone).month(.wide)), locale)
     }
 
     /// Месяц в подписи «прошлый месяц» — с большой буквы, как в русском заголовке.
