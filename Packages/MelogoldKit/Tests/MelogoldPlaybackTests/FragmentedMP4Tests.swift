@@ -36,41 +36,53 @@ enum SyntheticMP4 {
     }
 
     static func make() -> (file: Data, fragmentSizes: [Int]) {
+        let sizes: [[Int]] = [[300, 310, 320], [330, 340, 350]]
+        return build(fragments: sizes.map { $0.map { Data(repeating: 0xAB, count: $0) } })
+    }
+
+    /// Файл из готовых отсчётов: `fragments[i]` — байты отсчётов i-го фрагмента, по 1024 кадра каждый.
+    static func build(fragments payloads: [[Data]]) -> (file: Data, fragmentSizes: [Int]) {
+        let totalTicks = UInt32(payloads.reduce(0) { $0 + $1.count } * 1024)
         let ftyp = box("ftyp", Data("dash".utf8) + be32(0) + Data("iso6mp41".utf8))
-        let mdhd = full("mdhd", be32(0) + be32(0) + be32(44_100) + be32(6144) + be16(0x55C4) + be16(0))
+        let mdhd = full("mdhd", be32(0) + be32(0) + be32(44_100) + be32(totalTicks) + be16(0x55C4) + be16(0))
         let stsd = full("stsd", be32(1) + mp4a)
         let stbl = box("stbl", stsd + full("stts", be32(0)) + full("stsc", be32(0)) + full("stsz", be32(0) + be32(0)) + full("stco", be32(0)))
         let minf = box("minf", full("smhd", be32(0)) + stbl)
         let hdlr = full("hdlr", be32(0) + Data("soun".utf8) + Data(count: 12) + Data([0]))
         let mdia = box("mdia", mdhd + hdlr + minf)
-        let tkhd = full("tkhd", flags: 3, be32(0) + be32(0) + be32(1) + be32(0) + be32(6144) + Data(count: 60))
-        let elst = full("elst", be32(1) + be32(4544) + be32(1600) + be16(1) + be16(0))
+        let tkhd = full("tkhd", flags: 3, be32(0) + be32(0) + be32(1) + be32(0) + be32(totalTicks) + Data(count: 60))
+        let elst = full("elst", be32(1) + be32(totalTicks - 1600) + be32(1600) + be16(1) + be16(0))
         let trak = box("trak", tkhd + box("edts", elst) + mdia)
         let trex = full("trex", be32(1) + be32(1) + be32(1024) + be32(0) + be32(0))
-        let moov = box("moov", full("mvhd", be32(0) + be32(0) + be32(44_100) + be32(6144) + Data(count: 80)) + box("mvex", trex) + trak)
+        let moov = box("moov", full("mvhd", be32(0) + be32(0) + be32(44_100) + be32(totalTicks) + Data(count: 80)) + box("mvex", trex) + trak)
 
-        func fragment(baseTime: UInt32, samples: [Int]) -> Data {
+        func fragment(number: UInt32, baseTime: UInt32, samples: [Data]) -> Data {
             let tfhd = full("tfhd", flags: 0x02002A, be32(1) + be32(1) + be32(1024) + be32(0))
             let tfdt = full("tfdt", be32(baseTime))
             var trunPayload = be32(UInt32(samples.count)) + be32(0)
-            for size in samples { trunPayload += be32(UInt32(size)) }
+            for sample in samples { trunPayload += be32(UInt32(sample.count)) }
             var trun = full("trun", flags: 0x201, trunPayload)
             let traf = box("traf", tfhd + tfdt + trun)
             let moofSize = 8 + 16 + traf.count
             // data_offset trun — от начала moof до байтов mdat
             let dataOffset = UInt32(moofSize + 8)
-            trun = full("trun", flags: 0x201, be32(UInt32(samples.count)) + be32(dataOffset) + samples.reduce(Data()) { $0 + be32(UInt32($1)) })
-            let moof = box("moof", full("mfhd", be32(1)) + box("traf", tfhd + tfdt + trun))
-            let mdat = box("mdat", Data(repeating: 0xAB, count: samples.reduce(0, +)))
+            trun = full("trun", flags: 0x201, be32(UInt32(samples.count)) + be32(dataOffset) + samples.reduce(Data()) { $0 + be32(UInt32($1.count)) })
+            let moof = box("moof", full("mfhd", be32(number)) + box("traf", tfhd + tfdt + trun))
+            let mdat = box("mdat", samples.reduce(Data(), +))
             return moof + mdat
         }
-        let first = fragment(baseTime: 0, samples: [300, 310, 320])
-        let second = fragment(baseTime: 3072, samples: [330, 340, 350])
-        var sidxPayload = be32(1) + be32(44_100) + be32(0) + be32(0) + be16(0) + be16(2)
-        sidxPayload += be32(UInt32(first.count)) + be32(3072) + be32(0x9000_0000)
-        sidxPayload += be32(UInt32(second.count)) + be32(3072) + be32(0x9000_0000)
+        var fragments: [Data] = []
+        var baseTime: UInt32 = 0
+        for (number, samples) in payloads.enumerated() {
+            fragments.append(fragment(number: UInt32(number + 1), baseTime: baseTime, samples: samples))
+            baseTime += UInt32(samples.count * 1024)
+        }
+        var sidxPayload = be32(1) + be32(44_100) + be32(0) + be32(0) + be16(0) + be16(UInt16(fragments.count))
+        for (index, data) in fragments.enumerated() {
+            sidxPayload += be32(UInt32(data.count)) + be32(UInt32(payloads[index].count * 1024)) + be32(0x9000_0000)
+        }
         let sidx = full("sidx", sidxPayload)
-        return (ftyp + moov + sidx + first + second, [first.count, second.count])
+        return (fragments.reduce(ftyp + moov + sidx, +), fragments.map(\.count))
     }
 }
 
