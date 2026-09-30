@@ -116,35 +116,69 @@ struct NowPlayingView: View {
         .padding(.bottom, Design.Space.m)
     }
 
-    /// Боком и в широком окне: обложка слева, управление справа; с текстом — слева управление, справа текст.
+    /// Боком и в широком окне — две равные половины, граница ровно по середине окна (решение пользователя, 2026-09-30):
+    /// - без текста: обложка по центру левой половины, управление по центру правой;
+    /// - с текстом: слева обложка, под ней сразу название, полоса и кнопки — одной группой по центру половины и по
+    ///   вертикали, справа колонка текста по центру своей половины (строки — по левому краю, ширина не больше 620 pt);
+    ///   середина текущей строки стоит на уровне середины обложки (`lyricsCoverMid`), нет обложки — верх области.
     private func landscapeLayout(_ track: Track, size: CGSize, margin: CGFloat, short: Bool) -> some View {
-        HStack(spacing: Design.Space.xl) {
+        #if os(macOS)
+        // Колонка очереди справа внутри «Сейчас играет»: половины делят остальное окно
+        let queueWidth: CGFloat = model.queueVisible ? 320 + Design.Space.l : 0
+        #else
+        let queueWidth: CGFloat = 0
+        #endif
+        let half = (size.width - queueWidth) / 2
+        return HStack(spacing: 0) {
             if model.lyricsVisible {
-                VStack(spacing: Design.Space.m) {
-                    artworkArea(track, minSide: 96)
+                CoverAboveControls(spacing: Design.Space.l) {
+                    coverSlot(track)
                     controls(track, compact: true, wide: false)
                 }
-                .frame(width: min(size.width * 0.42, 440))
-                // Середина текущей строки — на уровне середины обложки (решение 2026-09-30); нет обложки — верх области
+                .padding(.horizontal, margin)
+                .frame(width: half)
                 LyricsPanel()
                     .environment(\.lyricsCoverMid, coverFrame?.midY)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(width: min(half - 2 * margin, 620))
+                    .frame(width: half)
             } else {
                 artworkArea(track)
+                    .padding(.horizontal, margin)
+                    .frame(width: half)
                 controls(track, compact: short, wide: !short && size.width >= 900)
                     .frame(maxWidth: 460)
+                    .padding(.horizontal, margin)
+                    .frame(width: half)
             }
             #if os(macOS)
             if model.queueVisible {
                 QueueView()
                     .frame(width: 320)
                     .clipShape(RoundedRectangle(cornerRadius: Design.Radius.medium, style: .continuous))
+                    .padding(.leading, Design.Space.l)
+                    .padding(.trailing, margin)
             }
             #endif
         }
-        .padding(.horizontal, margin)
         .padding(.top, Metrics.topInset)
         .padding(.bottom, Design.Space.l)
+    }
+
+    /// Место под обложку, которое размеряет `CoverAboveControls`: квадрат по предложенному размеру; у кадра видео 16:9
+    /// обложка стоит посередине квадрата, поэтому середина обложки не прыгает при смене формы.
+    private func coverSlot(_ track: Track) -> some View {
+        GeometryReader { slot in
+            let side = min(slot.size.width, slot.size.height)
+            if side >= 96 {
+                artworkButton(track, side: side)
+                    .background {
+                        GeometryReader { cover in
+                            Color.clear.preference(key: CoverFrameKey.self, value: cover.frame(in: .named(nowPlayingSpace)))
+                        }
+                    }
+                    .frame(width: slot.size.width, height: slot.size.height)
+            }
+        }
     }
 
     // MARK: - Части
@@ -213,6 +247,40 @@ struct NowPlayingView: View {
             PlayerActionBar(includesModes: !compact)
         }
         .frame(maxWidth: 520)
+    }
+}
+
+/// Обложка над блоком управления — одна группа по центру своей половины и по вертикали, без провала между ними:
+/// обложка берёт высоту, которая осталась от управления (не выше 560 pt); не помещается (низкое окно) — остаётся одно
+/// управление. Ширина управления — ширина обложки, но не меньше 320 pt.
+private struct CoverAboveControls: Layout {
+    var spacing: CGFloat
+    let maxCover: CGFloat = 560
+    let minCover: CGFloat = 96
+    let minControls: CGFloat = 320
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) -> CGSize {
+        CGSize(width: proposal.width ?? maxCover, height: proposal.height ?? maxCover)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) {
+        guard subviews.count == 2 else { return }
+        let column = min(bounds.width, maxCover)
+        let natural = subviews[1].sizeThatFits(ProposedViewSize(width: column, height: nil)).height
+        let side = min(column, bounds.height - natural - spacing, maxCover)
+        let showsCover = side >= minCover
+        let controlsWidth = showsCover ? min(column, max(side, minControls)) : column
+        let controls = ProposedViewSize(width: controlsWidth, height: nil)
+        let controlsHeight = subviews[1].sizeThatFits(controls).height
+        let group = (showsCover ? side + spacing : 0) + controlsHeight
+        var y = bounds.minY + max(0, (bounds.height - group) / 2)
+        if showsCover {
+            subviews[0].place(at: CGPoint(x: bounds.midX, y: y), anchor: .top, proposal: ProposedViewSize(width: side, height: side))
+            y += side + spacing
+        } else {
+            subviews[0].place(at: CGPoint(x: bounds.midX, y: y), anchor: .top, proposal: ProposedViewSize(width: 0, height: 0))
+        }
+        subviews[1].place(at: CGPoint(x: bounds.midX, y: y), anchor: .top, proposal: controls)
     }
 }
 
@@ -320,7 +388,7 @@ struct NowPlayingArtwork: View {
 private struct MacToolbarHidden: NSViewRepresentable {
     func makeNSView(context: Context) -> ToolbarHiderView { ToolbarHiderView() }
 
-    func updateNSView(_ view: ToolbarHiderView, context: Context) {}
+    func updateNSView(_ view: ToolbarHiderView, context: Context) { view.hide() }
 
     static func dismantleNSView(_ view: ToolbarHiderView, coordinator: ()) { view.restore() }
 
@@ -328,18 +396,33 @@ private struct MacToolbarHidden: NSViewRepresentable {
         private weak var hiddenIn: NSWindow?
         private var wasVisible = true
         private var title = NSWindow.TitleVisibility.visible
+        private var observer: (any NSObjectProtocol)?
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
-            guard let window, hiddenIn == nil, let toolbar = window.toolbar else { return }
-            hiddenIn = window
-            wasVisible = toolbar.isVisible
-            title = window.titleVisibility
-            toolbar.isVisible = false
-            window.titleVisibility = .hidden
+            hide()
+            guard let window, observer == nil else { return }
+            // SwiftUI возвращает название окна при любой перестройке панели (открылась очередь, сменился раздел под экраном):
+            // держим его скрытым на каждом такте обновления окна
+            observer = NotificationCenter.default.addObserver(forName: NSWindow.didUpdateNotification, object: window, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.hide() }
+            }
+        }
+
+        func hide() {
+            guard let window, let toolbar = window.toolbar else { return }
+            if hiddenIn == nil {
+                hiddenIn = window
+                wasVisible = toolbar.isVisible
+                title = window.titleVisibility
+            }
+            if toolbar.isVisible { toolbar.isVisible = false }
+            if window.titleVisibility != .hidden { window.titleVisibility = .hidden }
         }
 
         func restore() {
+            if let observer { NotificationCenter.default.removeObserver(observer) }
+            observer = nil
             hiddenIn?.toolbar?.isVisible = wasVisible
             hiddenIn?.titleVisibility = title
             hiddenIn = nil

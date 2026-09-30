@@ -32,8 +32,8 @@
 - Снимки «Сейчас играет» без нажатий и без гонки со временем (слайс S2): `-MelogoldShowNowPlaying YES -MelogoldShowLyrics YES`,
   `-MelogoldSeedLyrics YES` (свой синхронный текст играющему треку: короткая и длинная строка, подпевка, дуэт с переводом,
   проигрыш 26–34 с) или `editor` (обычный текст с длинной японской строкой для редактора), `-MelogoldSeek <с>
-  [-MelogoldSeekPause YES]` (перемотать после старта и встать на паузу), `-MelogoldLyricsEditor marks|words|second`
-  (редактор сразу в «Разметке»; `words` — по словам, три отмечены; `second` — курсор на очень длинной строке),
+  [-MelogoldSeekPause YES]` (перемотать после старта и встать на паузу), `-MelogoldLyricsEditor marks|words[:N]|second`
+  (редактор сразу в «Разметке»; `words` — по словам, N отметок подряд, по умолчанию 4; `second` — курсор на очень длинной строке),
   `-MelogoldShowQueue YES`, `-theme.mode light|dark`, Mac: `-MelogoldWindowSize 720x480`. Всегда с `-MelogoldMute YES`
   и своей папкой `-MelogoldDataDir`. Боком iPhone и iPad снимает UI-тест `NowPlayingUITests` (снимок `XCUIScreen`
   приходит в портретной ориентации — повернуть `sips -r 270`).

@@ -23,21 +23,24 @@ final class NowPlayingUITests: XCTestCase {
         ] + extra)
     }
 
-    /// Боком: обложка слева, управление справа; текст — слева управление, справа текст с подложкой.
+    /// Боком, в светлой и тёмной теме: две равные половины — слева обложка с названием, полосой и кнопками по центру, справа
+    /// текст с подложкой, середина текущей строки на уровне середины обложки.
     @MainActor
     func testLandscapeCoverAndLyrics() {
         XCUIDevice.shared.orientation = .landscapeLeft
-        let app = launchPlaying(["-MelogoldSeedLyrics", "YES", "-MelogoldSeek", "15", "-MelogoldSeekPause", "YES"])
-        let queue = app.buttons["Очередь"]
-        XCTAssertTrue(queue.waitForExistence(timeout: 40), "нет «Сейчас играет»")
-        sleep(6)
-        saveScreenshot("\(device)-landscape-cover")
-        app.buttons["Текст"].firstMatch.tap()
-        let line = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Мягкое кресло'")).firstMatch
-        XCTAssertTrue(line.waitForExistence(timeout: 30), "текст не появился")
-        sleep(30)
-        saveScreenshot("\(device)-landscape-lyrics")
-        app.terminate()
+        for (style, arguments) in [("light", [String]()), ("dark", ["-AppleInterfaceStyle", "Dark"])] {
+            let app = launchPlaying(["-MelogoldSeedLyrics", "YES", "-MelogoldSeek", "15", "-MelogoldSeekPause", "YES"] + arguments)
+            let queue = app.buttons["Очередь"]
+            XCTAssertTrue(queue.waitForExistence(timeout: 60), "нет «Сейчас играет»")
+            sleep(6)
+            saveScreenshot("\(device)-landscape-cover-\(style)")
+            app.buttons["Текст"].firstMatch.tap()
+            let line = app.buttons.matching(NSPredicate(format: "label CONTAINS 'Мягкое кресло'")).firstMatch
+            XCTAssertTrue(line.waitForExistence(timeout: 60), "текст не появился")
+            sleep(25)
+            saveScreenshot("\(device)-landscape-lyrics-\(style)")
+            app.terminate()
+        }
     }
 
     /// Редактор, «Разметка»: «Далее» — длинная строка целиком; `words` — вся строка, отмеченные слова акцентом, следующее

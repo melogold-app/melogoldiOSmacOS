@@ -31,7 +31,8 @@ struct LyricsPanel: View {
                 }
             default:
                 if lyrics.showingSynced {
-                    SyncedLyricsView()
+                    // Свой вид на каждый трек: состояние прокрутки и рамок строк не переезжает на другой текст
+                    SyncedLyricsView().id(lyrics.track?.videoId)
                 } else {
                     PlainLyricsView(text: lyrics.plain ?? "")
                 }
@@ -177,6 +178,9 @@ struct SyncedLyricsView: View {
     @State private var manualUntil: Date?
     @State private var followTick = 0
     @State private var frames: [Int: CGRect] = [:]
+    /// Первая прокрутка к текущей строке сделана: `onAppear` срабатывает раньше раскладки строк и прокрутка теряется,
+    /// поэтому первый раз строка ставится, когда строки впервые появились.
+    @State private var placed = false
 
     var body: some View {
         let lyrics = model.services.lyrics
@@ -240,6 +244,18 @@ struct SyncedLyricsView: View {
                     }
                 }
                 .onAppear { if active >= 0 { reader.scrollTo(active, anchor: anchorPoint(active, height: height, mid: mid)) } }
+                .onChange(of: frames.isEmpty) { _, empty in
+                    guard !empty, !placed, active >= 0 else { return }
+                    placed = true
+                    reader.scrollTo(active, anchor: anchorPoint(active, height: height, mid: mid))
+                }
+                // Высота строки стала известна, когда её показали (до этого — запас): встать на точку по настоящей высоте
+                .onChange(of: frames[active]?.height) { old, new in
+                    guard mid != nil, following, active >= 0, new != nil, old != new else { return }
+                    withAnimation(reduceMotion ? nil : .smooth(duration: 0.25)) {
+                        reader.scrollTo(active, anchor: anchorPoint(active, height: height, mid: mid))
+                    }
+                }
                 .overlay(alignment: .bottom) {
                     if !following, active >= 0 {
                         Button {

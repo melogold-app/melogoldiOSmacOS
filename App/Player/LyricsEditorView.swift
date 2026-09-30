@@ -317,15 +317,16 @@ struct LyricsEditorView: View {
     }
 
     #if DEBUG
-    /// `-MelogoldLyricsEditor marks|words|second` — сразу «Разметка»; `words` — по словам, три слова отмечены; `second` —
-    /// первая строка отмечена (курсор на второй, очень длинной): снимки блока «Далее» без нажатий.
+    /// `-MelogoldLyricsEditor marks|words[:N]|second` — сразу «Разметка»; `words` — по словам, N (по умолчанию 4) отметок
+    /// подряд; `second` — первая строка отмечена (курсор на второй, очень длинной): снимки блока «Далее» без нажатий.
     private func applyDebugState() {
         guard let state = UserDefaults.standard.string(forKey: "MelogoldLyricsEditor"), state != "YES" else { return }
         mode = .marks
-        switch state {
+        let parts = state.split(separator: ":")
+        switch parts.first {
         case "words":
             draft = draft.withTiming(.word)
-            for index in 0..<3 { draft = draft.mark(Int64(1_000 + index * 500)) }
+            for index in 0..<(parts.count > 1 ? Int(parts[1]) ?? 4 : 4) { draft = draft.mark(Int64(1_000 + index * 500)) }
         case "second":
             draft = draft.mark(1_000)
         default:

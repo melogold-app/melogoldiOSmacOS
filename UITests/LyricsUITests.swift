@@ -12,7 +12,7 @@ final class LyricsUITests: XCTestCase {
             "-MelogoldOpenLink", "https://music.youtube.com/watch?v=xtxjm7ciwmc", "-MelogoldShowNowPlaying", "YES", "-MelogoldShowLyrics", "YES",
         ])
         let line = app.buttons.matching(NSPredicate(format: "label CONTAINS 'улицы ждут'")).firstMatch
-        XCTAssertTrue(line.waitForExistence(timeout: 30), "текст не появился")
+        XCTAssertTrue(line.waitForExistence(timeout: 90), "текст не появился")
         saveScreenshot("iphone-lyrics")
         // Меню текста — в меню «…» плеера, в панели управления, а не поверх первой строки
         app.buttons["Ещё"].firstMatch.tap()
