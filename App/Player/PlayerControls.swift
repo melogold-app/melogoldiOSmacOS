@@ -3,19 +3,29 @@ import MelogoldCore
 import MelogoldPlayback
 
 /// Подпись под названием: исполнитель; пока нет потока — «Получаем поток…» (3 с) и «Долго… · Пропустить» (15 с);
-/// при ошибке — причина словами (docs/PROMPT.md §5.7, REWRITE §3.10.9).
+/// при ошибке — причина словами (docs/PROMPT.md §5.7, REWRITE §3.10.9). В «Сейчас играет» причина целиком (`detailed`:
+/// «Недоступно в стране «Россия»: … открыл трек в 122 других странах…», задание 0010), в мини-плеере и шапке — коротко.
 struct PlayerStatusLine: View {
     @Environment(AppModel.self) private var model
     var font: Font = .subheadline
+    var detailed = false
 
     var body: some View {
         let player = model.services.player
         TimelineView(.periodic(from: .now, by: 1)) { context in
             Group {
                 if player.phase == .failed, let failure = player.failure {
-                    Label(failure.text, systemImage: "exclamationmark.triangle.fill")
-                        .labelStyle(.titleAndIcon)
-                        .foregroundStyle(.orange)
+                    Label {
+                        Text(verbatim: detailed
+                            ? GeoText.message(failure) ?? String(localized: failure.text)
+                            : GeoText.short(failure) ?? String(localized: failure.shortText))
+                            .lineLimit(detailed ? 5 : 1)
+                            .fixedSize(horizontal: false, vertical: detailed)
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                    }
+                    .labelStyle(.titleAndIcon)
+                    .foregroundStyle(.orange)
                 } else if player.phase == .loading, let since = player.loadingSince, context.date.timeIntervalSince(since) >= 15 {
                     Text("player.slow")
                         .foregroundStyle(.secondary)
@@ -28,7 +38,7 @@ struct PlayerStatusLine: View {
                 }
             }
             .font(font)
-            .lineLimit(1)
+            .lineLimit(detailed && player.phase == .failed ? 5 : 1)
         }
     }
 }

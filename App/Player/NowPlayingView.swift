@@ -36,6 +36,14 @@ struct NowPlayingView: View {
         }
         .modifier(NowPlayingChrome())
         .sheet(item: $model.lyricsSearch) { LyricsSearchSheet(track: $0) }
+        #if !os(macOS)
+        // «Устройство» поверх листа «Сейчас играет» (задание 0020)
+        .background {
+            Color.clear.sheet(isPresented: Binding(get: { model.remoteSheet && model.nowPlayingIsSheet }, set: { model.remoteSheet = $0 })) {
+                RemoteSheet()
+            }
+        }
+        #endif
         #if os(iOS)
         // iPhone и iPad: очередь — лист из «Сейчас играет»
         .sheet(isPresented: $model.queueVisible) {

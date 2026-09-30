@@ -72,6 +72,7 @@ struct MelogoldCommands: Commands {
             }
             SleepTimerMenu().environment(model)
             Divider()
+            Button("remote.device.menu") { model.remoteSheet = true }
             Button("player.queue") { model.queueVisible.toggle() }
                 .keyboardShortcut("u", modifiers: [.command, .option])
             Button("player.lyrics") {

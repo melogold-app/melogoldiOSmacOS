@@ -54,6 +54,7 @@ struct AccountSettingsSection: View {
                         .foregroundStyle(.orange)
                 }
             }
+            .accessibilityIdentifier("account.signIn")
         }
     }
 }

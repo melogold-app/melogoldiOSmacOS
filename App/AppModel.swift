@@ -18,6 +18,16 @@ final class AppModel {
     /// Синк библиотеки, истории и своих текстов с аккаунтом (срез 5). «Убрать из истории» и «Очистить историю»
     /// библиотеки уходят его очередью на все устройства аккаунта.
     let sync: LibrarySync
+    /// Лист «Устройство» (задание 0020): где играет музыка, пульт другого устройства.
+    var remoteSheet = false
+    /// «Сейчас играет» открыт листом (iPhone, iPad, Vision): листы поверх него показывает он сам, а не корень.
+    var nowPlayingIsSheet: Bool {
+        #if os(macOS)
+        false
+        #else
+        showNowPlaying
+        #endif
+    }
     /// Пульт (задание 0020): что играет здесь — серверу, команды других устройств — плееру.
     @ObservationIgnored private(set) var remoteBridge: RemoteBridge?
     @ObservationIgnored private var lifecycle: [any NSObjectProtocol] = []
