@@ -62,4 +62,54 @@ final class RemoteUITests: XCTestCase {
         }
         XCTAssertEqual(volume, 30, "громкость и продолжение не дошли")
     }
+
+    /// Обратная сторона: iPhone — пульт «Pixel». Pixel держит поток `remote=1` и сообщает, что играет; на iPhone лист
+    /// «Устройство» показывает его, пульт шлёт ему паузу, «Слушать здесь» забирает воспроизведение на iPhone.
+    @MainActor
+    func testThisDeviceControlsAnotherAndTakesOver() async throws {
+        let server = ProcessInfo.processInfo.environment["MELOGOLD_TEST_SERVER"] ?? ""
+        try XCTSkipIf(server.isEmpty, "Нужен сервер: TEST_RUNNER_MELOGOLD_TEST_SERVER")
+        let login = "remote\(Int.random(in: 10_000_000 ... 99_999_999))"
+        let pixel = try await TestDevice.register(server: server, login: login, password: password, name: "Google Pixel 8", platform: "android")
+        let password = password
+        addTeardownBlock { try? await pixel.deleteAccount(password: password) }
+        let stream = pixel.openRemoteStream()
+        addTeardownBlock { stream.cancel() }
+        try await pixel.reportPlaying(videoId: "dQw4w9WgXcQ", title: "Never Gonna Give You Up", artist: "Rick Astley")
+
+        let signIn = launchApp(section: "settings", language: "ru", arguments: ["-server.url", server, "-MelogoldUITestPassword", password])
+        self.signIn(signIn, login: login)
+        signIn.terminate()
+        let app = launchApp(section: "trends", language: "ru", arguments: ["-server.url", server, "-MelogoldOpenRemote", "YES"])
+        addTeardownBlock { await MainActor.run { app.terminate() } }
+
+        let pixelRow = app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "Google Pixel 8")).firstMatch
+        XCTAssertTrue(pixelRow.waitForExistence(timeout: 20), "в листе «Устройство» нет Pixel")
+        saveScreenshot("remote/03-devices")
+        pixelRow.tap()
+        XCTAssertTrue(app.staticTexts["Never Gonna Give You Up"].waitForExistence(timeout: 10), "пульт не показал, что играет на Pixel")
+        saveScreenshot("remote/04-remote-player")
+
+        app.buttons["Пауза"].tap()
+        var actions: [String] = []
+        for _ in 0 ..< 20 {
+            actions = await stream.actions
+            if actions.contains("pause") { break }
+            try await Task.sleep(for: .milliseconds(300))
+        }
+        XCTAssertTrue(actions.contains("pause"), "пауза не дошла до Pixel: \(actions)")
+
+        app.buttons["Слушать здесь"].tap()
+        var takenOver = false
+        for _ in 0 ..< 60 {
+            if let state = try await pixel.playbackState(), state.playing,
+               try await pixel.playbackDevices().contains(where: { $0.deviceId == state.deviceId }) {
+                takenOver = true
+                break
+            }
+            try await Task.sleep(for: .seconds(1))
+        }
+        XCTAssertTrue(takenOver, "«Слушать здесь» не забрало воспроизведение на iPhone")
+        saveScreenshot("remote/05-listen-here")
+    }
 }

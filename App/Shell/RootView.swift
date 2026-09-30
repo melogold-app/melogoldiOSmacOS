@@ -46,6 +46,9 @@ struct RootView: View {
             .sheet(item: $model.playlistShare) { request in
                 PlaylistShareSheet(playlist: request.playlist)
             }
+            .sheet(isPresented: $model.remoteSheet) {
+                RemoteSheet()
+            }
             .modifier(SelectionPromptModifier())
             .modifier(WrappedPresentation())
             .alert(Text("playlist.rename"), isPresented: Binding(get: { model.renameRequest != nil },

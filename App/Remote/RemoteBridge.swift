@@ -43,6 +43,52 @@ final class RemoteBridge {
         sync.onPlaybackUpdated = { [weak self] rev, cleared, state in self?.updated(rev: rev, cleared: cleared, state: state) }
         observeSettings()
         observePlayer()
+        observeNotices()
+    }
+
+    /// «Слушать здесь» (DESIGN §3.12.5): полное состояние цели, очередь здесь с позицией от `at` (не больше 3 мин и не
+    /// дальше конца трека без секунды), новый сеанс, который забирает воспроизведение (`handoffFrom`); цель ставит паузу.
+    func listenHere() async {
+        let state: PlaybackState?
+        do {
+            state = try await remote.takeOver()
+        } catch {
+            showToast(String(localized: "remote.error"))
+            return
+        }
+        guard let state, !state.queue.isEmpty, state.queue.indices.contains(state.index) else {
+            showToast(String(localized: "remote.nothingPlaying"))
+            return
+        }
+        var positionMs = state.positionMs
+        if state.playing, let at = IsoTime.date(state.at) {
+            positionMs += min(max(0, Int64(Date().timeIntervalSince(at) * 1000)), 180_000)
+        }
+        if let duration = state.durationMs, duration > 1000 { positionMs = min(positionMs, duration - 1000) }
+        reporter.takeOver(from: state)
+        player.play(tracks: state.queue.map(\.track), startAt: state.index)
+        player.seek(to: Double(positionMs) / 1000)
+        if let volume = state.volume { player.volume = Float(volume) / 100 }
+    }
+
+    /// Пульт отключился сам: «„MacBook Air“ не в сети», «На „MacBook Air“ управление выключено».
+    private func observeNotices() {
+        withObservationTracking {
+            _ = remote.notice
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                if let notice = self.remote.notice {
+                    self.remote.notice = nil
+                    switch notice {
+                    case .offline(let name): self.showToast(String(localized: "remote.offline \(name)"))
+                    case .disabled(let name): self.showToast(String(localized: "remote.disabled \(name)"))
+                    case .gone(let name): self.showToast(String(localized: "remote.gone \(name)"))
+                    }
+                }
+                self.observeNotices()
+            }
+        }
     }
 
     // MARK: - Что играет здесь

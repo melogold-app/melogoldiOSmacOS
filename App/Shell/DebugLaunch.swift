@@ -19,6 +19,7 @@ import MelogoldData
 ///     -MelogoldSeedPlays YES                            два своих прослушивания без сети — История и её фильтр
 ///     -MelogoldSeedStats YES                            14 месяцев прослушиваний без сети — «Итоги» и «Итоги года»
 ///     -MelogoldOpen stats, -MelogoldOpenWrapped <год>   «Итоги» и «Итоги года» на весь экран
+///     -MelogoldOpenRemote YES                           лист «Устройство» (пульт, задание 0020)
 ///     -MelogoldOpenDetails <videoId>, -MelogoldPreselect <n>   «Сведения о треке»; первые n строк выделены
 enum DebugLaunch {
     /// Прослушивания за 14 месяцев без сети и без плеера: восемь треков с обложками, вечерний пик, разные исполнители и
@@ -126,6 +127,7 @@ enum DebugLaunch {
             model.trackDetails = track
         }
         if defaults.object(forKey: "MelogoldOpenWrapped") != nil { model.wrappedYear = defaults.integer(forKey: "MelogoldOpenWrapped") }
+        if defaults.bool(forKey: "MelogoldOpenRemote") { model.remoteSheet = true }
         if defaults.bool(forKey: "MelogoldShowNowPlaying") || defaults.bool(forKey: "MelogoldShowQueue") {
             Task {
                 for _ in 0..<300 where model.services.player.currentTrack == nil {
