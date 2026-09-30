@@ -87,6 +87,8 @@ public final class DownloadManager {
     }
 
     public func download(_ track: Track) {
+        // Трансляцию скачать нельзя: конца у неё нет (в меню — «Трансляцию нельзя скачать»)
+        guard track.videoType != VideoType.live else { return }
         store.requestTrack(track)
         changed()
         pump()

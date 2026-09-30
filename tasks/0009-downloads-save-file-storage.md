@@ -1,6 +1,6 @@
 # Загрузки, «Сохранить файлом», метки и понятное «Хранилище»
 
-Статус: открыто
+Статус: в работе
 
 Дополнение к `docs/PROMPT.md` («Кэш и загрузки», «Хранилище и данные»), делается вместе с загрузками по REWRITE §4.7. Те же задания: `melogoldWindows/tasks/0009-storage-explained.md` (сделано, Windows 0.1.8) и `melogoldAndroid/tasks/0007-storage-explained.md`. Эталон — Android (`ui/components/menu/MediaItemMenu.kt`: `DownloadEntry`, `SaveFileEntry`; `ui/kit/DownloadBadge.kt`; `data/downloads/FileExport.kt`, `Mp4Tags.kt`) и Windows (`src/Melogold.Playback/Mp4Writer.cs`, `TrackDownloads.cs`).
 

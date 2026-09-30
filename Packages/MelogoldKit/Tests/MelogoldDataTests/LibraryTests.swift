@@ -269,5 +269,22 @@ struct LibraryTests {
         store.removeTrack("a1aaaaaaaaa")
         #expect(store.entry("a1aaaaaaaaa") == nil)
     }
+
+    /// Кольцо в строке трека и «Отменить загрузку · 42 %»: доля — из строки `downloads`, только у нескачанных.
+    @Test func downloadFractionsForRowsAndMenu() throws {
+        let store = DownloadStore(database: database, directory: FileManager.default.temporaryDirectory
+            .appendingPathComponent("dl-\(UUID().uuidString)"))
+        store.requestTrack(track("a1aaaaaaaaa", "A"))
+        store.requestTrack(track("b2bbbbbbbbb", "B"))
+        #expect(store.fractions().isEmpty) // длина ещё неизвестна
+        store.prepare("a1aaaaaaaaa", itag: 140, mimeType: "audio/mp4", contentLength: 100, durationMs: 1000, loudnessDb: nil)
+        store.prepare("b2bbbbbbbbb", itag: 140, mimeType: "audio/mp4", contentLength: 10, durationMs: 1000, loudnessDb: nil)
+        #expect(store.fractions().isEmpty) // ничего не скачано
+        store.write("a1aaaaaaaaa", offset: 0, data: Data(repeating: 1, count: 42))
+        #expect(store.fractions() == ["a1aaaaaaaaa": 0.42])
+        // Скачанный целиком из долей уходит: у него значок «Скачано»
+        #expect(store.write("b2bbbbbbbbb", offset: 0, data: Data(repeating: 2, count: 10)))
+        #expect(store.fractions() == ["a1aaaaaaaaa": 0.42])
+    }
 }
 

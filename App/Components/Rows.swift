@@ -2,15 +2,13 @@ import SwiftUI
 import MelogoldCore
 
 /// Строка трека (docs/PROMPT.md §5.8): обложка (у видео квадратная), название, исполнитель и альбом, справа длительность
-/// и метки — E, «скачано», «в кэше», «YouTube». У играющего трека вместо обложки — значок «играет».
+/// и метки — E, загрузка (`DownloadBadge`: «скачано», кольцо, «в кэше»), «YouTube». У играющего трека вместо обложки —
+/// значок «играет».
 struct TrackRow: View {
     @Environment(AppModel.self) private var model
     let track: Track
     var subtitle: String?
     var isCurrent = false
-    var cached = false
-    /// Скачан: заполненный значок; «в кэше» — контурный приглушённый (задание 0003).
-    var downloaded = false
     var dimmed = false
     /// Номер в списке: у альбома — вместо обложки, у «Популярного» исполнителя — перед ней.
     var number: Int?
@@ -76,15 +74,7 @@ struct TrackRow: View {
                     .foregroundStyle(.secondary)
                     .accessibilityLabel(Text("badge.explicit"))
             }
-            if downloaded {
-                Image(systemName: "arrow.down.circle.fill")
-                    .foregroundStyle(.secondary)
-                    .accessibilityLabel(Text("badge.downloaded"))
-            } else if cached {
-                Image(systemName: "arrow.down.circle")
-                    .foregroundStyle(.tertiary)
-                    .accessibilityLabel(Text("badge.cached"))
-            }
+            DownloadBadge(videoId: track.videoId)
             if track.isVideo {
                 Image(systemName: "play.rectangle")
                     .foregroundStyle(.secondary)
@@ -213,8 +203,8 @@ struct TrackListRow: View {
                 if wide {
                     VideoRow(track: track, isCurrent: isCurrent, dimmed: dimmed)
                 } else {
-                    TrackRow(track: track, subtitle: subtitle, isCurrent: isCurrent, cached: cached, downloaded: downloaded,
-                             dimmed: dimmed, number: number, showsArtwork: showsArtwork, trailing: trailing)
+                    TrackRow(track: track, subtitle: subtitle, isCurrent: isCurrent, dimmed: dimmed, number: number,
+                             showsArtwork: showsArtwork, trailing: trailing)
                 }
             }
             #if !os(macOS)
