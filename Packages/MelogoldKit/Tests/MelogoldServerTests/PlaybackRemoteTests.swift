@@ -139,6 +139,27 @@ struct PlaybackRemoteTests {
         #expect(sent.bodies[3].positionMs == 90_000 && sent.bodies[3].queue == nil)
     }
 
+    /// Сервер не отвечает: отправка не повторяется в цикле (было ~1900 попыток за 6 с), а ждёт срока повтора — и новое
+    /// изменение раньше срока тоже не шлёт; после срока уходит.
+    @Test func failuresWaitBeforeRetryingInsteadOfLooping() async throws {
+        let clock = Clock(), sent = Sent()
+        let down = APIError(status: 503, code: "unavailable", message: "")
+        sent.results = Array(repeating: .failure(down), count: 50)
+        let reporter = reporter(clock, sent)
+        reporter.update(Self.snapshot(playing: true))
+        try await until("первая попытка") { sent.bodies.count == 1 }
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(sent.bodies.count == 1, "без паузы повтора — сотни попыток: \(sent.bodies.count)")
+        // Значимое изменение раньше срока повтора (2 с) — тоже ждёт
+        reporter.update(Self.snapshot(index: 1, playing: true))
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(sent.bodies.count == 1)
+        // Срок прошёл: следующее изменение уходит сразу
+        clock.advance(3)
+        reporter.update(Self.snapshot(index: 2, playing: true))
+        try await until("попытка после срока") { sent.bodies.count == 2 }
+    }
+
     @Test func queueRequiredIsAnsweredWithTheQueue() async throws {
         let clock = Clock(), sent = Sent()
         let reporter = reporter(clock, sent)

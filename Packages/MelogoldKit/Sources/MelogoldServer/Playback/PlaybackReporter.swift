@@ -78,6 +78,11 @@ public final class PlaybackReporter {
     /// Отправка раз в 60 с, пока играет; значимое изменение её обгоняет.
     private var heartbeatTimer: Task<Void, Never>?
     private var sending = false
+    /// Сбои подряд и когда пробовать снова: без сети или с упавшим сервером отправка не долбит сервер в цикле (было
+    /// ~1900 попыток за 6 с), а ждёт 2, 4, 8… до 60 с; удача сбрасывает.
+    private var failures = 0
+    private var retryAt: Date?
+    static let maxRetryDelay: TimeInterval = 60
 
     public init(
         send: @escaping @MainActor (PlaybackPut) async throws -> PlaybackPutResult,
@@ -136,9 +141,14 @@ public final class PlaybackReporter {
 
     private func schedule() {
         guard timer == nil else { return }
-        // Первое значимое после паузы — сразу, следующее — не раньше чем через секунду после предыдущего
+        // Первое значимое после паузы — сразу, следующее — не раньше чем через секунду после предыдущего; после сбоя —
+        // не раньше срока повтора
         let recentlySent = lastSent.map { now().timeIntervalSince($0.at) < 1 } ?? false
-        let delay = recentlySent ? coalesce : .zero
+        var delay = recentlySent ? coalesce : .zero
+        if let retryAt {
+            let wait = retryAt.timeIntervalSince(now())
+            if wait > 0 { delay = max(delay, .milliseconds(Int(wait * 1000))) }
+        }
         timer = Task { [weak self] in
             if delay > .zero { try? await Task.sleep(for: delay) }
             guard !Task.isCancelled else { return }
@@ -175,6 +185,8 @@ public final class PlaybackReporter {
                 body.queue = window
                 result = try await send(body)
             }
+            failures = 0
+            retryAt = nil
             if result.applied {
                 acceptedQueueKey = "\(body.sessionId):\(sentVersion)"
                 handoff = nil
@@ -188,9 +200,13 @@ public final class PlaybackReporter {
         } catch is CancellationError {
             pending = pending ?? snapshot
         } catch {
-            // Без сети хранится только последний снимок (DESIGN §3.12.2): уйдёт со следующим изменением
+            // Без сети хранится только последний снимок (DESIGN §3.12.2): уйдёт после паузы повтора или со следующим
+            // изменением, но не раньше срока повтора
             pending = pending ?? snapshot
-            Log.warning("playback", "Состояние воспроизведения не отправлено: \(error)")
+            failures += 1
+            let wait = min(Self.maxRetryDelay, pow(2, Double(min(failures, 6))))
+            retryAt = now().addingTimeInterval(wait)
+            Log.warning("playback", "Состояние воспроизведения не отправлено (повтор через \(Int(wait)) с): \(error)")
         }
     }
 
