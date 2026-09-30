@@ -207,6 +207,7 @@ struct SelectableList<Content: View>: View {
         Group {
             #if os(macOS)
             List(selection: $selection, content: content)
+                .playerBarClearance()
                 .rowActions(target, context: context, rowIds: rowIds, collectionName: collectionName)
                 .onExitCommand(perform: selection.isEmpty ? nil : { selection = [] })
                 .onDeleteCommand(perform: deleteAction(scope))

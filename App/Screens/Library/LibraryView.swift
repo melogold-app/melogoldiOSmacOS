@@ -107,6 +107,7 @@ struct LibraryView: View {
                 Text("import.fromViTune.description")
             }
         }
+        .playerBarClearance()
         .navigationTitle(Text(AppSection.library.title))
         .toolbar {
             ToolbarItem {

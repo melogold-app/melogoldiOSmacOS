@@ -161,6 +161,7 @@ private struct SearchRootView: View {
                     }
                     RecentlyPlayedSection(entries: recentPlays)
                 }
+                .playerBarClearance()
                 .listStyle(.plain)
             }
         }

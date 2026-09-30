@@ -83,14 +83,14 @@ struct QueueView: View {
                 .textCase(nil)
             }
         }
+        .playerBarClearance()
         #if os(macOS)
         .onDeleteCommand {
             for id in selection { player.remove(id) }
             selection = []
         }
         #endif
-        .navigationTitle(Text("player.queue"))
-        .inlineTitle()
+        .modifier(QueueTitle(inSheet: inSheet))
         .toolbar {
             if inSheet {
                 ToolbarItem(placement: .confirmationAction) { Button("common.done") { dismiss() } }
@@ -249,3 +249,30 @@ extension AppModel {
         }
     }
 }
+
+/// Заголовок «Очередь». В листе (iPhone, Vision) — заголовок листа. В колонке справа (Mac, iPad) — строка сверху самой
+/// колонки, а не `navigationTitle`: заголовок колонки окна не принадлежит (30.09.2026: окно называлось «Очередь» на любом
+/// экране, пока очередь даже закрыта, — содержимое колонки остаётся в иерархии и его `navigationTitle` перебивало название
+/// раздела и страницы).
+private struct QueueTitle: ViewModifier {
+    let inSheet: Bool
+
+    func body(content: Content) -> some View {
+        if inSheet {
+            content
+                .navigationTitle(Text("player.queue"))
+                .inlineTitle()
+        } else {
+            content
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    Text("player.queue")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, Design.Space.m)
+                        .padding(.vertical, Design.Space.s)
+                        .accessibilityAddTraits(.isHeader)
+                }
+        }
+    }
+}
+

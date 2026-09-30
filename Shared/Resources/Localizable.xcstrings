@@ -5108,6 +5108,23 @@
         }
       }
     },
+    "library.filter.clear" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear filter"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Очистить фильтр"
+          }
+        }
+      }
+    },
     "library.findMusic" : {
       "extractionState" : "manual",
       "localizations" : {

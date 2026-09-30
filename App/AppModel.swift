@@ -42,11 +42,29 @@ final class AppModel {
     var section: AppSection {
         didSet {
             if oldValue != section { settings.lastTab = section }
+            if Self.sidebarSelection(section: oldValue, library: routes[.library]) != sidebarSelection { expectSystemPop() }
         }
     }
 
     /// Стек каждого раздела: при переключении разделов стеки сохраняются.
-    var routes: [AppSection: [Route]] = [:]
+    var routes: [AppSection: [Route]] = [:] {
+        didSet {
+            if Self.sidebarSelection(section: section, library: oldValue[.library]) != sidebarSelection { expectSystemPop() }
+        }
+    }
+
+    /// Растёт, когда колонку детали надо собрать заново (`SplitShell`): `.id` стека.
+    private(set) var detailEpoch = 0
+
+    /// До этого момента сброс стека в пустой от системы не принимается (`path(for:)`).
+    @ObservationIgnored private var systemPopIgnoredUntil: CFAbsoluteTime = 0
+
+    /// Сменилась выбранная строка боковой панели: `NavigationSplitView` в ответ закрывает все экраны колонки детали — тем же
+    /// сбросом стека, каким закрывает их кнопка «Назад». Без этого «Избранное» из боковой панели или плитки хаба открывалось
+    /// и через кадр закрывалось (а со строки «Избранное» на «Скачанное» не переходило).
+    private func expectSystemPop() {
+        systemPopIgnoredUntil = CFAbsoluteTimeGetCurrent() + 0.4
+    }
 
     /// Растёт при повторном нажатии на активный раздел в корне — экран прокручивается наверх.
     private(set) var scrollToTopRequests: [AppSection: Int] = [:]
@@ -226,7 +244,16 @@ final class AppModel {
     func path(for section: AppSection) -> Binding<[Route]> {
         Binding(
             get: { self.routes[section] ?? [] },
-            set: { self.routes[section] = $0 }
+            set: { newValue in
+                // Сброс, которым система отвечает на смену строки боковой панели, — не шаг пользователя: стек остаётся,
+                // а колонка детали собирается заново с ним (сама она уже показывает корень)
+                if newValue.isEmpty, let stack = self.routes[section], !stack.isEmpty,
+                   CFAbsoluteTimeGetCurrent() < self.systemPopIgnoredUntil {
+                    self.detailEpoch += 1
+                    return
+                }
+                self.routes[section] = newValue
+            }
         )
     }
 

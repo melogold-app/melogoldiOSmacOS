@@ -68,7 +68,7 @@ struct LocalPlaylistView: View {
                 } target: { id in
                     RowID.split(id).flatMap { key in visible.firstIndex { $0.videoId == key.key }.map { .list(visible, $0) } }
                 } context: { _ in .playlist(playlistId) }
-                .searchable(text: $filter, prompt: Text("library.filter"))
+                .filterable(text: $filter, prompt: Text("library.filter"))
                 // Поле фильтра не лежит поверх обложки шапки: поиск сворачивается в кнопку панели
                 .searchMinimizedInToolbar()
                 .toolbar { toolbar(playlist) }

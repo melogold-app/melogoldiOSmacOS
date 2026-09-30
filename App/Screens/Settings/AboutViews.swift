@@ -246,6 +246,7 @@ struct LicensesView: View {
                 }
             }
         }
+        .playerBarClearance()
         .navigationTitle(Text("settings.licenses"))
         .inlineTitle()
     }

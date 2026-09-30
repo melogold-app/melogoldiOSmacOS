@@ -23,6 +23,11 @@ struct MacPlayerBar: View {
         static let inset: CGFloat = 10
     }
 
+    /// Сколько от низа окна занимает панель вместе с отступами и небольшим зазором: на столько списки окна получают нижнее
+    /// поле прокрутки (`SplitShell`), иначе последние строки (в Настройках — «Лицензии», в Библиотеке — «Импорт») остаются
+    /// под панелью и до них не долистать (0.2.0, 30.09.2026).
+    static let reservedHeight: CGFloat = Metrics.content + Design.Space.xs * 2 + Metrics.inset + Design.Space.xs
+
     var body: some View {
         if let track = model.services.player.currentTrack {
             GeometryReader { proxy in

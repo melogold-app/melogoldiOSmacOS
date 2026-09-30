@@ -26,7 +26,9 @@ struct SplitShell: View {
                 // iPad: мини-плеер — полоса внизу колонки детали (docs/PROMPT.md §5.3); ставит её каждый экран стека.
                 SectionRoot(section: model.section, miniPlayerBar: true)
             }
-            .id(model.section)
+            // Стек собирается заново при смене раздела и когда система закрыла его в ответ на смену строки боковой панели
+            // (`AppModel.path(for:)`)
+            .id(DetailID(section: model.section, epoch: model.detailEpoch))
             #if !os(visionOS)
             // Очередь — колонка справа (docs/PROMPT.md §5.4, iPad — §5.3).
             // Пока открыт «Сейчас играет», колонка очереди — его собственная: окно под ним не перестраивается (иначе SwiftUI
@@ -45,7 +47,10 @@ struct SplitShell: View {
         }
         #if os(macOS)
         // Панель воспроизведения — плавающее стекло внизу окна во всю ширину; боковая панель и колонка детали
-        // заканчиваются над ней, содержимое уходит под неё с мягким затуханием
+        // заканчиваются над ней, содержимое уходит под неё с мягким затуханием. Поле прокрутки снизу — во всех списках
+        // окна (боковая панель, колонка детали): `safeAreaBar` само его не даёт, и последние строки оставались под панелью
+        .contentMargins(.bottom, model.services.player.currentTrack == nil ? 0 : MacPlayerBar.reservedHeight, for: .scrollContent)
+        .safeAreaPadding(.bottom, model.services.player.currentTrack == nil ? 0 : MacPlayerBar.reservedHeight)
         .safeAreaBar(edge: .bottom, spacing: 0) {
             MacPlayerBar()
         }
@@ -73,6 +78,11 @@ struct SplitShell: View {
         // ⌘N и «Новый плейлист» в боковой панели: название и открытие созданного в Библиотеке
         .newPlaylistAlert(isPresented: $model.newPlaylistPrompt) { id in model.selectSidebar(.playlist(id)) }
     }
+}
+
+private struct DetailID: Hashable {
+    let section: AppSection
+    let epoch: Int
 }
 
 /// Полоса мини-плеера на системном стекле внизу экрана (iPad с боковой панелью). Ставится на каждый экран стека:
@@ -105,23 +115,47 @@ struct MiniPlayerBar: ViewModifier {
 #if os(macOS)
 /// Поле поиска в панели инструментов корня каждого раздела, как у Music.app: справа, на одном месте. Щелчок по нему
 /// открывает раздел «Поиск» (в нём то же поле — `SearchView`, с областями, подсказками и фокусом) с курсором в поле, как
-/// ⌘F (docs/PROMPT.md §5.4). В самом «Поиске», на экранах со своим фильтром и на открытых страницах (альбом, плейлист) в
-/// панели их собственные кнопки.
+/// ⌘F (docs/PROMPT.md §5.4). Это кнопка (`SearchLauncher`), а не `.searchable`: два системных поля поиска в панели
+/// окна сразу (корень раздела и экран, на который переходят) роняют AppKit. В самом «Поиске», на экранах со своим
+/// фильтром и на открытых страницах (альбом, плейлист) в панели их собственные кнопки.
 struct ToolbarSearchField: ViewModifier {
     let section: AppSection
     @Environment(AppModel.self) private var model
-    @FocusState private var focused: Bool
 
     func body(content: Content) -> some View {
-        @Bindable var model = model
-        if section == .search {
-            content
-        } else {
-            content
-                .searchable(text: $model.searchQuery, placement: .toolbar, prompt: Text("search.prompt"))
-                .searchFocused($focused)
-                .onChange(of: focused) { _, isFocused in if isFocused { model.focusSearch() } }
+        // Условие — внутри панели инструментов, а не выбор между двумя видами: смена вида корня посреди перехода
+        // сбрасывала стек (открытый экран тут же закрывался)
+        content.toolbar {
+            if section != .search, (model.routes[section] ?? []).isEmpty {
+                ToolbarItem(placement: .primaryAction) { SearchLauncher() }
+            }
         }
     }
 }
 #endif
+
+#if os(macOS)
+/// Место под плавающую панель воспроизведения в конце списка: `safeAreaBar` окна прокрутку списка не сдвигает (у
+/// `ScrollView` это делает поле прокрутки окна — `SplitShell`), и последние строки оставались под панелью.
+struct PlayerBarClearance: ViewModifier {
+    @Environment(AppModel.self) private var model
+
+    func body(content: Content) -> some View {
+        content.safeAreaInset(edge: .bottom, spacing: 0) {
+            Color.clear.frame(height: model.services.player.currentTrack == nil ? 0 : MacPlayerBar.reservedHeight)
+        }
+    }
+}
+#endif
+
+extension View {
+    /// Список, последние строки которого не прячутся под панелью воспроизведения (Mac; на остальных платформах — как есть).
+    @ViewBuilder
+    func playerBarClearance() -> some View {
+        #if os(macOS)
+        modifier(PlayerBarClearance())
+        #else
+        self
+        #endif
+    }
+}

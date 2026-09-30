@@ -113,7 +113,7 @@ struct DownloadsView: View {
         .listStyle(.plain)
         .navigationTitle(Text("library.downloads"))
         .inlineTitle()
-        .searchable(text: $filter, prompt: Text("library.filter"))
+        .filterable(text: $filter, prompt: Text("library.filter"))
         .toolbar {
             ToolbarItem {
                 SortMenu(options: DownloadsSort.allCases, selection: $sort) { $0.title }

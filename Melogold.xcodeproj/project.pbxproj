@@ -159,6 +159,7 @@
 		F65F688275F404FC37157ED2 /* DebugBenchmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5CCDBAD0C5BE71085F14626 /* DebugBenchmark.swift */; };
 		F7625B181D9A6185784449C1 /* WatchLibraryViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD6176B0421F4BED1367019F /* WatchLibraryViews.swift */; };
 		F813750A5DD2C2A81C640DC4 /* AppModel+Shell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87027DFCEC2249247A9BE008 /* AppModel+Shell.swift */; };
+		F87D91F1BC181B9ABC759C36 /* FilterField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B26DBB7F74F4C7BCAD6DB44 /* FilterField.swift */; };
 		F8935A4B70FE3862009DCED8 /* AlbumView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B041EBEA60A6B89FA365385A /* AlbumView.swift */; };
 		FBA6FBD34A28B814B61A07C3 /* LyricsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB0C6153B9A06B75A9C18E7 /* LyricsView.swift */; };
 		FC76178926B9A1944384776F /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E523A3EDBF9604F373F12513 /* SearchView.swift */; };
@@ -247,6 +248,7 @@
 		48FFA8DDC645CBE276094E8B /* MacMiniPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacMiniPlayer.swift; sourceTree = "<group>"; };
 		4A557709BB203BB81812E446 /* PlaylistShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistShareSheet.swift; sourceTree = "<group>"; };
 		4A6EB7CA2C9AC85995734B19 /* DebugLaunch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLaunch.swift; sourceTree = "<group>"; };
+		4B26DBB7F74F4C7BCAD6DB44 /* FilterField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterField.swift; sourceTree = "<group>"; };
 		571D3D5AAD367DD65A477BF3 /* CatalogUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogUITests.swift; sourceTree = "<group>"; };
 		5A2B0CE812CF22436F5831FF /* RemoteSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSheet.swift; sourceTree = "<group>"; };
 		5B05A079853F6773481709A5 /* WatchRemoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchRemoteView.swift; sourceTree = "<group>"; };
@@ -709,6 +711,7 @@
 				97402686922C656EB2A3FA17 /* DownloadBadge.swift */,
 				D119024F0DC89E9F8B88D4DC /* DownloadMenuItem.swift */,
 				24F1F7B1F153ABCE7ABE1A14 /* FileExport.swift */,
+				4B26DBB7F74F4C7BCAD6DB44 /* FilterField.swift */,
 				FE193EFD78D96A082588A882 /* Rows.swift */,
 				C07E03A5F90625CD97E3575E /* Selection.swift */,
 				05CB98AC0A4C230383AE4920 /* Shelves.swift */,
@@ -1005,6 +1008,7 @@
 				DB12CF03C955D9365ABBE1D7 /* DownloadsView.swift in Sources */,
 				EB58C678885BD00468F8B042 /* ExploreStore.swift in Sources */,
 				4B799A1160487B46F707750B /* FileExport.swift in Sources */,
+				F87D91F1BC181B9ABC759C36 /* FilterField.swift in Sources */,
 				EB45DEA00E3D3D42F21D9B41 /* ForYouStore.swift in Sources */,
 				FD8FF1AA223179C6ECF614D6 /* GeoText.swift in Sources */,
 				97AA66665A5D8A308D2D6AA3 /* HistoryView.swift in Sources */,

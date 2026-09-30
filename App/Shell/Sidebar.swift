@@ -57,7 +57,11 @@ extension AppModel {
     /// Какая строка боковой панели подсвечена: по разделу и первому экрану его стека, глубже — всё та же строка
     /// (открытый из «Избранного» альбом оставляет подсвеченным «Избранное»).
     var sidebarSelection: SidebarItem {
-        if section == .library, let first = routes[.library]?.first {
+        Self.sidebarSelection(section: section, library: routes[.library])
+    }
+
+    static func sidebarSelection(section: AppSection, library: [Route]?) -> SidebarItem {
+        if section == .library, let first = library?.first {
             if let shortcut = LibraryShortcut(route: first) { return .shortcut(shortcut) }
             if case .localPlaylist(let id) = first { return .playlist(id) }
         }
@@ -124,6 +128,7 @@ struct Sidebar: View {
                 Text("library.playlists")
             }
         }
+        .playerBarClearance()
         .listStyle(.sidebar)
         .task(id: library?.revision) {
             playlists = library?.library.playlists() ?? []

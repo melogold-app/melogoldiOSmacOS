@@ -1,6 +1,8 @@
 #if DEBUG && os(macOS)
 import AppKit
 import SwiftUI
+import MelogoldCore
+import MelogoldData
 
 /// Только отладочная сборка Mac: сценарий проверки окна без доступа к вводу системы (у терминала нет права «Универсальный
 /// доступ»). События — настоящие `NSEvent`, отправленные в `NSApp.sendEvent`, то есть тем же путём, что и нажатия
@@ -129,6 +131,45 @@ enum DebugScript {
                 dump(NSApp.mainMenu, indent: 0)
             case "menuitem":
                 menuItem(arg)
+            case "wheel":
+                // wheel <dy> [x y]: колесо мыши (точки, минус — вниз) над точкой окна (по умолчанию — середина колонки детали)
+                let numbers = arg.split(separator: " ").compactMap { Double($0) }
+                wheel(dy: numbers.first ?? -600, at: numbers.count >= 3 ? CGPoint(x: numbers[1], y: numbers[2]) : nil)
+            case "scrolls":
+                // Все прокручиваемые представления окна (AppKit): рамка, вставки, высота документа, смещение
+                guard let root = window(nil)?.contentView else { log("scrolls: нет окна"); return }
+                var lines: [String] = []
+                func walk(_ view: NSView, _ depth: Int) {
+                    if let scroll = view as? NSScrollView {
+                        let f = scroll.convert(scroll.bounds, to: nil)
+                        let i = scroll.contentInsets
+                        lines.append("NSScrollView \(type(of: scroll)) x=\(Int(f.minX)) w=\(Int(f.width)) h=\(Int(f.height)) вставки(в=\(Int(i.top)) н=\(Int(i.bottom))) документ=\(Int(scroll.documentView?.frame.height ?? 0)) смещение=\(Int(scroll.contentView.bounds.origin.y)) авто=\(scroll.automaticallyAdjustsContentInsets)")
+                    }
+                    view.subviews.forEach { walk($0, depth + 1) }
+                }
+                walk(root, 0)
+                log("scrolls: \(lines.count)\n" + lines.joined(separator: "\n"))
+            case "push":
+                // push favorites | allTracks: открыть экран Библиотеки поверх корня раздела — как нажатие в хабе
+                // push <section> <экран>: `push library history`, `push trends album`; без раздела — Библиотека
+                let parts = arg.split(separator: " ").map(String.init)
+                let target = parts.count > 1 ? (AppSection(rawValue: parts[0]) ?? .library) : .library
+                let name = parts.last ?? ""
+                let routes: [String: Route] = ["favorites": .favorites, "allTracks": .allTracks, "downloads": .downloads, "history": .history,
+                                               "album": .album("MPREb_queen1"), "moods": .moods]
+                if let route = routes[name] { model.open(route, in: target); log("push \(target.rawValue) \(name)") } else { log("push: нет экрана «\(name)»") }
+            case "toolbar":
+                // Элементы панели окна (AppKit): идентификаторы, названия, видимость — и заголовок окна
+                let toolbar = window(nil)?.toolbar
+                let items = (toolbar?.items ?? []).map { "\($0.itemIdentifier.rawValue)[\($0.label)]" }.joined(separator: ", ")
+                log("toolbar: заголовок=«\(window(nil)?.title ?? "")» подзаголовок=«\(window(nil)?.subtitle ?? "")» видима=\(toolbar?.isVisible ?? false) элементы=\(items)")
+            case "scroll":
+                // scroll top | bottom | <точки вниз>: прокрутка самого широкого списка в колонке детали — края и то, что под панелью
+                scrollDetail(arg)
+            case "sidebar":
+                // Строка боковой панели тем же путём, что щелчок (`selectSidebar`), но без событий мыши и без фокуса:
+                // trends new library search settings | favorites downloads history allTracks albums artists | playlist
+                selectSidebar(arg)
             case "state":
                 state()
             case "mark":
@@ -188,6 +229,10 @@ enum DebugScript {
             "right": (124, String(UnicodeScalar(NSRightArrowFunctionKey)!)),
             "down": (125, String(UnicodeScalar(NSDownArrowFunctionKey)!)),
             "up": (126, String(UnicodeScalar(NSUpArrowFunctionKey)!)),
+            "home": (115, String(UnicodeScalar(NSHomeFunctionKey)!)),
+            "end": (119, String(UnicodeScalar(NSEndFunctionKey)!)),
+            "pageup": (116, String(UnicodeScalar(NSPageUpFunctionKey)!)),
+            "pagedown": (121, String(UnicodeScalar(NSPageDownFunctionKey)!)),
         ]
 
         private func key(_ combo: String) {
@@ -331,6 +376,66 @@ enum DebugScript {
             menu.update()
             guard let item = menu.items.first(where: { $0.title == first }) else { return nil }
             return path.count == 1 ? item : find(Array(path.dropFirst()), in: item.submenu)
+        }
+
+        private func wheel(dy: Double, at point: CGPoint?) {
+            guard let window = window(nil), let content = window.contentView else { log("wheel: нет окна"); return }
+            let local = point ?? CGPoint(x: content.bounds.width * 0.62, y: content.bounds.height * 0.45)
+            // точки от левого верхнего угла окна → экран (у AppKit начало снизу, у CGEvent — сверху главного экрана)
+            let inWindow = NSPoint(x: local.x, y: content.bounds.height - local.y)
+            let onScreen = window.convertPoint(toScreen: inWindow)
+            let screenHeight = NSScreen.screens.first?.frame.height ?? 0
+            guard let event = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: Int32(dy), wheel2: 0, wheel3: 0) else { return }
+            event.location = CGPoint(x: onScreen.x, y: screenHeight - onScreen.y)
+            event.postToPid(ProcessInfo.processInfo.processIdentifier)
+            log("wheel \(Int(dy)) в \(Int(local.x)),\(Int(local.y))")
+        }
+
+        private func scrollDetail(_ how: String) {
+            guard let root = window(nil)?.contentView else { log("scroll: нет окна"); return }
+            var found: [NSScrollView] = []
+            func walk(_ view: NSView) {
+                if let scroll = view as? NSScrollView, scroll.documentView != nil {
+                    let frame = scroll.convert(scroll.bounds, to: nil)
+                    if frame.width > 300 { found.append(scroll) }
+                }
+                view.subviews.forEach(walk)
+            }
+            walk(root)
+            guard let scroll = found.max(by: { $0.bounds.width * $0.bounds.height < $1.bounds.width * $1.bounds.height }),
+                  let document = scroll.documentView else { log("scroll: нет списка"); return }
+            let clip = scroll.contentView
+            let inset = scroll.contentInsets
+            let top = -inset.top
+            let bottom = max(top, document.frame.height - clip.bounds.height + inset.bottom)
+            let y: CGFloat
+            switch how {
+            case "top": y = top
+            case "bottom": y = bottom
+            default: y = min(bottom, max(top, clip.bounds.origin.y + (Double(how) ?? 0)))
+            }
+            clip.scroll(to: NSPoint(x: clip.bounds.origin.x, y: y))
+            scroll.reflectScrolledClipView(clip)
+            log("scroll \(how): y=\(Int(y)) из \(Int(top))…\(Int(bottom)), вставки сверху \(Int(inset.top)) снизу \(Int(inset.bottom)), список \(Int(document.frame.height))")
+        }
+
+        private func selectSidebar(_ name: String) {
+            let item: SidebarItem?
+            switch name {
+            case "favorites": item = .shortcut(.favorites)
+            case "downloads": item = .shortcut(.downloads)
+            case "history": item = .shortcut(.history)
+            case "allTracks": item = .shortcut(.allTracks)
+            case "albums": item = .shortcut(.albums)
+            case "artists": item = .shortcut(.artists)
+            case "playlist":
+                item = model.library?.library.playlists().first.map { .playlist($0.id) }
+            default:
+                item = AppSection(rawValue: name).map { .section($0) }
+            }
+            guard let item else { log("sidebar: нет строки «\(name)»"); return }
+            model.selectSidebar(item)
+            log("sidebar \(name)")
         }
 
         private func menuItem(_ path: String) {

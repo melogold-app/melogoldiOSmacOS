@@ -33,7 +33,7 @@ struct FavoritesView: View {
         .listStyle(.plain)
         .navigationTitle(Text("library.favorites"))
         .inlineTitle()
-        .searchable(text: $filter, prompt: Text("library.filter"))
+        .filterable(text: $filter, prompt: Text("library.filter"))
         .toolbar {
             ToolbarItemGroup {
                 CollectionDownloadButton(kind: .liked, key: "", title: String(localized: "library.favorites"))
@@ -96,7 +96,7 @@ struct AllTracksView: View {
         .listStyle(.plain)
         .navigationTitle(Text("library.allTracks"))
         .inlineTitle()
-        .searchable(text: $filter, prompt: Text("library.filter"))
+        .filterable(text: $filter, prompt: Text("library.filter"))
         .toolbar {
             ToolbarItem {
                 SortMenu(options: AllTracksSort.allCases, selection: $sort) { $0.title }
@@ -176,7 +176,7 @@ struct PlaylistsView: View {
         }
         .navigationTitle(Text("library.playlists"))
         .inlineTitle()
-        .searchable(text: $filter, prompt: Text("library.filter"))
+        .filterable(text: $filter, prompt: Text("library.filter"))
         .toolbar {
             ToolbarItem {
                 SortMenu(options: PlaylistsSort.allCases, selection: $sort) { $0.title }
@@ -240,7 +240,7 @@ struct SavedAlbumsView: View {
         .modifier(CardMetricsReader())
         .navigationTitle(Text("library.albums"))
         .inlineTitle()
-        .searchable(text: $filter, prompt: Text("library.filter"))
+        .filterable(text: $filter, prompt: Text("library.filter"))
         .toolbar {
             ToolbarItem {
                 SortMenu(options: AlbumsSort.allCases, selection: $sort) { $0.title }
@@ -305,10 +305,11 @@ struct SavedArtistsView: View {
                 EmptyRow(title: "library.artists", systemImage: "music.mic", description: "library.artists.empty", filter: filter)
             }
         }
+        .playerBarClearance()
         .listStyle(.plain)
         .navigationTitle(Text("library.artists"))
         .inlineTitle()
-        .searchable(text: $filter, prompt: Text("library.filter"))
+        .filterable(text: $filter, prompt: Text("library.filter"))
         .toolbar {
             ToolbarItem {
                 SortMenu(options: ArtistsSort.allCases, selection: $sort) { $0.title }
@@ -346,6 +347,7 @@ struct HiddenTracksView: View {
                 EmptyRow(title: "settings.hidden", systemImage: "eye.slash", description: "hidden.empty")
             }
         }
+        .playerBarClearance()
         .navigationTitle(Text("settings.hidden"))
         .inlineTitle()
         .toolbar {

@@ -23,6 +23,7 @@ struct MySharesView: View {
                 }
             }
         }
+        .playerBarClearance()
         .overlay {
             if !loaded {
                 LoadingView()
