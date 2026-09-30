@@ -129,6 +129,14 @@ public final class PlayerEngine {
     private var consecutiveSkips = 0
     private var attempts: [UUID: Int] = [:]
     private var tapTime: Date?
+    /// Часы синхронизатора: где стояли и с какого момента — чтобы заметить, что при «играет» они не идут.
+    @ObservationIgnored private var clockProbe: (time: Double, since: Date)?
+    @ObservationIgnored private var clockStallLogged = false
+    @ObservationIgnored private var lastFlushRecovery: Date?
+    /// С какого момента рендерер доиграл всё отданное, хотя в очереди подачи ещё есть буферы.
+    @ObservationIgnored private var starvedSince: Date?
+    /// Сколько раз с начала трека пришлось будить подачу (не больше трёх).
+    @ObservationIgnored private(set) var feederRecoveries = 0
     private var ticker: Task<Void, Never>?
     private var radio: RadioState?
     private var radioTask: Task<Void, Never>?
@@ -154,20 +162,29 @@ public final class PlayerEngine {
         var loading = false
     }
 
-    public init(catalog: YouTubeMusic, resolver: StreamResolver, cache: AudioCache?, downloads: DownloadStore? = nil) {
+    /// `session` — для тестов: своя сессия чтения googlevideo (заглушка сервера); в приложении её делает сам движок.
+    public init(catalog: YouTubeMusic, resolver: StreamResolver, cache: AudioCache?, downloads: DownloadStore? = nil,
+                session: URLSession? = nil) {
         self.catalog = catalog
         self.resolver = resolver
         self.cache = cache
         self.downloads = downloads
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.timeoutIntervalForRequest = 20
-        configuration.httpMaximumConnectionsPerHost = 4
-        HTTPConfiguration.apply(to: configuration)
-        session = URLSession(configuration: configuration)
+        if let session {
+            self.session = session
+        } else {
+            let configuration = URLSessionConfiguration.ephemeral
+            configuration.timeoutIntervalForRequest = 20
+            configuration.httpMaximumConnectionsPerHost = 4
+            HTTPConfiguration.apply(to: configuration)
+            self.session = URLSession(configuration: configuration)
+        }
         audioSession.onInterruptionEnded = { [weak self] shouldResume in
             if shouldResume { self?.play() }
         }
         audioSession.onRouteLost = { [weak self] in self?.pause() }
+        pipeline.onAutomaticFlush = { [weak self] in
+            Task { @MainActor in self?.recoverFromAutomaticFlush() }
+        }
         nowPlaying.install(self)
     }
 
@@ -364,8 +381,14 @@ public final class PlayerEngine {
 
     /// Перемотка внутри текущего трека: с фрагмента, где лежит это время.
     public func seek(to seconds: Double) {
-        guard let segment = currentSegment else { return }
         let target = max(0, duration > 0 ? min(seconds, duration - 0.3) : seconds)
+        guard let segment = currentSegment else {
+            // Очередь восстановлена после перезапуска, трек ещё не открыт: ползунок выбирает, с какого места он начнётся
+            guard current != nil, !wantsToPlay else { return }
+            position = target
+            syncNowPlaying()
+            return
+        }
         cancelProducers()
         segments = [segment]
         segment.end = nil
@@ -382,6 +405,18 @@ public final class PlayerEngine {
             produce(segment, from: fragment, trimBefore: time)
         }
         syncNowPlaying()
+    }
+
+    /// Система сбросила очередь рендерера сама (маршрут звука, смена скорости): часы идут, а отданных отсчётов уже нет.
+    /// Подаём с текущего места так же, как при перемотке (документация `AVSampleBufferAudioRendererWasFlushedAutomatically`:
+    /// «лучше всего подать отсчёты, начиная с текущего времени»). Не чаще раза в полсекунды.
+    private func recoverFromAutomaticFlush() {
+        guard wantsToPlay, currentSegment != nil, phase == .playing || phase == .loading else { return }
+        if let last = lastFlushRecovery, Date().timeIntervalSince(last) < 0.5 { return }
+        lastFlushRecovery = Date()
+        let at = livePosition()
+        Log.warning("player", "Подаю звук заново с \(String(format: "%.1f", at)) с: рендерер сбросил очередь сам")
+        seek(to: at)
     }
 
     /// Карточка ошибки › «Повторить».
@@ -651,6 +686,8 @@ public final class PlayerEngine {
         duration = Double(current.track.durationMs ?? 0) / 1000
         playingFromCache = cache?.isComplete(current.track.videoId) ?? false
         cancelProducers()
+        feederRecoveries = 0
+        starvedSince = nil
         let startTime = CMTime(seconds: max(0, offset), preferredTimescale: 44_100)
         generation = pipeline.reset(to: startTime)
         levelTimeline.removeAll()
@@ -825,6 +862,8 @@ public final class PlayerEngine {
         }
         guard let segment = currentSegment else { return }
         position = min(max(0, (now - segment.start).seconds), max(duration, 0))
+        watchClock(now.seconds)
+        watchFeeder(now)
 
         if wantsToPlay {
             let ahead = bufferedAhead
@@ -854,6 +893,44 @@ public final class PlayerEngine {
         if phase == .playing, let end = segment.end, CMTimeCompare(now, end) >= 0, segments.last === segment {
             finishedLast(segment)
         }
+    }
+
+    /// «Играет», скорость не 0, звук подан — а часы синхронизатора стоят: журнал с состоянием подачи и рендерера (раз на старт).
+    /// Так видно, где встало: подача не успела, рендерер в ошибке или систему остановила (прерывание, маршрут).
+    private func watchClock(_ seconds: Double) {
+        guard phase == .playing, wantsToPlay, pipeline.rate > 0, bufferedAhead > 1 else {
+            clockProbe = nil
+            return
+        }
+        if let probe = clockProbe, abs(seconds - probe.time) <= 0.05 {
+            if !clockStallLogged, Date().timeIntervalSince(probe.since) > 3 {
+                clockStallLogged = true
+                Log.warning("player", "Часы звука стоят 3 с при «играет»: \(pipeline.diagnostics)")
+            }
+        } else {
+            clockProbe = (seconds, Date())
+            clockStallLogged = false
+        }
+    }
+
+    /// Подача жива: пока буферы ждут в очереди, рендерер получает их, как только освобождается место. Если они ждут, а
+    /// рендерер уже доиграл всё отданное, подача встала (так у Linux 0.1.7 заклинило очередь источника: звук шёл, только
+    /// когда человек подвинет ползунок). Подаём заново с текущего места — тем же путём, что перемотка, — не чаще трёх раз
+    /// на трек.
+    private func watchFeeder(_ now: CMTime) {
+        guard phase == .playing, wantsToPlay, pipeline.rate > 0, pipeline.pendingCount > 0,
+              (pipeline.handedEnd - now).seconds < 0.05 else {
+            starvedSince = nil
+            return
+        }
+        let since = starvedSince ?? Date()
+        starvedSince = since
+        guard Date().timeIntervalSince(since) > 1.5, feederRecoveries < 3 else { return }
+        feederRecoveries += 1
+        starvedSince = nil
+        let at = livePosition()
+        Log.warning("player", "Подача звука встала (\(feederRecoveries)-й раз): \(pipeline.diagnostics); подаю заново с \(String(format: "%.1f", at)) с")
+        seek(to: at)
     }
 
     private func trackChanged(to segment: Segment) {
