@@ -23,6 +23,28 @@ struct LibraryView: View {
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
             }
+            // С 1 декабря по 31 января — «Итоги 2026 готовы» (задание 0018)
+            if let year = wrappedSeasonYear(), hasHistory {
+                Section {
+                    Button { model.wrappedYear = year } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "sparkles")
+                                .font(.title2)
+                                .foregroundStyle(.yellow)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("stats.wrapped.ready \(year)").font(.headline)
+                                Text("stats.wrapped.readyText").font(.subheadline).foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                        }
+                        .foregroundStyle(.primary)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("library.wrappedReady")
+                }
+            }
             if isEmpty {
                 Section {
                     ContentUnavailableView {
@@ -68,6 +90,12 @@ struct LibraryView: View {
                 NavigationLink(value: Route.savedArtists) {
                     countRow("library.artists", systemImage: "music.mic", count: counts.artists)
                 }
+            }
+            Section {
+                NavigationLink(value: Route.stats) {
+                    Label("stats.title", systemImage: "chart.bar.xaxis")
+                }
+                .accessibilityIdentifier("library.stats")
             }
             // Последняя строка — импорт из ViTune или ViMusic (задание 0006)
             Section {

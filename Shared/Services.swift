@@ -95,6 +95,14 @@ final class Services {
             guard !settings.historyPaused else { return }
             library.library.recordPlay(track, playTimeMs: playTimeMs)
         }
+        // Проиграл 30 с с найденным автоматически текстом — текст закрепляется (задание 0015): тот же момент, что запись
+        // в историю; закрепляет только сам текст, а не «историю», поэтому «Не сохранять историю» его не отменяет
+        let lyricsStore = lyricsStore
+        let previousOnPlayed = player.onPlayed
+        player.onPlayed = { track, playTimeMs in
+            previousOnPlayed?(track, playTimeMs)
+            if playTimeMs >= LyricsPinRules.pinAfterMs { lyricsStore?.pinPlayed(track.videoId) }
+        }
         player.isExcluded = { [weak library] track in
             guard let library else { return false }
             return library.hiddenIds.contains(track.videoId) || library.notInterestedIds.contains(track.videoId)
@@ -103,6 +111,10 @@ final class Services {
         player.shouldSkip = { [weak library] track in
             (library?.hiddenIds.contains(track.videoId) ?? false) || (settings.hideExplicit && track.explicit)
         }
+        // Свои названия (задание 0014): очередь, «Сейчас играет», мини-плеер, часы и системная карточка получают правку
+        // данными; правка меняется — плеер обновляет то, что показывает
+        player.display = { [weak library] track in library?.displayed(track) ?? track }
+        library.onOverridesChanged = { [weak player] in player?.refreshDisplay() }
         downloads?.wifiOnly = settings.downloadsWifiOnly
         downloads?.network = { [network] in (network.isOnline, network.isCellular) }
         queueKeeper = QueueKeeper(player: player, library: library.library)

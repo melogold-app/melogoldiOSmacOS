@@ -61,6 +61,18 @@ final class AppModel {
     /// Лист «Добавить в плейлист…» для этих треков.
     var playlistPicker: PlaylistPickerRequest?
 
+    /// «Новый плейлист…» и «Указать альбом…» для выделенного: окно с полем ввода (задание 0013).
+    var selectionPrompt: SelectionPrompt?
+
+    /// «Изменить сведения…»: лист «Сведения о треке» (задание 0014).
+    var trackDetails: Track?
+
+    /// «Итоги года» на весь экран: год (задание 0018).
+    var wrappedYear: Int?
+
+    /// «Поделиться» своим плейлистом: лист со ссылкой (задание 0019).
+    var playlistShare: PlaylistShareRequest?
+
     /// «Сохранить файлом» на iPhone и iPad: готовый файл для системного окна сохранения.
     var exportedFile: ExportedAudio?
 
@@ -228,6 +240,11 @@ final class AppModel {
         Log.info("links", "Открыта ссылка \(url.scheme ?? "?")://\(url.host() ?? "")")
         if url.scheme?.lowercased() != "melogold" {
             openLink(url.absoluteString)
+            return
+        }
+        // «Плейлист по ссылке» (API §7.2, задание 0019): открывается без входа, с сервера из ссылки
+        if let share = MelogoldCore.ShareLink.parse(url) {
+            openSharedPlaylist(share)
             return
         }
         switch MelogoldLink.parse(url) {

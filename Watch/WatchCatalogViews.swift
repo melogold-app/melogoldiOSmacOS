@@ -299,6 +299,7 @@ struct WatchCollectionHeader: View {
 }
 
 struct WatchTrackRow: View {
+    @Environment(WatchModel.self) private var model
     let track: Track
     var number: Int?
     var showsArtwork = true
@@ -306,6 +307,7 @@ struct WatchTrackRow: View {
     let action: () -> Void
 
     var body: some View {
+        let track = model.displayed(track)
         Button(action: action) {
             HStack(spacing: 8) {
                 if let number {

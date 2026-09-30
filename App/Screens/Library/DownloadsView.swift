@@ -39,7 +39,7 @@ struct DownloadsView: View {
             guard let (section, key) = RowID.split(id) else { return nil }
             let list = section == "c" ? cachedVisible : completed
             return list.firstIndex { $0.videoId == key }.map { .list(list, $0) }
-        }) {
+        }, rowIds: completed.map { RowID.make("d", $0.videoId) } + cachedVisible.map { RowID.make("c", $0.videoId) }) {
             if !completed.isEmpty {
                 TrackListHeader(summary: LibraryText.summary(completed) + " · " + bytes(manager?.store.totalBytes() ?? 0)) {
                     model.playAll(completed, shuffled: false)

@@ -104,6 +104,8 @@ enum WatchRoute: Hashable {
     case queue
     case lyrics
     case sleepTimer
+    /// «Итоги»: минуты и трек месяца (задание 0018).
+    case stats
 }
 
 /// Состояние приложения часов.
@@ -157,6 +159,11 @@ final class WatchModel {
 
     func download(_ track: Track) {
         services.downloads?.download(track)
+    }
+
+    /// Трек, как его показывать: со своим названием, исполнителем и альбомом (задание 0014).
+    func displayed(_ track: Track) -> Track {
+        services.library?.displayed(track) ?? track
     }
 
     /// «Слушать» и «Перемешать» коллекции.

@@ -101,6 +101,13 @@ struct AccountOverviewView: View {
             }
 
             Section {
+                NavigationLink(value: Route.account(.myShares)) {
+                    Label("myLinks.title", systemImage: "link")
+                }
+                .accessibilityIdentifier("account.myShares")
+            }
+
+            Section {
                 NavigationLink(value: Route.account(.changePassword)) {
                     Label("account.changePassword", systemImage: "key")
                 }

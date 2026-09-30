@@ -39,7 +39,7 @@ struct AlbumView: View {
     private func page(_ details: AlbumDetails) -> some View {
         let album = details.album
         let tracks = details.tracks
-        return DetailPage(title: album.title) {
+        return DetailPage(title: album.title, rowIds: tracks.map { RowID.make("t", $0.videoId) }) {
             CollectionHeader(artworkURL: album.thumbnailUrl, title: album.title) {
                 VStack(spacing: 4) {
                     if let artistId = album.artists.first(where: { $0.id != nil })?.id, let name = album.artistsText {
@@ -110,7 +110,8 @@ struct AlbumView: View {
                             Label("menu.goToArtist", systemImage: "music.mic")
                         }
                     }
-                    ShareLink(item: ShareLinks.album(album.browseId)) {
+                    ShareLink(item: ShareLinks.album(album.browseId), subject: Text(verbatim: album.title),
+                              message: Text(verbatim: ShareText.line(album.title, album.artistsText))) {
                         Label("menu.share", systemImage: "square.and.arrow.up")
                     }
                 } label: {

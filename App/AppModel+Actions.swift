@@ -23,6 +23,8 @@ enum RowTarget {
     case open(Route)
     /// Микс `RD…`: очередь «Далее» этого микса.
     case mix(PlaylistItem)
+    /// Своё действие (строки «Итогов» у исполнителя без страницы YouTube: поиск по имени).
+    case action(() -> Void)
 }
 
 extension AppModel {
@@ -32,6 +34,7 @@ extension AppModel {
         case .single(let track): play(single: track)
         case .open(let route): open(route)
         case .mix(let playlist): playMix(playlist.playlistId)
+        case .action(let run): run()
         }
     }
 
@@ -99,14 +102,19 @@ extension AppModel {
 
     // MARK: - Ссылки (REWRITE §2.3, §4.9)
 
-    /// Вставленная, перетащенная или открытая ссылка YouTube или текст: цель ссылки, иначе — поиск.
+    /// Вставленная, перетащенная или открытая ссылка или текст (задание 0019): ссылка Melogold, YouTube, другого сервиса
+    /// (Spotify, Apple Music, Яндекс, Deezer, Tidal, SoundCloud) — цель ссылки, иначе — поиск.
     func openLink(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.lowercased().hasPrefix("melogold://"), let url = URL(string: trimmed) {
-            handle(url: url)
-            return
+        switch AppLink.classify(trimmed) {
+        case .melogold(let url): handle(url: url)
+        case .sharedPlaylist(let share): openSharedPlaylist(share)
+        case .otherService(let link): openOtherService(link)
+        case .youTube(let target): openYouTube(target)
         }
-        let target = YouTubeLinkParser.parse(trimmed)
+    }
+
+    private func openYouTube(_ target: LinkTarget) {
         Log.info("links", "Ссылка: \(target.logName)")
         switch target {
         case .search(let query):

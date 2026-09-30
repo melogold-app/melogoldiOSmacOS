@@ -1,4 +1,5 @@
 import Foundation
+import MelogoldCore
 import Testing
 @testable import MelogoldInnerTube
 
@@ -67,5 +68,35 @@ struct ExternalLinksTests {
 
     @Test func playlistsAreNotResolved() async {
         #expect(await ExternalLinks.resolve(Self.link("https://open.spotify.com/playlist/1")) == .notFound)
+    }
+}
+
+/// Вставленный текст: ссылка Melogold, YouTube, чужой сервис (задание 0019).
+@Suite("Что за ссылка — AppLink")
+struct AppLinkTests {
+    @Test func melogoldShareLinks() {
+        let deep = "Смотри: melogold://share?v=1&url=https%3A%2F%2Fmusic.example.com&id=Ab3dE5gH9k."
+        #expect(AppLink.classify(deep) == .sharedPlaylist(ShareLink(server: "https://music.example.com", shareId: "Ab3dE5gH9k")))
+        let page = "https://178-250-187-202.sslip.io/s/Ab3dE5gH9k)"
+        #expect(AppLink.classify(page) == .sharedPlaylist(ShareLink(server: "https://178-250-187-202.sslip.io", shareId: "Ab3dE5gH9k")))
+        // Своя схема — ничья другая: испорченная ссылка Melogold не уходит в поиск
+        #expect(AppLink.classify("melogold://share?v=1&id=bad") == .melogold(URL(string: "melogold://share?v=1&id=bad")!))
+        if case .melogold(let url) = AppLink.classify("melogold://server?v=1&url=https%3A%2F%2Fa.b") { #expect(url.host == "server") } else { Issue.record("server") }
+    }
+
+    @Test func youTubeStaysYouTube() {
+        #expect(AppLink.classify("https://music.youtube.com/watch?v=dQw4w9WgXcQ") == .youTube(YouTubeLinkParser.parse("https://music.youtube.com/watch?v=dQw4w9WgXcQ")))
+        #expect(AppLink.classify("Кино Группа крови") == .youTube(.search("Кино Группа крови")))
+        // Страница снимка на домене YouTube — не снимок
+        if case .sharedPlaylist = AppLink.classify("https://www.youtube.com/s/Ab3dE5gH9k") { Issue.record("это YouTube") }
+    }
+
+    @Test func otherServices() {
+        for text in ["https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC?si=x", "https://music.apple.com/ru/album/x/1?i=2",
+                     "https://music.yandex.ru/album/1/track/2", "https://www.deezer.com/track/3135556", "https://tidal.com/browse/track/1",
+                     "https://soundcloud.com/a/b"] {
+            guard case .otherService(let link) = AppLink.classify("Послушай " + text) else { Issue.record("\(text)"); continue }
+            #expect(link.url.absoluteString == text)
+        }
     }
 }

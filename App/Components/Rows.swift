@@ -4,6 +4,7 @@ import MelogoldCore
 /// Строка трека (docs/PROMPT.md §5.8): обложка (у видео квадратная), название, исполнитель и альбом, справа длительность
 /// и метки — E, «скачано», «в кэше», «YouTube». У играющего трека вместо обложки — значок «играет».
 struct TrackRow: View {
+    @Environment(AppModel.self) private var model
     let track: Track
     var subtitle: String?
     var isCurrent = false
@@ -18,6 +19,8 @@ struct TrackRow: View {
     var trailing: String?
 
     var body: some View {
+        // Своё название, исполнитель и альбом (задание 0014): одна точка показа для всех списков
+        let track = model.displayed(track)
         HStack(spacing: 12) {
             if let number {
                 Text(verbatim: "\(number)")
@@ -95,11 +98,13 @@ struct TrackRow: View {
 /// Строка видео в выдаче YouTube (REWRITE §3.11.2): превью 16:9 с длительностью или «В ЭФИРЕ», название до двух строк,
 /// «канал · просмотры». Строки из ответа YouTube только показываются, числа из них не разбираются.
 struct VideoRow: View {
+    @Environment(AppModel.self) private var model
     let track: Track
     var isCurrent = false
     var dimmed = false
 
     var body: some View {
+        let track = model.displayed(track)
         HStack(alignment: .top, spacing: 12) {
             ZStack(alignment: .bottomTrailing) {
                 ArtworkView(url: track.artworkURL, size: 114, shape: .wide)
@@ -182,6 +187,9 @@ struct CollectionRow: View {
 /// щелчок выделяет, двойной щелчок или Return играет.
 struct TrackListRow: View {
     @Environment(AppModel.self) private var model
+    #if !os(macOS)
+    @Environment(\.editMode) private var editMode
+    #endif
     let track: Track
     var subtitle: String?
     var number: Int?
@@ -208,16 +216,28 @@ struct TrackListRow: View {
                 }
             }
             #if !os(macOS)
-            .contextMenu { TrackMenuItems(track: track, context: context) }
+            .contextMenu { if !isSelecting { TrackMenuItems(track: track, context: context) } }
             #endif
-            TrackMenuButton(track: track, context: context)
+            if !isSelecting { TrackMenuButton(track: track, context: context) }
         }
+    }
+
+    /// Режим выбора (iPhone, iPad, Vision): нажатие отмечает строку, а не играет; кнопки «…» нет.
+    private var isSelecting: Bool {
+        #if os(macOS)
+        false
+        #else
+        editMode?.wrappedValue.isEditing == true
+        #endif
     }
 }
 
 /// Нажатие по строке на iPhone, iPad и Vision; на Mac строка — только содержимое, действие даёт список.
 struct TapTarget<Label: View>: View {
     @Environment(AppModel.self) private var model
+    #if !os(macOS)
+    @Environment(\.editMode) private var editMode
+    #endif
     let target: RowTarget?
     @ViewBuilder let label: () -> Label
 
@@ -225,31 +245,17 @@ struct TapTarget<Label: View>: View {
         #if os(macOS)
         label()
         #else
-        Button {
-            if let target { model.activate(target) }
-        } label: {
+        if editMode?.wrappedValue.isEditing == true {
+            // Режим выбора: нажатие по строке отмечает её (`List(selection:)`), а не играет
             label()
+        } else {
+            Button {
+                if let target { model.activate(target) }
+            } label: {
+                label()
+            }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
-        #endif
-    }
-}
-
-/// Список строк с действиями (docs/PROMPT.md §5.4, §5.8). На Mac — выделение, двойной щелчок или Return, правый
-/// щелчок (`contextMenu(forSelectionType:primaryAction:)`, строки помечены `tag`); на iPhone, iPad и Vision — обычный
-/// список: действие и меню у самих строк.
-struct SelectableList<Content: View>: View {
-    let target: (String) -> RowTarget?
-    var context: (String) -> TrackMenuContext? = { _ in nil }
-    @ViewBuilder let content: () -> Content
-    @State private var selection: Set<String> = []
-
-    var body: some View {
-        #if os(macOS)
-        List(selection: $selection, content: content)
-            .rowActions(target, context: context)
-        #else
-        List(content: content)
         #endif
     }
 }

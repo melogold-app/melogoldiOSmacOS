@@ -1,6 +1,6 @@
 # Действия с выделенными треками: скачать, в Избранное, собрать плейлист
 
-Статус: открыто
+Статус: в работе — слайс S6 (2026-09-30)
 
 Те же задания: `melogoldAndroid/tasks/0011-selection-actions.md`, `melogoldLinux/tasks/0004-selection-actions.md`.
 Образец — Windows (сделано, Windows 0.1.10: `Controls/SelectionBar.cs`, `Services/TrackActions.cs`).
