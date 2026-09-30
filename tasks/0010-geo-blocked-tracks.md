@@ -1,6 +1,6 @@
 # Трек закрыт в стране: понятная ошибка со страной YouTube
 
-Статус: открыто
+Статус: в работе — пакет готов (2026-09-30: запрос-диагноз WEB, страна из `visitorData`, классификация, журнал; `PlaybackFailure.country/availableCountries`); осталось: тексты карточки ошибки в плеере и на часах
 
 Те же задания: `melogoldAndroid/tasks/0008-geo-blocked-tracks.md` (сделано, Android 0.1.8),
 `melogoldWindows/tasks/0010-geo-blocked-tracks.md`, `melogoldLinux/tasks/0001-geo-blocked-tracks.md`.

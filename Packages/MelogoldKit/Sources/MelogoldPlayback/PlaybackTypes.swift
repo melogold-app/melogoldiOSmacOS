@@ -36,10 +36,15 @@ public struct PlaybackFailure: Equatable, Sendable {
 
     public var kind: Kind
     public var videoId: String?
+    /// `.geo`: страна YouTube и число стран, где трек открыт (задание 0010); `nil` — неизвестно.
+    public var country: String?
+    public var availableCountries: Int?
 
-    public init(kind: Kind, videoId: String?) {
+    public init(kind: Kind, videoId: String?, country: String? = nil, availableCountries: Int? = nil) {
         self.kind = kind
         self.videoId = videoId
+        self.country = country
+        self.availableCountries = availableCountries
     }
 
     public init(_ error: StreamError, videoId: String?) {
@@ -52,7 +57,7 @@ public struct PlaybackFailure: Equatable, Sendable {
         case .age: .age
         case .extractor: .extractor
         }
-        self.init(kind: kind, videoId: videoId)
+        self.init(kind: kind, videoId: videoId, country: error.country, availableCountries: error.availableCountries)
     }
 }
 

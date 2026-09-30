@@ -90,7 +90,7 @@ public actor StreamResolver {
                 return info
             } catch let error as StreamError where error.isFinal {
                 Log.warning("stream", "\(videoId): \(error)")
-                throw error
+                throw await diagnose(videoId, error)
             } catch let error as StreamError {
                 Log.warning("stream", "\(videoId): \(profile.name) — \(error)")
                 last = error
@@ -100,7 +100,18 @@ public actor StreamResolver {
                 last = StreamError(.network, error.localizedDescription)
             }
         }
-        throw last ?? StreamError(.extractor, "no stream clients")
+        throw await diagnose(videoId, last ?? StreamError(.extractor, "no stream clients"))
+    }
+
+    /// Поток не получен: один вопрос YouTube, почему (задание 0010). Без сети и по таймауту не спрашивается. Одна
+    /// строка в журнале (и в отчёте «Диагностики»): трек, итог, ответ YouTube, страна, число стран, сообщение клиента.
+    private func diagnose(_ videoId: String, _ error: StreamError) async -> StreamError {
+        guard error.kind != .network, error.kind != .timeout, !Task.isCancelled,
+              let playability = await catalog.playability(videoId: videoId) else { return error }
+        let result = StreamError.diagnosed(playability, streamMessage: error.message) ?? error
+        Log.warning("stream", "\(videoId): итог \(result.kind.rawValue); YouTube \(playability.status ?? "—") «\(playability.reason ?? "")»; "
+            + "страна \(playability.country ?? "—"), открыт в \(playability.availableCountries.count) странах; клиент потока: \(error.message)")
+        return result
     }
 
     private func withWatchdog(_ work: @escaping @Sendable () async throws -> StreamInfo) async throws -> StreamInfo {
