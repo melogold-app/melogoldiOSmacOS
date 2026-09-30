@@ -126,7 +126,7 @@ struct DiagnosticsView: View {
             let started = Date()
             await resolver.invalidate(Self.testVideoId)
             do {
-                let info = try await resolver.resolve(Self.testVideoId)
+                let info = try await resolver.resolve(Self.testVideoId, userInitiated: true)
                 testResult = .success(client: info.source, itag: info.itag,
                                       milliseconds: Int(Date().timeIntervalSince(started) * 1000))
             } catch let error as StreamError {

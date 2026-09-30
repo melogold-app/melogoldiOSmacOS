@@ -25,6 +25,10 @@ import MelogoldLyrics
 ///     -MelogoldSeedStats YES                            14 месяцев прослушиваний без сети — «Итоги» и «Итоги года»
 ///     -MelogoldOpen stats, -MelogoldOpenWrapped <год>   «Итоги» и «Итоги года» на весь экран
 ///     -MelogoldOpenDetails <videoId>, -MelogoldPreselect <n>   «Сведения о треке»; первые n строк выделены
+///     -MelogoldExport <videoId> -MelogoldExportDir <папка>   «Сохранить файлом» без окна: .m4a с тегами ложится в папку
+///                                                       (трек — по сети, как при нажатии; звук не играет)
+///     -MelogoldSeedDownloads YES                        без сети: любимые треки в разных состояниях загрузки (42 %, скачан,
+///                                                       сбой, пауза), трек в кэше и трансляция — кольцо, меню, «Хранилище»
 enum DebugLaunch {
     /// Прослушивания за 14 месяцев без сети и без плеера: восемь треков с обложками, вечерний пик, разные исполнители и
     /// альбомы. Повторный запуск ничего не дублирует.
@@ -65,6 +69,63 @@ enum DebugLaunch {
                 let ms = Int64(120_000 + next() % 120_000)
                 library.recordPlay(tracks[pick], playTimeMs: ms, endedAt: Int64(at.timeIntervalSince1970 * 1000))
             }
+        }
+    }
+
+    /// Загрузки в разных состояниях без сети и без звука (задание 0009): «Скачивается 42 %», «Скачано», сбой, пауза, трек
+    /// в кэше (12 МБ) и трансляция, которую скачать нельзя. Треки любимые — видны в «Избранном». Строки пишутся через
+    /// две секунды после старта: раньше загрузчик при запуске поставил бы «скачивается» обратно в очередь.
+    @MainActor
+    static func seedDownloads(_ model: AppModel) async {
+        guard let library = model.library?.library, let store = model.services.downloads?.store, store.entries().isEmpty else { return }
+        try? await Task.sleep(for: .seconds(2))
+        func track(_ id: String, _ title: String, _ artist: String, album: String? = nil, type: String = VideoType.song) -> Track {
+            Track(videoId: id, title: title, artists: [ArtistRef(id: "UC_" + id, name: artist)], artistsText: artist,
+                  albumTitle: album, durationMs: 240_000, thumbnailUrl: "https://i.ytimg.com/vi/\(id)/hqdefault.jpg", videoType: type)
+        }
+        let downloading = track("fJ9rUzIMcZQ", "Bohemian Rhapsody", "Queen", album: "A Night at the Opera")
+        let done = track("hTWKbfoikeg", "Smells Like Teen Spirit", "Nirvana", album: "Nevermind")
+        let failed = track("dQw4w9WgXcQ", "Never Gonna Give You Up", "Rick Astley", album: "Whenever You Need Somebody")
+        let paused = track("kJQP7kiw5Fk", "Despacito", "Luis Fonsi", album: "Vida")
+        let cached = track("9bZkp7q19f0", "Gangnam Style", "PSY", type: VideoType.video)
+        let plain = track("JGwWNGJdvx8", "Shape of You", "Ed Sheeran", album: "÷")
+        let live = track("jfKfPfyJRdk", "lofi hip hop radio - beats to relax/study to", "Lofi Girl", type: VideoType.live)
+        for item in [downloading, done, failed, paused, cached, plain, live] { library.setLiked(item, true) }
+        for (item, length) in [(downloading, 1000), (done, 100)] as [(Track, Int)] {
+            store.requestTrack(item)
+            store.prepare(item.videoId, itag: 140, mimeType: "audio/mp4", contentLength: Int64(length), durationMs: 240_000, loudnessDb: nil)
+        }
+        store.write(downloading.videoId, offset: 0, data: Data(count: 420))
+        store.setState(downloading.videoId, .downloading)
+        store.write(done.videoId, offset: 0, data: Data(count: 100))
+        store.requestTrack(failed)
+        store.setState(failed.videoId, .failed, failure: "network")
+        store.requestTrack(paused)
+        store.setState(paused.videoId, .paused)
+        if let cache = model.services.cache {
+            let size = 12 << 20
+            cache.prepare(videoId: cached.videoId, itag: 140, mimeType: "audio/mp4", contentLength: Int64(size), durationMs: 240_000, loudnessDb: nil)
+            cache.write(cached.videoId, offset: 0, data: Data(count: size), total: Int64(size))
+            model.refreshCached()
+        }
+    }
+
+    /// `-MelogoldExport <videoId> -MelogoldExportDir <папка>`: тот же путь, что у «Сохранить файлом», но результат —
+    /// в папку, а не в «Музыку». Сведения о треке — образец для проверки тегов и обложки; итог — в журнал.
+    @MainActor
+    static func exportTrack(_ model: AppModel, videoId: String, directory: URL) async {
+        let track = Track(videoId: videoId, title: "Never Gonna Give You Up", artists: [ArtistRef(id: "UCuAXFkgsw1L7xaCfnd5JJOw", name: "Rick Astley")],
+                          artistsText: "Rick Astley", albumTitle: "Whenever You Need Somebody", durationMs: 213_000,
+                          thumbnailUrl: "https://i.ytimg.com/vi/\(videoId)/hq720.jpg", videoType: VideoType.song)
+        do {
+            let file = try await FileExport.export(track, services: model.services)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let target = directory.appendingPathComponent(file.lastPathComponent)
+            try? FileManager.default.removeItem(at: target)
+            try FileManager.default.moveItem(at: file, to: target)
+            Log.info("export", "debug: \(target.path)")
+        } catch {
+            Log.warning("export", "debug: \(error)")
         }
     }
 
@@ -161,6 +222,10 @@ enum DebugLaunch {
             Task { await seedLibrary(model) }
         }
         if defaults.bool(forKey: "MelogoldSeedPlays") { seedPlays(model) }
+        if defaults.bool(forKey: "MelogoldSeedDownloads") { Task { await seedDownloads(model) } }
+        if let videoId = defaults.string(forKey: "MelogoldExport"), let directory = defaults.string(forKey: "MelogoldExportDir") {
+            Task { await exportTrack(model, videoId: videoId, directory: URL(fileURLWithPath: directory, isDirectory: true)) }
+        }
         if defaults.bool(forKey: "MelogoldSeedStats") { seedStats(model) }
         // -MelogoldOpenDetails <videoId> — лист «Сведения о треке» (снимок; трек уже в библиотеке)
         if let videoId = defaults.string(forKey: "MelogoldOpenDetails"), let track = model.library?.library.track(videoId) {

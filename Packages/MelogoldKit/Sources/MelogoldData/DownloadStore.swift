@@ -10,6 +10,8 @@ public enum DownloadState: String, Sendable {
 /// Почему загрузка ждёт.
 public enum DownloadWait: String, Sendable {
     case network, wifi, storage
+    /// YouTube не пускает адрес (проверка на бота): очередь стоит до «Повторить» или смены сети.
+    case botCheck
 }
 
 public struct DownloadEntry: Hashable, Sendable, Identifiable {
@@ -100,6 +102,24 @@ public final class DownloadStore: @unchecked Sendable {
         let rows = (try? database.writer.read { db in try Row.fetchAll(db, sql: "SELECT video_id, state FROM downloads") }) ?? []
         var result: [String: DownloadState] = [:]
         for row in rows { result[row["video_id"]] = DownloadState(rawValue: row["state"]) }
+        return result
+    }
+
+    /// Доля скачанного у нескачанных треков с известной длиной: кольцо в строке трека и «Отменить загрузку · 42 %».
+    /// Загрузчик пишет по куску — доля растёт вместе со строкой `downloads`.
+    public func fractions() -> [String: Double] {
+        let rows = (try? database.writer.read { db in
+            try Row.fetchAll(db, sql: """
+                SELECT video_id, downloaded_bytes, content_length FROM downloads
+                WHERE state <> 'completed' AND content_length > 0 AND downloaded_bytes > 0
+                """)
+        }) ?? []
+        var result: [String: Double] = [:]
+        for row in rows {
+            let length: Int64 = row["content_length"]
+            let bytes: Int64 = row["downloaded_bytes"]
+            result[row["video_id"]] = min(1, Double(bytes) / Double(length))
+        }
         return result
     }
 
@@ -374,6 +394,27 @@ public final class DownloadStore: @unchecked Sendable {
     public func retry(_ videoId: String) {
         _ = try? database.writer.write { db in
             try db.execute(sql: "UPDATE downloads SET state = 'queued', failure = NULL, attempts = 0 WHERE video_id = ?", arguments: [videoId])
+        }
+    }
+
+    /// Очередь остановлена: все ждущие очереди (`queued`, `waiting`) — «ждёт» с причиной `wait`. Порядок (`created_at`) и
+    /// скачанные куски не трогаются. Возвращает, у скольких строк что-то изменилось.
+    @discardableResult
+    public func hold(_ wait: DownloadWait) -> Int {
+        (try? database.writer.write { db -> Int in
+            try db.execute(sql: """
+                UPDATE downloads SET state = 'waiting', wait_reason = ?
+                WHERE (state = 'queued' OR state = 'waiting') AND (state = 'queued' OR wait_reason IS NOT ?)
+                """, arguments: [wait.rawValue, wait.rawValue])
+            return db.changesCount
+        }) ?? 0
+    }
+
+    /// Снять остановку `hold`: ждущие по этой причине — снова в очередь, на своих местах.
+    public func release(_ wait: DownloadWait) {
+        _ = try? database.writer.write { db in
+            try db.execute(sql: "UPDATE downloads SET state = 'queued', wait_reason = NULL WHERE state = 'waiting' AND wait_reason = ?",
+                           arguments: [wait.rawValue])
         }
     }
 

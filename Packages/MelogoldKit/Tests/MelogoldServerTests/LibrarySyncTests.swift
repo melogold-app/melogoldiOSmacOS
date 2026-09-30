@@ -1044,9 +1044,9 @@ struct LibrarySyncTests {
 
         let devices = await h.engine.historyDevices()
 
-        // Текущее устройство — «Это устройство», в списке других его нет
-        #expect(devices.map(\.id) == ["phone", "gone"])
-        #expect(devices.map(\.name) == ["Pixel", nil])
+        // Текущее устройство — «Это устройство», в списке других его нет; устройства, которого нет в аккаунте, — тоже
+        #expect(devices.map(\.id) == ["phone"])
+        #expect(devices.map(\.name) == ["Pixel"])
         #expect(h.engine.currentDeviceId == "d1")
 
         // Имена не запрашиваются заново на каждую правку истории; новое устройство прослушиваний и devices.updated —
@@ -1060,7 +1060,7 @@ struct LibrarySyncTests {
         #expect(h.server.requests("GET", "/auth/me/devices").count == 2)
         h.server.on("GET", "/auth/me/devices") { _ in (503, Fixtures.error("unavailable", 503)) }
         h.engine.handle(LiveEvent(id: "1", type: "devices.updated", at: "", kind: .devicesUpdated(reason: "device_added", deviceId: "watch")))
-        #expect(await h.engine.historyDevices().map(\.name) == ["Pixel", nil, nil])
+        #expect(await h.engine.historyDevices().map(\.name) == ["Pixel"])
         #expect(h.server.requests("GET", "/auth/me/devices").count == 3)
     }
 
@@ -1080,7 +1080,7 @@ struct LibrarySyncTests {
     }
 
     /// Пока приложение было в фоне, поток событий молчал: `devices.updated` за это время сервер не повторяет. После
-    /// переподключения имена перечитываются — переименованное устройство под новым именем, отозванное — «Другое устройство».
+    /// переподключения имена перечитываются — переименованное устройство под новым именем, отозванного в фильтре нет.
     @Test func deviceNamesAreReadAgainAfterTheStreamReconnects() async throws {
         let h = try SyncHarness()
         try h.sql("INSERT INTO tracks (video_id, title, created_at) VALUES ('t1', 't1', 0)")
@@ -1098,7 +1098,7 @@ struct LibrarySyncTests {
         let revoked = deviceList([])
         h.server.on("GET", "/auth/me/devices") { _ in (200, revoked) }
         h.engine.handle(connected("2"))
-        #expect(await h.engine.historyDevices().map(\.name) == [nil])
+        #expect(await h.engine.historyDevices().isEmpty)
         #expect(h.server.requests("GET", "/auth/me/devices").count == 3)
         await h.engine.sync()
     }

@@ -7,23 +7,44 @@ import MelogoldInnerTube
 ///
 /// - формат — itag 140 (AAC в m4a), запасной 139; Opus AVFoundation не играет;
 /// - адреса кэшируются (LRU на 64) до `expire − 5 мин`; сброс — на 403 и при смене сети;
-/// - одновременно не больше двух извлечений, у каждого сторож 20 с; один трек не резолвится дважды параллельно.
+/// - одновременно не больше двух извлечений, у каждого сторож 20 с; один трек не резолвится дважды параллельно;
+/// - к YouTube на трек уходит один запрос, пока он отвечает по делу: следующий клиент из списка пробуется, только если
+///   причина в клиенте (сеть, таймаут, пустой ответ). Проверка на бота (`StreamError.stopsQueue`, в том числе 429) —
+///   это адрес, а не клиент и не трек: ошибка уходит сразу, без следующего клиента и без диагноза, потому что каждый
+///   лишний запрос углубляет блок;
+/// - после проверки на бота адрес 10 минут считается закрытым: фоновые запросы (заготовка следующих треков, загрузки)
+///   не доходят до YouTube и сразу получают ту же ошибку. Один запрос пробует только действие пользователя
+///   (`userInitiated`: нажатие, «Далее», «Повторить»); успех снимает метку, смена сети (`invalidateAll`) — тоже. Фоновые
+///   извлечения идут по одному, чтобы в момент блока не ушло сразу несколько запросов.
 public actor StreamResolver {
     public static let cacheSize = 64
     public static let watchdogSeconds: Double = 20
     public static let maxConcurrent = 2
+    /// Сколько адрес считается закрытым после проверки на бота.
+    public static let blockMemory: TimeInterval = 10 * 60
 
     private let catalog: YouTubeMusic
     private var clients: [ClientProfile] = StreamClients.builtIn
     private var cache: [StreamInfo] = []
-    private var inFlight: [String: Task<StreamInfo, any Error>] = [:]
+    private var inFlight: [String: InFlight] = [:]
     private var active = 0
+    private var backgroundBusy = false
     private var waiters: [CheckedContinuation<Void, Never>] = []
     private let preferredItags: [Int]
+    private let now: @Sendable () -> Date
+    /// Последняя проверка на бота: когда и какой ошибкой.
+    private var blocked: (error: StreamError, at: Date)?
 
-    public init(catalog: YouTubeMusic, preferredItags: [Int] = [140, 139]) {
+    private struct InFlight {
+        var task: Task<StreamInfo, any Error>
+        var userInitiated: Bool
+        var token: UUID
+    }
+
+    public init(catalog: YouTubeMusic, preferredItags: [Int] = [140, 139], now: @escaping @Sendable () -> Date = { Date() }) {
         self.catalog = catalog
         self.preferredItags = preferredItags
+        self.now = now
     }
 
     public func setClients(_ profiles: [ClientProfile]) {
@@ -42,13 +63,36 @@ public actor StreamResolver {
         return info
     }
 
-    public func resolve(_ videoId: String) async throws -> StreamInfo {
+    /// Закрыт ли адрес: проверка на бота была меньше `blockMemory` назад и с тех пор не было удачи или смены сети.
+    /// Возвращает ту ошибку, которой YouTube ответил; `nil` — адрес свободен.
+    public var blockedError: StreamError? {
+        guard let blocked, now().timeIntervalSince(blocked.at) < Self.blockMemory else { return nil }
+        return blocked.error
+    }
+
+    /// Адрес потока трека. `userInitiated` — решение пользователя (нажатие, «Далее», «Повторить»): пока адрес закрыт,
+    /// такой вызов пробует один запрос. Фоновый (по умолчанию) закрытый адрес не беспокоит: ошибка приходит сразу, без
+    /// запроса. Адрес из кэша отдаётся всегда — запроса он не требует.
+    public func resolve(_ videoId: String, userInitiated: Bool = false) async throws -> StreamInfo {
         if let hit = cached(videoId) { return hit }
-        if let running = inFlight[videoId] { return try await running.value }
-        let task = Task { try await self.extract(videoId) }
-        inFlight[videoId] = task
-        defer { inFlight[videoId] = nil }
+        if !userInitiated, let error = blockedError {
+            Log.info("stream", "\(videoId): запрос не отправлен — YouTube не пускает адрес (\(error.kind.rawValue))")
+            throw error
+        }
+        // К уже идущему фоновому извлечению пользователь не присоединяется, если адрес закрыт: оно вернёт ошибку без запроса.
+        if let running = inFlight[videoId], running.userInitiated || !userInitiated || blockedError == nil {
+            return try await running.task.value
+        }
+        let task = Task { try await self.extract(videoId, userInitiated: userInitiated) }
+        let token = UUID()
+        inFlight[videoId] = InFlight(task: task, userInitiated: userInitiated, token: token)
+        defer { if inFlight[videoId]?.token == token { inFlight[videoId] = nil } }
         return try await task.value
+    }
+
+    /// Забыть метку «адрес закрыт» (пользователь нажал «Повторить» у загрузок): следующий запрос уйдёт в YouTube.
+    public func forgetBlock() {
+        blocked = nil
     }
 
     /// Забыть адрес трека (403 при чтении): следующий резолв спросит заново.
@@ -57,28 +101,38 @@ public actor StreamResolver {
     }
 
     /// Сеть сменилась: адреса googlevideo привязаны к адресу клиента, сбрасываются все.
+    /// Новая сеть — и новый адрес: метка «закрыт» тоже снимается.
     public func invalidateAll() {
         cache.removeAll()
+        blocked = nil
     }
 
-    private func acquire() async {
-        if active < Self.maxConcurrent {
-            active += 1
-            return
+    /// Место под извлечение: не больше `maxConcurrent` сразу, из них фоновое — одно.
+    private func acquire(background: Bool) async {
+        while active >= Self.maxConcurrent || (background && backgroundBusy) {
+            await withCheckedContinuation { waiters.append($0) }
         }
-        await withCheckedContinuation { waiters.append($0) }
         active += 1
+        if background { backgroundBusy = true }
     }
 
-    private func release() {
+    private func release(background: Bool) {
         active -= 1
-        if !waiters.isEmpty { waiters.removeFirst().resume() }
+        if background { backgroundBusy = false }
+        let waiting = waiters
+        waiters.removeAll()
+        for waiter in waiting { waiter.resume() }
     }
 
-    private func extract(_ videoId: String) async throws -> StreamInfo {
-        await acquire()
-        defer { release() }
+    private func extract(_ videoId: String, userInitiated: Bool) async throws -> StreamInfo {
+        await acquire(background: !userInitiated)
+        defer { release(background: !userInitiated) }
         if let hit = cached(videoId) { return hit }
+        // Пока ждали место, соседний запрос мог получить проверку на бота.
+        if !userInitiated, let error = blockedError {
+            Log.info("stream", "\(videoId): запрос не отправлен — YouTube не пускает адрес (\(error.kind.rawValue))")
+            throw error
+        }
         var last: StreamError?
         for profile in clients {
             try Task.checkCancellation()
@@ -86,11 +140,16 @@ public actor StreamResolver {
             do {
                 let info = try await withWatchdog { try await self.fromClient(profile, videoId) }
                 remember(info)
+                blocked = nil
                 Log.info("stream", "\(videoId): поток \(profile.name), itag \(info.itag), \(Int(Date().timeIntervalSince(started) * 1000)) мс")
                 return info
             } catch let error as StreamError where error.isFinal {
                 Log.warning("stream", "\(videoId): \(error)")
                 throw await diagnose(videoId, error)
+            } catch let error as StreamError where error.stopsQueue {
+                blocked = (error, now())
+                Log.warning("stream", "\(videoId): \(profile.name) — \(error); YouTube не пускает адрес: без других клиентов, диагноза и повторов")
+                throw error
             } catch let error as StreamError {
                 Log.warning("stream", "\(videoId): \(profile.name) — \(error)")
                 last = error
