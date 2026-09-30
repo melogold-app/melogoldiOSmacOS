@@ -65,7 +65,9 @@ final class NowPlayingUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Пауза"].waitForExistence(timeout: 40), "трек не заиграл")
         sleep(4)
         saveScreenshot("\(device)-miniplayer-expanded")
-        for _ in 0 ..< 3 { app.swipeUp() }
+        // Медленная прокрутка пальцем: панель вкладок сворачивается, только когда прокрутка настоящая
+        let list = app.scrollViews.firstMatch.exists ? app.scrollViews.firstMatch : app
+        for _ in 0 ..< 4 { list.swipeUp(velocity: .slow) }
         sleep(2)
         saveScreenshot("\(device)-miniplayer-scrolled")
         app.terminate()

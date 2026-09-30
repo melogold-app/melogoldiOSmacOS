@@ -16,6 +16,8 @@ struct NowPlayingView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Рамка обложки в широкой раскладке: по ней встаёт середина текущей строки текста.
+    @State private var coverFrame: CGRect?
 
     var body: some View {
         @Bindable var model = model
@@ -29,6 +31,8 @@ struct NowPlayingView: View {
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
+            .coordinateSpace(name: nowPlayingSpace)
+            .onPreferenceChange(CoverFrameKey.self) { coverFrame = $0 }
         }
         .modifier(NowPlayingChrome())
         .sheet(item: $model.lyricsSearch) { LyricsSearchSheet(track: $0) }
@@ -121,7 +125,9 @@ struct NowPlayingView: View {
                     controls(track, compact: true, wide: false)
                 }
                 .frame(width: min(size.width * 0.42, 440))
+                // Середина текущей строки — на уровне середины обложки (решение 2026-09-30); нет обложки — верх области
                 LyricsPanel()
+                    .environment(\.lyricsCoverMid, coverFrame?.midY)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 artworkArea(track)
@@ -150,6 +156,11 @@ struct NowPlayingView: View {
             let side = min(area.size.width, area.size.height, 600)
             if side >= max(minSide, 1) {
                 artworkButton(track, side: side)
+                    .background {
+                        GeometryReader { cover in
+                            Color.clear.preference(key: CoverFrameKey.self, value: cover.frame(in: .named(nowPlayingSpace)))
+                        }
+                    }
                     .frame(width: area.size.width, height: area.size.height)
             }
         }
@@ -205,6 +216,15 @@ struct NowPlayingView: View {
     }
 }
 
+/// Рамка обложки рядом с текстом в пространстве «Сейчас играет» (`nowPlayingSpace`).
+private struct CoverFrameKey: PreferenceKey {
+    static let defaultValue: CGRect? = nil
+
+    static func reduce(value: inout CGRect?, nextValue: () -> CGRect?) {
+        if let next = nextValue() { value = next }
+    }
+}
+
 /// Размеры по платформе.
 private enum Metrics {
     /// Верхний отступ содержимого: на iPhone и iPad — место под grabber листа, на Mac — под кнопками окна.
@@ -219,6 +239,17 @@ private enum Metrics {
     }
 }
 
+#if os(iOS)
+/// Лист «Сейчас играет» на iPad — во всю ширину и высоту окна (docs/PROMPT.md §5.3: «во весь экран»), а не карточка
+/// `.page`: в ней «Сейчас играет» боком не получает широкой раскладки. Grabber и закрытие смахиванием остаются системными.
+private struct FullSheetSizing: PresentationSizing {
+    func proposedSize(for root: PresentationSizingRoot, context: PresentationSizingContext) -> ProposedViewSize {
+        // Просим больше любого экрана: система ужимает лист до доступного места окна
+        ProposedViewSize(width: 10_000, height: 10_000)
+    }
+}
+#endif
+
 /// Фон и способ показа: лист с grabber на iPhone и iPad, слой поверх окна на Mac (кнопка закрытия и Esc), Vision — стекло
 /// окна без своего фона.
 private struct NowPlayingChrome: ViewModifier {
@@ -230,7 +261,7 @@ private struct NowPlayingChrome: ViewModifier {
             .presentationBackground { NowPlayingBackground(tint: model.coverTint) }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
-            .presentationSizing(.page)
+            .presentationSizing(FullSheetSizing())
         #elseif os(macOS)
         content
             .background { NowPlayingBackground(tint: model.coverTint) }

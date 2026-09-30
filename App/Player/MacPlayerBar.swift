@@ -9,7 +9,7 @@ import MelogoldPlayback
 ///
 /// Слева обложка, название, исполнитель (обложка открывает «Сейчас играет») и ♡; в центре ⇄ ⏮ ⏯ ⏭ ⟲ и полоса перемотки
 /// со временем; справа «Текст», «Очередь», AirPlay, громкость и «…». Раскладка считается от ширины окна: в окне 720 pt
-/// сначала исчезает громкость (она есть в «Сейчас играет» и в системе), затем ⇄ и ⟲ — центр не сжимается меньше 260 pt.
+/// сначала исчезает громкость (она есть в «Сейчас играет» и в системе), затем ⇄ и ⟲ — центр не сжимается меньше 240 pt.
 struct MacPlayerBar: View {
     @Environment(AppModel.self) private var model
 
@@ -19,7 +19,7 @@ struct MacPlayerBar: View {
                 let width = proxy.size.width
                 let volume = width >= 1000
                 let modes = width >= 760
-                let side: CGFloat = min(300, max(150, width * 0.24))
+                let side: CGFloat = min(300, max(190, width * 0.28))
                 HStack(spacing: Design.Space.m) {
                     left(track)
                         .frame(width: side, alignment: .leading)

@@ -123,12 +123,12 @@ struct PlainLyricsView: View {
     }
 }
 
-/// Где стоит текущая строка текста и как она выглядит: размер зависит от области (шире окно — крупнее текст, как у
-/// Windows и Android) и от Dynamic Type; отступы подложки, подпевка и перевод считаются от него (задание 0012 §2).
+/// Как выглядит текст песни: размер зависит от области (шире окно — крупнее текст, как у Windows и Android) и от Dynamic
+/// Type; отступы подложки, подпевка и перевод считаются от него (задание 0012 §2).
 enum LyricsStyle {
     /// Размер строки при обычной области и обычном Dynamic Type: `title` iPhone — 28.
     static let baseSize: CGFloat = 28
-    /// Верх текущей строки — на 24 pt ниже верха области текста, сразу под полосой затухания кромки
+    /// Узкая раскладка: верх текущей строки — на 24 pt ниже верха области текста, сразу под полосой затухания кромки
     /// (задание 0016 §2, Android `LyricsAnchor`).
     static let anchor: CGFloat = 24
     /// Полоса затухания снизу — над панелью управления.
@@ -140,12 +140,30 @@ enum LyricsStyle {
     }
 }
 
-/// Рамка подложки: рамка активной строки в координатах содержимого, вместе с полями строки.
-private struct ActiveRowFrameKey: PreferenceKey {
-    static let defaultValue: CGRect? = nil
+/// Пространство координат «Сейчас играет»: обложка и текст сверяют в нём свои рамки.
+let nowPlayingSpace = "nowPlaying.space"
 
-    static func reduce(value: inout CGRect?, nextValue: () -> CGRect?) {
-        if let next = nextValue() { value = next }
+/// Где стоит середина обложки в пространстве «Сейчас играет». Задаётся только в широкой раскладке (обложка слева, текст
+/// справа): там середина текущей строки и её подложки — на уровне середины обложки (решение пользователя, 2026-09-30,
+/// как в Linux-клиенте: взгляд идёт от обложки к строке по одной линии). В узкой раскладке и без обложки значения нет —
+/// верх строки у верха области.
+private struct LyricsCoverMidKey: EnvironmentKey {
+    static let defaultValue: CGFloat? = nil
+}
+
+extension EnvironmentValues {
+    var lyricsCoverMid: CGFloat? {
+        get { self[LyricsCoverMidKey.self] }
+        set { self[LyricsCoverMidKey.self] = newValue }
+    }
+}
+
+/// Рамки строк в координатах содержимого, вместе с полями строки: по ним стоят подложка и прокрутка к строке.
+private struct RowFramesKey: PreferenceKey {
+    static let defaultValue: [Int: CGRect] = [:]
+
+    static func reduce(value: inout [Int: CGRect], nextValue: () -> [Int: CGRect]) {
+        value.merge(nextValue()) { $1 }
     }
 }
 
@@ -154,10 +172,11 @@ private let lyricsSpace = "lyrics.content"
 struct SyncedLyricsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.lyricsCoverMid) private var coverMid
     @ScaledMetric(relativeTo: .title) private var typeScale: CGFloat = 1
     @State private var manualUntil: Date?
     @State private var followTick = 0
-    @State private var pill: CGRect?
+    @State private var frames: [Int: CGRect] = [:]
 
     var body: some View {
         let lyrics = model.services.lyrics
@@ -170,19 +189,27 @@ struct SyncedLyricsView: View {
             // Крупный Dynamic Type растит текст до 1,7 раза: дальше слова длиннее ширины экрана и ломаются посередине
             let fontSize = LyricsStyle.fontSize(in: proxy.size) * min(typeScale, 1.7)
             let scale = fontSize / LyricsStyle.baseSize
+            let height = proxy.size.height
+            // Точка, где встаёт середина текущей строки, от верха области: по обложке, но не ближе пятой части высоты к краю
+            let mid: CGFloat? = coverMid.map { min(max($0 - proxy.frame(in: .named(nowPlayingSpace)).minY, height * 0.2), height * 0.8) }
+            let pill = rows.indices.contains(active) && rows[active].isSung ? frames[active] : nil
             ScrollViewReader { reader in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 4 * scale) {
+                        // Широкая раскладка: над первой строкой место до точки, чтобы и она могла встать на середину обложки
+                        if let mid {
+                            Color.clear.frame(height: max(0, mid - (frames[0]?.height ?? 40) / 2 - LyricsStyle.anchor - 4 * scale))
+                        }
                         ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
                             LyricRowView(row: row, index: index, active: active, fontSize: fontSize)
                                 .id(index)
                         }
-                        // Последняя строка тоже может дойти до верха области
-                        Color.clear.frame(height: proxy.size.height)
+                        // Последняя строка тоже может встать на своё место
+                        Color.clear.frame(height: height)
                     }
                     .padding(.horizontal, Design.Space.s)
                     .coordinateSpace(name: lyricsSpace)
-                    .onPreferenceChange(ActiveRowFrameKey.self) { pill = $0 }
+                    .onPreferenceChange(RowFramesKey.self) { frames = $0 }
                     .background(alignment: .topLeading) {
                         ActiveLinePill(target: pill, radius: Design.Radius.medium * scale)
                     }
@@ -190,24 +217,34 @@ struct SyncedLyricsView: View {
                 .contentMargins(.top, LyricsStyle.anchor, for: .scrollContent)
                 .scrollIndicators(.hidden)
                 // Верх затухает на 24 pt, низ — над панелью управления; строки уходят в фон, а не обрезаются
-                .mask(fadeMask(height: proxy.size.height))
+                .mask(fadeMask(height: height))
                 .onScrollPhaseChange { _, phase in
                     if phase == .interacting { manualUntil = Date().addingTimeInterval(3) }
                 }
                 .onChange(of: active) { _, index in
                     guard manualUntil.map({ $0 < Date() }) ?? true, index >= 0 else { return }
-                    withAnimation(reduceMotion ? nil : .smooth(duration: 0.45)) { reader.scrollTo(index, anchor: .top) }
+                    withAnimation(reduceMotion ? nil : .smooth(duration: 0.45)) {
+                        reader.scrollTo(index, anchor: anchorPoint(index, height: height, mid: mid))
+                    }
                 }
+                // Смена размера — строка встаёт на место сразу; обложка сдвинулась (кадр видео 16:9, текст ошибки под ней) —
+                // строка плавно едет за ней
                 .onChange(of: proxy.size) {
                     guard following, active >= 0 else { return }
-                    reader.scrollTo(active, anchor: .top)
+                    reader.scrollTo(active, anchor: anchorPoint(active, height: height, mid: mid))
                 }
-                .onAppear { if active >= 0 { reader.scrollTo(active, anchor: .top) } }
+                .onChange(of: mid) { old, new in
+                    guard following, active >= 0, old != new else { return }
+                    withAnimation(reduceMotion || old == nil ? nil : .smooth(duration: 0.3)) {
+                        reader.scrollTo(active, anchor: anchorPoint(active, height: height, mid: new))
+                    }
+                }
+                .onAppear { if active >= 0 { reader.scrollTo(active, anchor: anchorPoint(active, height: height, mid: mid)) } }
                 .overlay(alignment: .bottom) {
                     if !following, active >= 0 {
                         Button {
                             manualUntil = nil
-                            withAnimation { reader.scrollTo(active, anchor: .top) }
+                            withAnimation { reader.scrollTo(active, anchor: anchorPoint(active, height: height, mid: mid)) }
                         } label: {
                             Label("lyrics.backToCurrent", systemImage: "arrow.down")
                                 .font(.subheadline.weight(.semibold))
@@ -225,10 +262,25 @@ struct SyncedLyricsView: View {
                     guard let until = manualUntil else { return }
                     try? await Task.sleep(for: .seconds(max(0, until.timeIntervalSinceNow) + 0.1))
                     followTick += 1
-                    if active >= 0 { withAnimation(reduceMotion ? nil : .smooth) { reader.scrollTo(active, anchor: .top) } }
+                    if active >= 0 {
+                        withAnimation(reduceMotion ? nil : .smooth) {
+                            reader.scrollTo(active, anchor: anchorPoint(active, height: height, mid: mid))
+                        }
+                    }
                 }
             }
         }
+    }
+
+    /// Куда встаёт строка `index` при прокрутке. Узкая раскладка — верх строки у верха области (после отступа). Широкая —
+    /// середина строки в точке `mid`: `scrollTo` совмещает долю `y` строки с той же долей высоты области, поэтому доля
+    /// считается по высоте самой строки (`frames`, у ещё не показанной — запас 44 pt).
+    private func anchorPoint(_ index: Int, height: CGFloat, mid: CGFloat?) -> UnitPoint {
+        guard let mid else { return .top }
+        let row = frames[index]?.height ?? 44
+        let free = height - LyricsStyle.anchor - row
+        guard free > 1 else { return .top }
+        return UnitPoint(x: 0.5, y: min(1, max(0, (mid - row / 2 - LyricsStyle.anchor) / free)))
     }
 
     private func fadeMask(height: CGFloat) -> some View {
@@ -240,6 +292,12 @@ struct SyncedLyricsView: View {
             .init(color: .black, location: 1 - bottom),
             .init(color: .clear, location: 1),
         ], startPoint: .top, endPoint: .bottom)
+    }
+}
+
+private extension LyricRow {
+    var isSung: Bool {
+        if case .sung = self { true } else { false }
     }
 }
 
@@ -310,6 +368,11 @@ private struct LyricRowView: View {
                     InterludeDots(progress: progress(start, end), scale: scale)
                 }
                 .padding(.horizontal, 16 * scale)
+                .background {
+                    GeometryReader { proxy in
+                        Color.clear.preference(key: RowFramesKey.self, value: [index: proxy.frame(in: .named(lyricsSpace))])
+                    }
+                }
                 .frame(maxWidth: .infinity, alignment: side == .end ? .trailing : .leading)
                 .accessibilityHidden(true)
             }
@@ -364,10 +427,8 @@ private struct LyricRowView: View {
             .padding(.horizontal, 16 * scale)
             .padding(.vertical, 10 * scale)
             .background {
-                if isActive {
-                    GeometryReader { proxy in
-                        Color.clear.preference(key: ActiveRowFrameKey.self, value: proxy.frame(in: .named(lyricsSpace)))
-                    }
+                GeometryReader { proxy in
+                    Color.clear.preference(key: RowFramesKey.self, value: [index: proxy.frame(in: .named(lyricsSpace))])
                 }
             }
             .frame(maxWidth: .infinity, alignment: line.side == .end ? .trailing : .leading)
