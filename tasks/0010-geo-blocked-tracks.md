@@ -1,6 +1,6 @@
 # Трек закрыт в стране: понятная ошибка со страной YouTube
 
-Статус: в работе — пакет готов (2026-09-30: запрос-диагноз WEB, страна из `visitorData`, классификация, журнал; `PlaybackFailure.country/availableCountries`); осталось: тексты карточки ошибки в плеере и на часах
+Статус: в работе — пакет и тексты готовы (2026-09-30: диагноз WEB, страна из `visitorData`, классификация, журнал; `GeoText` — «Недоступно в стране «Россия»…» с формами числа, часы — короткий вариант); осталось подключить `GeoText.message` в карточке ошибки плеера (`PlayerControls.swift`) после слияния редизайна
 
 Те же задания: `melogoldAndroid/tasks/0008-geo-blocked-tracks.md` (сделано, Android 0.1.8),
 `melogoldWindows/tasks/0010-geo-blocked-tracks.md`, `melogoldLinux/tasks/0001-geo-blocked-tracks.md`.

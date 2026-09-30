@@ -13,6 +13,7 @@
 		0625DD652177818F5351F5E3 /* ExploreStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 261AC95AEB0213020ABB2C1E /* ExploreStore.swift */; };
 		066325A2E0A9B9E988EEF947 /* MiniPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D6C4E54E29C8CF7F8B0D862 /* MiniPlayer.swift */; };
 		07A8A65CEC0749174CD5E9E5 /* CarPlaySceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = E968415E6F0B73C9B137C4A2 /* CarPlaySceneDelegate.swift */; };
+		0A46BA5304E2A5764EAB457E /* GeoText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B8D07AB51AB399C9B2C0831 /* GeoText.swift */; };
 		0AB30F97DC1B704FA12F1A64 /* ArtistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87A6916777459732260903DC /* ArtistView.swift */; };
 		0D6FC5C08893F894FD342330 /* WatchAccountViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = D57728F1C4495976700637A3 /* WatchAccountViews.swift */; };
 		0E84339350F8EEB82DDE49BA /* LyricsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8283257DCBDBDAFFA51CE3F2 /* LyricsUITests.swift */; };
@@ -145,6 +146,7 @@
 		FBA6FBD34A28B814B61A07C3 /* LyricsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB0C6153B9A06B75A9C18E7 /* LyricsView.swift */; };
 		FC76178926B9A1944384776F /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E523A3EDBF9604F373F12513 /* SearchView.swift */; };
 		FD79B42ABBB0A41612D8C1DA /* LocalPlaylistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08532D563B1E263D0A8FEF2D /* LocalPlaylistView.swift */; };
+		FD8FF1AA223179C6ECF614D6 /* GeoText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B8D07AB51AB399C9B2C0831 /* GeoText.swift */; };
 		FFC996730C6A8B0764B0954E /* AccountText.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDE62678E8C83CFCC9DFA91C /* AccountText.swift */; };
 /* End PBXBuildFile section */
 
@@ -256,6 +258,7 @@
 		91B39EDD1852C5750CFF9520 /* WatchRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchRootView.swift; sourceTree = "<group>"; };
 		91E8A746D6D537D2BF3703FB /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		93441BF35DA128B8AAFCDF1C /* MelogoldCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MelogoldCommands.swift; sourceTree = "<group>"; };
+		9B8D07AB51AB399C9B2C0831 /* GeoText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeoText.swift; sourceTree = "<group>"; };
 		9E0831A338DA1AD82A6C7E08 /* WatchStatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchStatsView.swift; sourceTree = "<group>"; };
 		A005002A9088ABEFA8BF4C43 /* StatsCharts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsCharts.swift; sourceTree = "<group>"; };
 		A071D3B7B2103C906F45A4F9 /* MelogoldApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MelogoldApp.swift; sourceTree = "<group>"; };
@@ -490,6 +493,7 @@
 				E6D2449DBC85BBE12EAF7CDC /* UI */,
 				261AC95AEB0213020ABB2C1E /* ExploreStore.swift */,
 				6B038D3D5905F9D28B22C84A /* ForYouStore.swift */,
+				9B8D07AB51AB399C9B2C0831 /* GeoText.swift */,
 				3C1C5BF53E858EA65C44D329 /* LibraryStore.swift */,
 				3C19A57BEACA04E17E6F71AD /* Loadable.swift */,
 				0ED1959497A998519DFBAEC6 /* SectionStyle.swift */,
@@ -921,6 +925,7 @@
 				EB58C678885BD00468F8B042 /* ExploreStore.swift in Sources */,
 				4B799A1160487B46F707750B /* FileExport.swift in Sources */,
 				EB45DEA00E3D3D42F21D9B41 /* ForYouStore.swift in Sources */,
+				FD8FF1AA223179C6ECF614D6 /* GeoText.swift in Sources */,
 				97AA66665A5D8A308D2D6AA3 /* HistoryView.swift in Sources */,
 				AE34108429CD39DABB31E806 /* ImportExport.swift in Sources */,
 				3F6A128A55BD3A2A6036B518 /* LibraryComponents.swift in Sources */,
@@ -986,6 +991,7 @@
 				782A43EE9CA71A84716D1787 /* ArtworkView.swift in Sources */,
 				0625DD652177818F5351F5E3 /* ExploreStore.swift in Sources */,
 				69CC4EEC5ECD57DC628309E2 /* ForYouStore.swift in Sources */,
+				0A46BA5304E2A5764EAB457E /* GeoText.swift in Sources */,
 				5E5D0BABC82C190CEFD9C686 /* LibraryStore.swift in Sources */,
 				E5054C4510BC8847340CA354 /* Loadable.swift in Sources */,
 				9F371FCD19E75A2E60428E9A /* MelogoldWatchApp.swift in Sources */,
