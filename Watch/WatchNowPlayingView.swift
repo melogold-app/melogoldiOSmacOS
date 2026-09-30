@@ -15,7 +15,7 @@ struct WatchNowPlayingView: View {
             VStack(spacing: 8) {
                 Image(systemName: failure.kind == .noAudioRoute ? "headphones" : "exclamationmark.triangle")
                     .font(.title2)
-                Text(failure.watchText)
+                Text(GeoText.short(failure) ?? String(localized: failure.watchText))
                     .font(.footnote)
                     .multilineTextAlignment(.center)
                 Button("common.retry") { player.retryCurrent() }

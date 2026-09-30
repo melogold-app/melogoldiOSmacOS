@@ -4308,24 +4308,6 @@
       },
       "comment" : "Меню фильтра Истории по устройствам (задание 0002)"
     },
-    "history.device.other" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Another device"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Другое устройство"
-          }
-        }
-      },
-      "comment" : "Устройства уже нет в аккаунте"
-    },
     "history.device.this" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7108,13 +7090,117 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not available in your region"
+            "value" : "Unavailable in your country"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Недоступно в вашем регионе"
+            "value" : "Недоступно в вашей стране"
+          }
+        }
+      }
+    },
+    "player.error.geo.closed %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unavailable in %1$@: YouTube places you there, and the rights holder closed this track for it. With a VPN, pick a server in another country: YouTube counts some VPN servers as %1$@ too."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Недоступно в стране «%1$@»: YouTube считает, что вы там, а правообладатель закрыл трек для этой страны. С VPN выберите сервер другой страны: некоторые серверы YouTube тоже относит к стране «%1$@»."
+          }
+        }
+      }
+    },
+    "player.error.geo.countries %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "in %lld other country"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "in %lld other countries"
+                }
+              }
+            }
+          }
+        },
+        "ru" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "в %lld другой стране"
+                }
+              },
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "в %lld других странах"
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "в %lld других странах"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "в %lld другой стране"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "player.error.geo.opened %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unavailable in %1$@: YouTube places you there, and the rights holder opened this track %2$@. With a VPN, pick a server in another country: YouTube counts some VPN servers as %1$@ too."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Недоступно в стране «%1$@»: YouTube считает, что вы там, а правообладатель открыл трек %2$@. С VPN выберите сервер другой страны: некоторые серверы YouTube тоже относит к стране «%1$@»."
+          }
+        }
+      }
+    },
+    "player.error.geo.short %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unavailable in %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Недоступно в стране «%@»"
           }
         }
       }
