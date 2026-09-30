@@ -99,7 +99,11 @@ enum DebugLaunch {
     @MainActor
     static func apply(to model: AppModel) {
         let defaults = UserDefaults.standard
-        if defaults.bool(forKey: "MelogoldMute") { model.services.player.volume = 0 }
+        if defaults.bool(forKey: "MelogoldMute") {
+            model.services.player.volume = 0
+            // Жёстко: громкость пульта (задание 0020) и ползунок не включат звук
+            model.services.player.outputMuted = true
+        }
         if let text = defaults.string(forKey: "MelogoldOpenURL"), let url = URL(string: text) {
             model.handle(url: url)
         }

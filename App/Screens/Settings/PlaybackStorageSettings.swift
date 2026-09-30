@@ -26,6 +26,11 @@ struct PlaybackSettingsSection: View {
             #endif
             NavigationLink(value: Route.streamInfo) { Text("settings.streamInfo") }
         }
+        Section {
+            Toggle("settings.remoteControl", isOn: $settings.remoteControl)
+        } footer: {
+            Text("settings.remoteControl.footer")
+        }
     }
 }
 

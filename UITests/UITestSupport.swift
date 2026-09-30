@@ -186,6 +186,28 @@ struct TestDevice: Sendable {
         return (answer["status"] as? String ?? "", answer["session"] is [String: Any])
     }
 
+    /// Что играет на аккаунте (`GET /playback/state`): устройство, играет ли, громкость; `nil` — ничего.
+    func playbackState() async throws -> (deviceId: String, playing: Bool, volume: Int?)? {
+        let response = try await Self.call(server, "GET", "/playback/state", token: token)
+        guard let state = response["state"] as? [String: Any] else { return nil }
+        return (state["deviceId"] as? String ?? "", state["playing"] as? Bool ?? false, state["volume"] as? Int)
+    }
+
+    /// Другие устройства аккаунта для пульта: id, в сети, управляемо.
+    func playbackDevices() async throws -> [(deviceId: String, name: String, online: Bool, controllable: Bool)] {
+        let response = try await Self.call(server, "GET", "/playback/devices", token: token)
+        return (response["devices"] as? [[String: Any]] ?? []).map {
+            ($0["deviceId"] as? String ?? "", $0["name"] as? String ?? "", $0["online"] as? Bool ?? false, $0["controllable"] as? Bool ?? false)
+        }
+    }
+
+    /// Команда пульта устройству аккаунта.
+    func command(_ targetDeviceId: String, _ action: String, volume: Int? = nil) async throws {
+        var body: [String: Any] = ["commandId": UUID().uuidString.lowercased(), "targetDeviceId": targetDeviceId, "action": action]
+        if let volume { body["volume"] = volume }
+        _ = try await Self.call(server, "POST", "/playback/commands", token: token, body: body)
+    }
+
     /// Изменения истории после `cursor` (API §4.8): `plays`, `playStats`, `playForgets` и новый курсор.
     func changes(since cursor: String) async throws -> [String: Any] {
         try await sync(ops: [], cursor: cursor)

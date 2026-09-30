@@ -38,7 +38,10 @@ struct MelogoldWatchApp: App {
                 #if DEBUG
                 .task {
                     let defaults = UserDefaults.standard
-                    if defaults.bool(forKey: "MelogoldMute") { model.services.player.volume = 0 }
+                    if defaults.bool(forKey: "MelogoldMute") {
+                        model.services.player.volume = 0
+                        model.services.player.outputMuted = true
+                    }
                     if let query = defaults.string(forKey: "MelogoldSearch") {
                         model.pendingQuery = query
                         model.path = [.section(.search)]

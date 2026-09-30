@@ -63,6 +63,11 @@ public final class PlayerEngine {
     public var volume: Float = 1 {
         didSet { applyVolume() }
     }
+    /// Выход без звука при любой `volume` — отладочный `-MelogoldMute` (Mac и симуляторы общие, рядом спят):
+    /// команда пульта «громкость 30» меняет `volume` и сообщается серверу, но из динамиков не звучит.
+    public var outputMuted = false {
+        didSet { applyVolume() }
+    }
 
     public var current: QueueItem? { index.flatMap { items.indices.contains($0) ? items[$0] : nil } }
     public var currentTrack: Track? { current?.track }
@@ -944,7 +949,7 @@ public final class PlayerEngine {
     /// Громкие треки тише (`loudnessDb` > 0). Тихие не усиливаются: громкость рендерера — не больше 1.
     private func applyVolume() {
         let gain = Float(pow(10, appliedGainDb / 20))
-        pipeline.volume = max(0, min(1, volume * gain))
+        pipeline.volume = outputMuted ? 0 : max(0, min(1, volume * gain))
     }
 
     /// Усиление нормализации текущего трека, дБ: 0 или меньше.

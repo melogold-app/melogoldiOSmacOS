@@ -18,6 +18,8 @@ final class AppModel {
     /// Синк библиотеки, истории и своих текстов с аккаунтом (срез 5). «Убрать из истории» и «Очистить историю»
     /// библиотеки уходят его очередью на все устройства аккаунта.
     let sync: LibrarySync
+    /// Пульт (задание 0020): что играет здесь — серверу, команды других устройств — плееру.
+    @ObservationIgnored private(set) var remoteBridge: RemoteBridge?
     @ObservationIgnored private var lifecycle: [any NSObjectProtocol] = []
     @ObservationIgnored private var wasOnline = true
     var settings: AppSettings { services.settings }
@@ -126,6 +128,9 @@ final class AppModel {
         wasOnline = services.network.isOnline
         observeNetwork()
         observeRejectedLyrics()
+        remoteBridge = RemoteBridge(account: account, sync: sync, player: services.player, settings: services.settings) { [weak self] text in
+            self?.toast = Toast(text: text)
+        }
     }
 
     /// Сервер не принял свой текст как слишком большой (413, задание 0001 §3.7): сказать человеку, что текст остался

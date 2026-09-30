@@ -32,6 +32,8 @@ public struct ServerInfo: Decodable, Sendable, Equatable {
         public let accountDeletion: Version?
         public let registrationPow: Version?
         public let lyrics: Version?
+        /// «Что играет» (`/playback/state`, API §4.9).
+        public let playback: Version?
         /// Ссылки на свои плейлисты (API §4.11).
         public let share: Version?
         /// Пульт: управление другим устройством (API §4.9).
