@@ -104,6 +104,7 @@
 		9C271D28B90CFFB53D9B93C6 /* Loadable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C19A57BEACA04E17E6F71AD /* Loadable.swift */; };
 		9F371FCD19E75A2E60428E9A /* MelogoldWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2881FC55A08451C2F452BB75 /* MelogoldWatchApp.swift */; };
 		A2132CB8024C6D31A1323B1A /* Routes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87B089AC25B6613CFBF2E0FF /* Routes.swift */; };
+		A4A286E9AE9A09BBB64A0BA1 /* Lists.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED91884E2ED7FBC192538906 /* Lists.swift */; };
 		A70E987FE4FB687D1B6D518B /* Services.swift in Sources */ = {isa = PBXBuildFile; fileRef = E06646CDF05B297C32A82774 /* Services.swift */; };
 		A80173124DB9EE5F48306046 /* PlaybackStorageSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39AD56A4AE2A9E51E2F5D5D1 /* PlaybackStorageSettings.swift */; };
 		AD9762521ADF67969D008192 /* MelogoldCore in Frameworks */ = {isa = PBXBuildFile; productRef = 625BF3FEAD52620894C27DA0 /* MelogoldCore */; };
@@ -310,6 +311,7 @@
 		EA63165E83727DB40E4E2B0A /* LyricsSearchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsSearchSheet.swift; sourceTree = "<group>"; };
 		ECF11684D63D68687931A590 /* HistoryUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryUITests.swift; sourceTree = "<group>"; };
 		ED2CB30EFE3051E14BB4B9EB /* SliceS6UITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SliceS6UITests.swift; sourceTree = "<group>"; };
+		ED91884E2ED7FBC192538906 /* Lists.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Lists.swift; sourceTree = "<group>"; };
 		EE653D4AC70A4D5CF6F7DD65 /* RemoteUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteUITests.swift; sourceTree = "<group>"; };
 		F1B51C8ABF1BCB381E829D6C /* LibraryScreens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryScreens.swift; sourceTree = "<group>"; };
 		F1D156A776E7F72E0757C991 /* AccountOverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountOverviewView.swift; sourceTree = "<group>"; };
@@ -631,6 +633,7 @@
 			children = (
 				F9BEAFDA118E8881D530FBA7 /* CoverPalette.swift */,
 				09E3FE63121B6413A0852E3E /* Design.swift */,
+				ED91884E2ED7FBC192538906 /* Lists.swift */,
 			);
 			path = Design;
 			sourceTree = "<group>";
@@ -964,6 +967,7 @@
 				90985A5D16448BB9E68C0BE8 /* LibraryStore.swift in Sources */,
 				DEF932C917686C6E9BC6CEAE /* LibraryView.swift in Sources */,
 				42B0B40BD1EBDEDA76303B2D /* LinkCodeViews.swift in Sources */,
+				A4A286E9AE9A09BBB64A0BA1 /* Lists.swift in Sources */,
 				9C271D28B90CFFB53D9B93C6 /* Loadable.swift in Sources */,
 				FD79B42ABBB0A41612D8C1DA /* LocalPlaylistView.swift in Sources */,
 				B2979E9C8C774653A2852C52 /* LyricsEditorView.swift in Sources */,

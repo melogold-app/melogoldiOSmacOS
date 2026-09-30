@@ -2,14 +2,19 @@ import SwiftUI
 import MelogoldCore
 import MelogoldData
 
-/// «Библиотека» — хаб (REWRITE §3.2.1, docs/PROMPT.md §5.9): Избранное, Скачанное, История; плейлисты; «Все треки»
-/// (задание 0007), Альбомы, Исполнители и каналы; последняя строка — «Импорт из ViTune или ViMusic» (задание 0006).
-/// Сети не требует.
+/// «Библиотека» — хаб (REWRITE §3.2.1, docs/PROMPT.md §5.9): Избранное, Скачанное, История — плитки; «Плейлисты» —
+/// адаптивная сетка обложек (на iPhone две колонки, на iPad и Mac столько, сколько влезет); «Все треки» (задание 0007),
+/// Альбомы, Исполнители и каналы, «Итоги» — список; последняя строка — «Импорт из ViTune или ViMusic» (задание 0006).
+/// Значки одного цвета — системного акцента (у ♡ — розовый, как сердце везде); сети экран не требует.
 struct LibraryView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var playlists: [LibraryPlaylist] = []
     @State private var newPlaylist = false
     @State private var hasHistory = false
+
+    /// Сколько плейлистов показано на хабе; остальные — на «Все плейлисты».
+    private static let shownPlaylists = 5
 
     var body: some View {
         let library = model.library
@@ -20,14 +25,14 @@ struct LibraryView: View {
         List {
             Section {
                 tiles(counts)
-                    .listRowInsets(EdgeInsets())
+                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                     .listRowBackground(Color.clear)
             }
             // С 1 декабря по 31 января — «Итоги 2026 готовы» (задание 0018)
             if let year = wrappedSeasonYear(), hasHistory {
                 Section {
                     Button { model.wrappedYear = year } label: {
-                        HStack(spacing: 12) {
+                        HStack(spacing: Design.Space.s) {
                             Image(systemName: "sparkles")
                                 .font(.title2)
                                 .foregroundStyle(.yellow)
@@ -46,6 +51,7 @@ struct LibraryView: View {
                 }
             }
             if isEmpty {
+                // Пустая библиотека: подсказка на фоне экрана, а не в карточке списка
                 Section {
                     ContentUnavailableView {
                         Label("library.empty.title", systemImage: "music.note.square.stack")
@@ -57,28 +63,21 @@ struct LibraryView: View {
                         Button("new.forYou.trends") { model.select(.trends) }
                         Button("import.fromViTune") { model.chooseBackupToImport() }
                     }
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                 }
             }
             Section {
-                Button {
-                    newPlaylist = true
-                } label: {
-                    Label("library.newPlaylist", systemImage: "plus")
-                }
-                .buttonStyle(.borderless)
-                ForEach(visible.prefix(5)) { playlist in
-                    NavigationLink(value: Route.localPlaylist(playlist.id)) {
-                        PlaylistRow(playlist: playlist)
-                    }
-                    .contextMenu { PlaylistMenuItems(playlist: playlist) }
-                }
-                if visible.count > 5 {
-                    NavigationLink(value: Route.playlists) {
-                        Text("library.allPlaylists \(visible.count)")
-                    }
-                }
-            } header: {
-                Text("library.playlists")
+                // Заголовок — строкой списка, а не заголовком секции: у системного отступ шире полей плиток
+                ShelfHeader(title: Text("library.playlists"), more: visible.count > Self.shownPlaylists ? .playlists : nil,
+                            moreTitle: "library.seeAllCount \(visible.count)")
+                    .listRowInsets(EdgeInsets(top: Design.Space.xs, leading: 0, bottom: 0, trailing: 0))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                playlistGrid(visible)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 8, trailing: 0))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
             }
             Section {
                 NavigationLink(value: Route.allTracks) {
@@ -90,33 +89,22 @@ struct LibraryView: View {
                 NavigationLink(value: Route.savedArtists) {
                     countRow("library.artists", systemImage: "music.mic", count: counts.artists)
                 }
-            }
-            Section {
                 NavigationLink(value: Route.stats) {
                     Label("stats.title", systemImage: "chart.bar.xaxis")
                 }
                 .accessibilityIdentifier("library.stats")
             }
-            // Последняя строка — импорт из ViTune или ViMusic (задание 0006)
+            // Последняя строка — импорт из ViTune или ViMusic (задание 0006); пояснение — подписью под группой
             Section {
                 Button {
                     model.chooseBackupToImport()
                 } label: {
-                    Label {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("import.fromViTune")
-                                .foregroundStyle(Color.primary)
-                            Text("import.fromViTune.description")
-                                .font(.subheadline)
-                                .foregroundStyle(Color.secondary)
-                        }
-                        .multilineTextAlignment(.leading)
-                    } icon: {
-                        Image(systemName: "square.and.arrow.down")
-                    }
+                    Label("import.fromViTune", systemImage: "square.and.arrow.down")
                 }
                 .buttonStyle(.borderless)
                 .accessibilityIdentifier("library.import")
+            } footer: {
+                Text("import.fromViTune.description")
             }
         }
         .navigationTitle(Text(AppSection.library.title))
@@ -138,21 +126,24 @@ struct LibraryView: View {
         }
     }
 
-    /// Плитки коллекций: Избранное, Скачанное, История.
+    /// Плитки коллекций: Избранное, Скачанное, История — три колонки до 240 pt (на iPad и Mac плитки не растягиваются на
+    /// всё окно и не сжимаются до значка); на крупном шрифте — по одной в строку.
     private func tiles(_ counts: LibraryCounts) -> some View {
-        HStack(spacing: 12) {
+        let columns = typeSize.isAccessibilitySize
+            ? [GridItem(.flexible(), spacing: 12)]
+            : Array(repeating: GridItem(.flexible(minimum: 96, maximum: 240), spacing: 12, alignment: .top), count: 3)
+        return LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
             tile("library.favorites", systemImage: "heart.fill", tint: .pink, count: counts.likes, route: .favorites)
-            tile("library.downloads", systemImage: "arrow.down.circle.fill", tint: .green, count: counts.downloads, route: .downloads)
-            tile("library.history", systemImage: "clock.arrow.circlepath", tint: .orange, count: nil, route: .history)
+            tile("library.downloads", systemImage: "arrow.down.circle.fill", tint: .accentColor, count: counts.downloads, route: .downloads)
+            tile("library.history", systemImage: "clock.arrow.circlepath", tint: .accentColor, count: nil, route: .history)
         }
-        .padding(.vertical, 4)
     }
 
     private func tile(_ title: LocalizedStringResource, systemImage: String, tint: Color, count: Int?, route: Route) -> some View {
         Button {
             model.open(route)
         } label: {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: Design.Space.xs) {
                 Image(systemName: systemImage)
                     .font(.title2)
                     .foregroundStyle(tint)
@@ -167,12 +158,22 @@ struct LibraryView: View {
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, minHeight: 96, alignment: .leading)
-            .padding(12)
-            .background(CardBackground.color, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .padding(Design.Space.s)
+            .background(CardBackground.color, in: RoundedRectangle(cornerRadius: Design.Layout.tileRadius, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: Design.Layout.tileRadius, style: .continuous))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(CardPressStyle())
         .accessibilityElement(children: .combine)
+    }
+
+    /// «Плейлисты»: «Новый плейлист» первой плиткой и обложки своих плейлистов крупно; на хабе — не больше пяти.
+    private func playlistGrid(_ visible: [LibraryPlaylist]) -> some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150, maximum: 220), spacing: 16, alignment: .top)], alignment: .leading, spacing: 20) {
+            NewPlaylistTile { newPlaylist = true }
+            ForEach(visible.prefix(Self.shownPlaylists)) { playlist in
+                PlaylistCard(playlist: playlist)
+            }
+        }
     }
 
     private func countRow(_ title: LocalizedStringResource, systemImage: String, count: Int) -> some View {
@@ -184,14 +185,101 @@ struct LibraryView: View {
     }
 }
 
+/// Карточка своего плейлиста в сетке: обложка (мозаика из четырёх) во всю ширину колонки, название, «42 трека» и метка
+/// связи с YouTube.
+struct PlaylistCard: View {
+    @Environment(AppModel.self) private var model
+    let playlist: LibraryPlaylist
+
+    var body: some View {
+        Button {
+            model.open(.localPlaylist(playlist.id))
+        } label: {
+            VStack(alignment: .leading, spacing: 2) {
+                SquareFill { side in PlaylistArtwork(playlist: playlist, size: side) }
+                    .padding(.bottom, Design.Space.xxs)
+                HStack(spacing: Design.Space.xxs) {
+                    Text(verbatim: playlist.name)
+                        .font(.subheadline)
+                        .lineLimit(1)
+                    if model.services.downloads?.store.isCollection(.playlist, key: String(playlist.id)) == true {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .accessibilityLabel(Text("badge.downloaded"))
+                    }
+                }
+                HStack(spacing: Design.Space.xxs) {
+                    Text("library.tracks \(playlist.trackCount)")
+                    switch playlist.link {
+                    case .mirror, .append, .unknown:
+                        Image(systemName: "link")
+                    case .none, .off:
+                        EmptyView()
+                    }
+                }
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(CardPressStyle())
+        .contextMenu { PlaylistMenuItems(playlist: playlist) }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Первая плитка сетки плейлистов: «Новый плейлист».
+struct NewPlaylistTile: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 2) {
+                SquareFill { side in
+                    ZStack {
+                        RoundedRectangle(cornerRadius: Design.Radius.artwork(side), style: .continuous)
+                            .fill(.fill.tertiary)
+                        Image(systemName: "plus")
+                            .font(.system(size: side * 0.28, weight: .light))
+                            .foregroundStyle(.tint)
+                    }
+                }
+                .padding(.bottom, Design.Space.xxs)
+                Text("library.newPlaylist")
+                    .font(.subheadline)
+                    .lineLimit(1)
+                // Высоту второй подписи держит пустая строка: плитка не ниже соседних карточек
+                Text(verbatim: " ").font(.footnote)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(CardPressStyle())
+    }
+}
+
+/// Квадрат во всю предложенную ширину: содержимое узнаёт сторону (обложки задаются размером в pt).
+struct SquareFill<Content: View>: View {
+    @ViewBuilder let content: (CGFloat) -> Content
+
+    var body: some View {
+        Color.clear
+            .aspectRatio(1, contentMode: .fit)
+            .overlay { GeometryReader { content($0.size.width) } }
+    }
+}
+
 /// Строка своего плейлиста: мозаика, название, «42 трека», метка связи с YouTube (REWRITE §3.2.5).
 struct PlaylistRow: View {
     @Environment(AppModel.self) private var model
     let playlist: LibraryPlaylist
 
     var body: some View {
-        HStack(spacing: 12) {
-            PlaylistArtwork(playlist: playlist, size: 48)
+        HStack(spacing: Design.Space.s) {
+            PlaylistArtwork(playlist: playlist, size: Design.Layout.rowArtwork)
             VStack(alignment: .leading, spacing: 2) {
                 Text(verbatim: playlist.name).lineLimit(1)
                 HStack(spacing: 6) {
@@ -209,6 +297,7 @@ struct PlaylistRow: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
             }
+            .rowSeparatorAtText()
             Spacer(minLength: 0)
             if model.services.downloads?.store.isCollection(.playlist, key: String(playlist.id)) == true {
                 Image(systemName: "arrow.down.circle.fill")
@@ -272,7 +361,8 @@ enum CardBackground {
         #if os(iOS)
         Color(uiColor: .secondarySystemGroupedBackground)
         #elseif os(macOS)
-        Color(nsColor: .controlBackgroundColor)
+        // На белом окне Mac `controlBackgroundColor` сливается с фоном — плитки библиотеки были невидимы
+        Color(nsColor: .quaternarySystemFill)
         #else
         Color.secondary.opacity(0.15)
         #endif

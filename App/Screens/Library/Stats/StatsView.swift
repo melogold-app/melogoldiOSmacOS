@@ -212,7 +212,7 @@ struct StatsView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            HStack(spacing: 0) {
+            HStack(alignment: .top, spacing: Design.Space.s) {
                 tile(stats.plays, "stats.plays", id: "stats.plays")
                 tile(stats.tracks, "stats.tracks", id: "stats.tracks")
                 tile(stats.artists, "stats.artists", id: "stats.artists")
@@ -232,6 +232,7 @@ struct StatsView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
@@ -271,10 +272,11 @@ struct StatsView: View {
     // MARK: - Топы
 
     private func trackRow(_ top: TopTrack, index: Int, queue: [Track], key: String) -> some View {
-        let subtitle = [top.artist, String(localized: "stats.playsCount \(top.plays)")].compactMap { $0 }.joined(separator: " · ")
-        return TrackListRow(track: top.track, subtitle: subtitle, number: index + 1,
-                            trailing: StatsFormat.listeningTime(ms: top.ms, locale: locale), target: .list(queue, index),
-                            showsMenuButton: false)
+        // Подпись под названием — только исполнитель (раньше «Кино · 11 прослуш…» обрезалось); время и число прослушиваний — справа
+        TrackListRow(track: top.track, subtitle: top.artist, number: index + 1,
+                     trailing: StatsFormat.listeningTime(ms: top.ms, locale: locale),
+                     trailingPlays: top.plays, target: .list(queue, index),
+                     showsMenuButton: false)
             .tag(RowID.make(key, top.track.videoId))
     }
 
@@ -287,7 +289,8 @@ struct StatsView: View {
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
                     .frame(minWidth: 24)
-                ArtworkView(url: group.thumbnailUrl, size: 48, shape: circle ? .circle : .rounded)
+                ArtworkView(url: group.thumbnailUrl, size: Design.Layout.rowArtwork, shape: circle ? .circle : .rounded,
+                            cornerRadius: Design.Radius.artwork(Design.Layout.rowArtwork))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(verbatim: group.name).font(.body).lineLimit(1)
                     Text(verbatim: String(localized: "stats.playsCount \(group.plays)"))

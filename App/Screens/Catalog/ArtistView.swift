@@ -37,13 +37,12 @@ struct ArtistView: View {
     }
 
     private func artist(_ details: ArtistDetails) -> some View {
-        DetailPage(title: details.name, twoColumns: false, rowIds: rowIds(details)) {
-            CollectionHeader(artworkURL: details.thumbnailUrl, circle: true, title: details.name) {
-                VStack(spacing: 8) {
+        DetailPage(title: details.name, twoColumns: false, fullBleedHeader: DetailLayout.artistStyle == .hero, rowIds: rowIds(details)) {
+            CollectionHeader(artworkURL: details.thumbnailUrl, style: DetailLayout.artistStyle, wideCircle: true, title: details.name) {
+                HeaderSubtitle {
                     if let subscribers = details.subscribersText {
                         Text(subscribers).font(.subheadline).foregroundStyle(.secondary)
                     }
-                    SubscribeButton(artist: ArtistItem(browseId: details.browseId, name: details.name, thumbnailUrl: details.thumbnailUrl))
                 }
             } actions: {
                 ShuffleButton { page.shuffleSongs(model: model) }
@@ -102,6 +101,10 @@ struct ArtistView: View {
             return tracks.firstIndex { $0.videoId == key }.map { .list(tracks, $0) }
         }
         .toolbar {
+            // «Подписаться» — значок в панели, как «Сохранить» у альбома: в шапке на фото ему не хватало места
+            ToolbarItem {
+                SubscribeToolbarButton(artist: ArtistItem(browseId: details.browseId, name: details.name, thumbnailUrl: details.thumbnailUrl))
+            }
             ToolbarItem {
                 Menu {
                     if let seed = page.popular.first {
@@ -138,7 +141,7 @@ struct ArtistView: View {
 
     private func channel(_ details: ArtistDetails) -> some View {
         DetailPage(title: details.name, twoColumns: false) {
-            CollectionHeader(artworkURL: details.thumbnailUrl, circle: true, title: details.name) {
+            CollectionHeader(artworkURL: details.thumbnailUrl, style: .avatar, title: details.name) {
                 VStack(spacing: 8) {
                     if let subscribers = details.subscribersText {
                         Text(subscribers).font(.subheadline).foregroundStyle(.secondary)
@@ -265,6 +268,20 @@ struct SubscribeButton: View {
         }
         .buttonStyle(.bordered)
         .buttonBorderShape(.capsule)
-        .controlSize(.small)
+    }
+}
+
+/// «+ / ✓» в панели навигации: подписаться на исполнителя или отписаться (у альбома так же — «Сохранить»).
+struct SubscribeToolbarButton: View {
+    @Environment(AppModel.self) private var model
+    let artist: ArtistItem
+
+    var body: some View {
+        let subscribed = model.isArtistSaved(artist.browseId)
+        Button {
+            model.setArtistSaved(artist, !subscribed)
+        } label: {
+            Label(subscribed ? "artist.subscribed" : "artist.subscribe", systemImage: subscribed ? "checkmark" : "plus")
+        }
     }
 }

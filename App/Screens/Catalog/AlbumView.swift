@@ -39,9 +39,10 @@ struct AlbumView: View {
     private func page(_ details: AlbumDetails) -> some View {
         let album = details.album
         let tracks = details.tracks
-        return DetailPage(title: album.title, rowIds: tracks.map { RowID.make("t", $0.videoId) }) {
-            CollectionHeader(artworkURL: album.thumbnailUrl, title: album.title) {
-                VStack(spacing: 4) {
+        return DetailPage(title: album.title, fullBleedHeader: DetailLayout.compactCover == .hero,
+                          rowIds: tracks.map { RowID.make("t", $0.videoId) }) {
+            CollectionHeader(artworkURL: album.thumbnailUrl, style: DetailLayout.compactCover, title: album.title) {
+                HeaderSubtitle {
                     if let artistId = album.artists.first(where: { $0.id != nil })?.id, let name = album.artistsText {
                         Button(name) { model.open(.artist(artistId)) }
                             .font(.title3)

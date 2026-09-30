@@ -138,7 +138,10 @@ struct DownloadsView: View {
             }
             Spacer()
             Button { manager?.remove(entry.videoId) } label: {
-                Image(systemName: "xmark.circle").foregroundStyle(.secondary)
+                Image(systemName: "xmark.circle")
+                    .foregroundStyle(.secondary)
+                    .frame(width: Design.Size.minTap, height: Design.Size.minTap)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.borderless)
             .accessibilityLabel(Text("menu.cancelDownload"))

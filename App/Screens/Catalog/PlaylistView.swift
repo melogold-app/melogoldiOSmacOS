@@ -26,9 +26,10 @@ struct PlaylistView: View {
 
     private func content(_ details: PlaylistDetails) -> some View {
         let tracks = page.tracks
-        return DetailPage(title: details.playlist.title, rowIds: tracks.map { RowID.make("t", $0.videoId) }) {
-            CollectionHeader(artworkURL: details.playlist.thumbnailUrl, title: details.playlist.title) {
-                VStack(spacing: 4) {
+        return DetailPage(title: details.playlist.title, fullBleedHeader: DetailLayout.compactCover == .hero,
+                          rowIds: tracks.map { RowID.make("t", $0.videoId) }) {
+            CollectionHeader(artworkURL: details.playlist.thumbnailUrl, style: DetailLayout.compactCover, title: details.playlist.title) {
+                HeaderSubtitle {
                     if let author = details.authorText {
                         Text(author).font(.title3)
                     }

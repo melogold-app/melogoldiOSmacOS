@@ -6,6 +6,7 @@ import MelogoldCore
 /// значок «играет».
 struct TrackRow: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var typeSize
     let track: Track
     var subtitle: String?
     var isCurrent = false
@@ -15,11 +16,14 @@ struct TrackRow: View {
     var showsArtwork = true
     /// Текст справа вместо длительности: время прослушивания в Истории.
     var trailing: String?
+    /// Вторая строка справа, мельче: число прослушиваний в «Итогах» (значок ▶ и число; длинное «11 прослушиваний» не
+    /// помещалось в строку, а подпись под названием обрезалась).
+    var trailingPlays: Int?
 
     var body: some View {
         // Своё название, исполнитель и альбом (задание 0014): одна точка показа для всех списков
         let track = model.displayed(track)
-        HStack(spacing: 12) {
+        HStack(spacing: Design.Space.s) {
             if let number {
                 Text(verbatim: "\(number)")
                     .font(.body)
@@ -29,36 +33,59 @@ struct TrackRow: View {
             }
             if showsArtwork {
                 ZStack {
-                    ArtworkView(url: track.artworkURL, size: 48)
+                    ArtworkView(url: track.artworkURL, size: Design.Layout.rowArtwork,
+                                cornerRadius: Design.Radius.artwork(Design.Layout.rowArtwork))
                     if isCurrent {
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        RoundedRectangle(cornerRadius: Design.Radius.artwork(Design.Layout.rowArtwork), style: .continuous)
                             .fill(.black.opacity(0.45))
-                            .frame(width: 48, height: 48)
+                            .frame(width: Design.Layout.rowArtwork, height: Design.Layout.rowArtwork)
                         // Столбики под реальный звук (docs/PROMPT.md §4).
                         MusicBars(color: .white).frame(width: 22, height: 18)
                     }
                 }
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text(track.title)
-                    .font(.body)
-                    .foregroundStyle(isCurrent ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
-                    .lineLimit(1)
+                // E стоит сразу за названием, как в «Музыке»: у длинного названия обрезается текст, а не метка
+                HStack(spacing: Design.Space.xxs) {
+                    Text(track.title)
+                        .font(.body)
+                        .foregroundStyle(isCurrent ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
+                        .lineLimit(stacked ? 3 : 1)
+                    if track.explicit {
+                        Image(systemName: "e.square.fill")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .layoutPriority(1)
+                            .accessibilityLabel(Text("badge.explicit"))
+                    }
+                }
                 let line = track.unavailable ? String(localized: "badge.unavailable") : (subtitle ?? track.subtitle)
                 if !line.isEmpty {
                     Text(line)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(stacked ? 2 : 1)
+                }
+                // Крупный шрифт: длительность и метки уходят третьей строкой — справа им не хватает места, и название
+                // обрезалось до пяти букв
+                if stacked {
+                    HStack(spacing: Design.Space.xs) {
+                        if let duration = trailing ?? track.durationLabel { durationText(duration) }
+                        playsLabel
+                        badges
+                    }
                 }
             }
-            Spacer(minLength: 8)
-            badges
-            if let duration = trailing ?? track.durationLabel {
-                Text(duration)
-                    .font(.subheadline)
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
+            .rowSeparatorAtText()
+            if !stacked {
+                Spacer(minLength: Design.Space.xs)
+                badges
+                if let duration = trailing ?? track.durationLabel {
+                    VStack(alignment: .trailing, spacing: 2) {
+                        durationText(duration)
+                        playsLabel
+                    }
+                }
             }
         }
         .opacity(dimmed || track.unavailable ? 0.38 : 1)
@@ -66,14 +93,33 @@ struct TrackRow: View {
         .accessibilityElement(children: .combine)
     }
 
+    private var stacked: Bool { typeSize.isAccessibilitySize }
+
+    private func durationText(_ text: String) -> some View {
+        Text(text)
+            .font(.subheadline)
+            .monospacedDigit()
+            .foregroundStyle(.secondary)
+    }
+
+    @ViewBuilder
+    private var playsLabel: some View {
+        if let trailingPlays {
+            HStack(spacing: 2) {
+                Image(systemName: "play.fill").imageScale(.small)
+                Text(verbatim: "\(trailingPlays)").monospacedDigit()
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text("stats.playsCount \(trailingPlays)"))
+        }
+    }
+
     @ViewBuilder
     private var badges: some View {
         HStack(spacing: 4) {
-            if track.explicit {
-                Image(systemName: "e.square.fill")
-                    .foregroundStyle(.secondary)
-                    .accessibilityLabel(Text("badge.explicit"))
-            }
             DownloadBadge(videoId: track.videoId)
             if track.isVideo {
                 Image(systemName: "play.rectangle")
@@ -140,16 +186,16 @@ struct CollectionRow: View {
     let item: MusicItem
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Design.Space.s) {
             switch item {
             case .album(let album):
-                ArtworkView(url: album.thumbnailUrl, size: 48)
+                cover(album.thumbnailUrl)
                 labels(album.title, album.subtitle)
             case .artist(let artist):
-                ArtworkView(url: artist.thumbnailUrl, size: 48, shape: .circle)
+                ArtworkView(url: artist.thumbnailUrl, size: Design.Layout.rowArtwork, shape: .circle)
                 labels(artist.name, artist.subtitle ?? "")
             case .playlist(let playlist):
-                ArtworkView(url: playlist.thumbnailUrl, size: 48)
+                cover(playlist.thumbnailUrl)
                 labels(playlist.title, playlist.subtitle ?? "")
             case .mood(let mood):
                 labels(mood.title, "")
@@ -157,9 +203,20 @@ struct CollectionRow: View {
                 TrackRow(track: track)
             }
             Spacer(minLength: 0)
+            // Строки-коллекции открывают свой экран: стрелка показывает это, как у строк «Настроек»
+            if case .track = item {} else {
+                Image(systemName: "chevron.forward")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
         }
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+    }
+
+    private func cover(_ url: String?) -> some View {
+        ArtworkView(url: url, size: Design.Layout.rowArtwork, cornerRadius: Design.Radius.artwork(Design.Layout.rowArtwork))
     }
 
     private func labels(_ title: String, _ subtitle: String) -> some View {
@@ -169,6 +226,7 @@ struct CollectionRow: View {
                 Text(subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
             }
         }
+        .rowSeparatorAtText()
     }
 }
 
@@ -179,12 +237,14 @@ struct TrackListRow: View {
     @Environment(AppModel.self) private var model
     #if !os(macOS)
     @Environment(\.editMode) private var editMode
+    @Environment(\.horizontalSizeClass) private var sizeClass
     #endif
     let track: Track
     var subtitle: String?
     var number: Int?
     var showsArtwork = true
     var trailing: String?
+    var trailingPlays: Int?
     /// Превью 16:9 — выдача YouTube и видео канала.
     var wide = false
     let target: RowTarget?
@@ -204,7 +264,7 @@ struct TrackListRow: View {
                     VideoRow(track: track, isCurrent: isCurrent, dimmed: dimmed)
                 } else {
                     TrackRow(track: track, subtitle: subtitle, isCurrent: isCurrent, dimmed: dimmed, number: number,
-                             showsArtwork: showsArtwork, trailing: trailing)
+                             showsArtwork: showsArtwork, trailing: trailing, trailingPlays: trailingPlays)
                 }
             }
             #if !os(macOS)
@@ -212,7 +272,20 @@ struct TrackListRow: View {
             #endif
             if !isSelecting, showsMenuButton { TrackMenuButton(track: track, context: context) }
         }
+        #if !os(macOS)
+        // Вертикальные поля ровные у всех списков; у «…» зона нажатия 44 pt заходит под правое поле, а сам значок стоит на
+        // общем поле списка (HIG «Lists and tables»: одна линия правого края)
+        .listRowInsets(rowInsets)
+        #endif
     }
+
+    #if !os(macOS)
+    private var rowInsets: EdgeInsets {
+        let margin = Design.Layout.rowMargin(regular: sizeClass == .regular)
+        let trailing = showsMenuButton && !isSelecting ? max(0, margin - Design.Layout.menuButtonSlack) : margin
+        return EdgeInsets(top: Design.Layout.rowPadding, leading: margin, bottom: Design.Layout.rowPadding, trailing: trailing)
+    }
+    #endif
 
     /// Режим выбора (iPhone, iPad, Vision): нажатие отмечает строку, а не играет; кнопки «…» нет.
     private var isSelecting: Bool {
