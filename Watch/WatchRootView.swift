@@ -26,6 +26,19 @@ struct WatchRootView: View {
                         Label(section.title, systemImage: section.systemImage)
                     }
                 }
+                // Пульт другого устройства (задание 0020): с аккаунтом на сервере с пультом
+                if model.account.isSignedIn, model.account.supportsRemote {
+                    NavigationLink(value: WatchRoute.remote) {
+                        if model.remote.isActive, let target = model.remote.target {
+                            Label { Text("remote.playingOn \(target.name)") } icon: {
+                                Image(systemName: DeviceSymbol.name(for: target.platform))
+                            }
+                            .foregroundStyle(.tint)
+                        } else {
+                            Label("remote.otherDevices", systemImage: "airplay.audio")
+                        }
+                    }
+                }
             }
             .navigationTitle(Text(verbatim: "Melogold"))
             .navigationDestination(for: WatchRoute.self) { route in
@@ -43,6 +56,7 @@ struct WatchRootView: View {
                 case .lyrics: WatchLyricsView()
                 case .sleepTimer: WatchSleepTimerView()
                 case .stats: WatchStatsView()
+                case .remote: WatchRemoteView()
                 }
             }
         }

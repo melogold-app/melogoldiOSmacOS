@@ -148,6 +148,7 @@
 		EB45DEA00E3D3D42F21D9B41 /* ForYouStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B038D3D5905F9D28B22C84A /* ForYouStore.swift */; };
 		EB58C678885BD00468F8B042 /* ExploreStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 261AC95AEB0213020ABB2C1E /* ExploreStore.swift */; };
 		ECF668E0796812EE0204B1EA /* AccountText.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDE62678E8C83CFCC9DFA91C /* AccountText.swift */; };
+		ED21E611BEDFA84B1787CE94 /* WatchRemoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B05A079853F6773481709A5 /* WatchRemoteView.swift */; };
 		EE794A34E673F168A7B05EAB /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5BC4994B458B516BAF06933 /* AppModel.swift */; };
 		F17DF1D843A31CA3197502C9 /* AccountRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13B81A946E728A6A1CF4DBE3 /* AccountRoute.swift */; };
 		F42A7A749C360FA3E6E10534 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2002A5E05B308C9C6AD5E580 /* SettingsView.swift */; };
@@ -243,6 +244,7 @@
 		4A6EB7CA2C9AC85995734B19 /* DebugLaunch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLaunch.swift; sourceTree = "<group>"; };
 		571D3D5AAD367DD65A477BF3 /* CatalogUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogUITests.swift; sourceTree = "<group>"; };
 		5A2B0CE812CF22436F5831FF /* RemoteSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSheet.swift; sourceTree = "<group>"; };
+		5B05A079853F6773481709A5 /* WatchRemoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchRemoteView.swift; sourceTree = "<group>"; };
 		5C2E03261E4E5FEE84A79BE3 /* ShellUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShellUITests.swift; sourceTree = "<group>"; };
 		5D36BEB67142D8EF879DBCC5 /* PlaybackUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackUITests.swift; sourceTree = "<group>"; };
 		60D5E73AB6179004AA6A76AA /* DebugSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugSnapshot.swift; sourceTree = "<group>"; };
@@ -601,6 +603,7 @@
 				BD6176B0421F4BED1367019F /* WatchLibraryViews.swift */,
 				62072A5FC2C2D17D85550480 /* WatchLyricsView.swift */,
 				A9A09BA336EAC3188322DF40 /* WatchNowPlayingView.swift */,
+				5B05A079853F6773481709A5 /* WatchRemoteView.swift */,
 				91B39EDD1852C5750CFF9520 /* WatchRootView.swift */,
 				FDE9EE13AFF02588C010A268 /* WatchSearchView.swift */,
 				9E0831A338DA1AD82A6C7E08 /* WatchStatsView.swift */,
@@ -1071,6 +1074,7 @@
 				F7625B181D9A6185784449C1 /* WatchLibraryViews.swift in Sources */,
 				84231D42BA22F3633F7FAF73 /* WatchLyricsView.swift in Sources */,
 				4DCAAA27EC8F64EC07C26110 /* WatchNowPlayingView.swift in Sources */,
+				ED21E611BEDFA84B1787CE94 /* WatchRemoteView.swift in Sources */,
 				5125520C51D3281CB5DBBA66 /* WatchRootView.swift in Sources */,
 				720F7FE75D5D1A3D3EE84ADF /* WatchSearchView.swift in Sources */,
 				4D5FB7051C4692E8C4BF3BEE /* WatchStatsView.swift in Sources */,

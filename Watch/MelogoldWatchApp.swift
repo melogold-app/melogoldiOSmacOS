@@ -109,6 +109,8 @@ enum WatchRoute: Hashable {
     case sleepTimer
     /// «Итоги»: минуты и трек месяца (задание 0018).
     case stats
+    /// Пульт другого устройства аккаунта (задание 0020): список устройств и управление выбранным.
+    case remote
 }
 
 /// Состояние приложения часов.
@@ -121,6 +123,9 @@ final class WatchModel {
     /// Синк библиотеки, истории и текстов — сам, без iPhone (§5.6): при открытии и пока приложение открыто или играет.
     /// Свои прослушивания часы отправляют сами; История часов показывает прослушивания всех устройств (задание 0002 §3.6).
     let sync: LibrarySync
+    /// Пульт другого устройства (задание 0020): часы — только пульт, своё воспроизведение другим не отдают (звук часов —
+    /// наушники рядом). Что играет на цели, приходит событием `playback.updated` того же потока событий.
+    let remote: RemoteControl
     @ObservationIgnored private var lifecycle: [any NSObjectProtocol] = []
     var path: [WatchRoute] = []
     /// Запрос, который Поиск выполнит при открытии (отладочный запуск `-MelogoldSearch`).
@@ -132,6 +137,9 @@ final class WatchModel {
         self.services = services
         self.account = Account(settings: services.settings)
         self.sync = LibrarySync(account: account, library: services.library?.library)
+        let remote = RemoteControl(port: account)
+        self.remote = remote
+        sync.onPlaybackUpdated = { rev, cleared, state in remote.apply(rev: rev, cleared: cleared, state: state) }
         sync.start()
         let lyricsSync = sync
         services.lyricsFetcher.community = { videoId in try await lyricsSync.serverLyrics(videoId) }
