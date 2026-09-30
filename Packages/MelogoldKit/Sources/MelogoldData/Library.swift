@@ -135,7 +135,10 @@ public final class Library: Sendable {
     }
 
     /// Вставить трек или обновить метаданные: пустые поля новой версии не затирают известные.
-    public static func upsert(_ db: Database, _ track: Track) throws {
+    /// Трек, показанный со своим названием (`Track.original`), пишется оригиналом: правка живёт в `track_overrides`, а
+    /// «Как на YouTube» должно вернуть то, что было.
+    public static func upsert(_ db: Database, _ shown: Track) throws {
+        let track = shown.raw
         let artistsJSON = track.artists.isEmpty ? nil : (try? JSONEncoder().encode(track.artists)).flatMap { String(data: $0, encoding: .utf8) }
         try db.execute(sql: """
             INSERT INTO tracks (video_id, title, artists_text, artists_json, album_id, album_title, duration_ms, duration_text,
@@ -169,8 +172,9 @@ public final class Library: Sendable {
         } ?? nil
     }
 
+    /// Треки запроса, как их показывать: со своим названием, исполнителем и альбомом (задание 0014).
     private func tracks(_ sql: String, _ arguments: StatementArguments = []) -> [Track] {
-        read { db in try Row.fetchAll(db, sql: sql, arguments: arguments).map(Self.track) } ?? []
+        read { db in try Self.overridden(db, try Row.fetchAll(db, sql: sql, arguments: arguments).map(Self.track)) } ?? []
     }
 
     // MARK: - Избранное
@@ -203,6 +207,26 @@ public final class Library: Sendable {
                 try db.execute(sql: "UPDATE tracks SET liked_at = NULL WHERE video_id = ?", arguments: [track.videoId])
             }
         }
+    }
+
+    /// «В Избранное» выделенным (задание 0013): все треки одной транзакцией — одна запись в синк, а не N. Уже лайкнутые
+    /// остаются с прежним временем. Возвращает число новых лайков.
+    @discardableResult
+    public func setLiked(_ tracks: [Track], _ liked: Bool) -> Int {
+        write { db -> Int in
+            let now = EpochMs.now()
+            var changed = 0
+            for track in tracks {
+                try Self.upsert(db, track)
+                if liked {
+                    try db.execute(sql: "UPDATE tracks SET liked_at = ? WHERE video_id = ? AND liked_at IS NULL", arguments: [now, track.videoId])
+                } else {
+                    try db.execute(sql: "UPDATE tracks SET liked_at = NULL WHERE video_id = ? AND liked_at IS NOT NULL", arguments: [track.videoId])
+                }
+                changed += db.changesCount
+            }
+            return changed
+        } ?? 0
     }
 
     /// Вернуть время лайка (отмена «Убрать из Избранного»).
@@ -542,12 +566,13 @@ public final class Library: Sendable {
     public func recentHistory(limit: Int = 500, device: HistoryDeviceFilter = .all) -> [HistoryEntry] {
         let condition = device.condition
         return read { db in
-            try Row.fetchAll(db, sql: """
+            let overrides = try Self.allOverrides(db)
+            return try Row.fetchAll(db, sql: """
                 SELECT \(Self.columns("t")), h.last FROM (
                     SELECT video_id, MAX(played_at) AS last FROM play_events WHERE \(condition.sql)
                     GROUP BY video_id ORDER BY last DESC LIMIT ?
                 ) h JOIN tracks t ON t.video_id = h.video_id ORDER BY h.last DESC
-                """, arguments: condition.arguments + [limit]).map { HistoryEntry(track: Self.track($0), playedAt: $0["last"]) }
+                """, arguments: condition.arguments + [limit]).map { HistoryEntry(track: Self.shown(Self.track($0), overrides), playedAt: $0["last"]) }
         } ?? []
     }
 
@@ -556,17 +581,19 @@ public final class Library: Sendable {
     public func mostPlayed(since: Int64?, limit: Int = 100, device: HistoryDeviceFilter = .all) -> [TopEntry] {
         let condition = device.condition
         return read { db in
+            let overrides = try Self.allOverrides(db)
+            func entry(_ row: Row, _ total: Int64) -> TopEntry { TopEntry(track: Self.shown(Self.track(row), overrides), playTimeMs: total) }
             if since == nil, device == .all {
                 return try Row.fetchAll(db, sql: """
                     SELECT \(Self.trackColumns), total_play_ms AS total FROM tracks WHERE total_play_ms > 0 ORDER BY total_play_ms DESC LIMIT ?
-                    """, arguments: [limit]).map { TopEntry(track: Self.track($0), playTimeMs: $0["total"]) }
+                    """, arguments: [limit]).map { entry($0, $0["total"]) }
             }
             return try Row.fetchAll(db, sql: """
                 SELECT \(Self.columns("t")), s.total FROM (
                     SELECT video_id, SUM(play_time_ms) AS total FROM play_events WHERE played_at >= ? AND \(condition.sql)
                     GROUP BY video_id ORDER BY total DESC LIMIT ?
                 ) s JOIN tracks t ON t.video_id = s.video_id ORDER BY s.total DESC
-                """, arguments: [since ?? 0] + condition.arguments + [limit]).map { TopEntry(track: Self.track($0), playTimeMs: $0["total"]) }
+                """, arguments: [since ?? 0] + condition.arguments + [limit]).map { entry($0, $0["total"]) }
         } ?? []
     }
 
@@ -620,14 +647,16 @@ public final class Library: Sendable {
         """
 
     public func allTracks(sort: AllTracksSort = .recentlyPlayed) -> [AllTracksEntry] {
-        let list = read { db in
-            try Row.fetchAll(db, sql: """
+        let list: [AllTracksEntry] = read { db -> [AllTracksEntry] in
+            let overrides = try Self.allOverrides(db)
+            return try Row.fetchAll(db, sql: """
                 SELECT \(Self.columns("t")), t.total_play_ms, t.liked_at, p.last FROM tracks t
                 LEFT JOIN (SELECT video_id, MAX(played_at) AS last FROM play_events GROUP BY video_id) p ON p.video_id = t.video_id
                 WHERE \(Self.allTracksWhere)
                 ORDER BY COALESCE(p.last, t.liked_at, 0) DESC
                 """).map { row in
-                AllTracksEntry(track: Self.track(row), lastPlayedAt: row["last"], playTimeMs: row["total_play_ms"], likedAt: row["liked_at"])
+                AllTracksEntry(track: Self.shown(Self.track(row), overrides), lastPlayedAt: row["last"], playTimeMs: row["total_play_ms"],
+                               likedAt: row["liked_at"])
             }
         } ?? []
         switch sort {
@@ -657,18 +686,19 @@ public final class Library: Sendable {
         } ?? LibraryCounts()
     }
 
-    /// «В библиотеке» при вводе в Поиске: свои треки по названию и исполнителю.
+    /// «В библиотеке» при вводе в Поиске: свои треки по названию и исполнителю — по правленым и по оригинальным
+    /// (задание 0014); в ответе — как их показывать.
     public func search(_ query: String, limit: Int = 5) -> [Track] {
         let text = query.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "%", with: "")
             .replacingOccurrences(of: "_", with: "")
         guard !text.isEmpty else { return [] }
         let pattern = "%\(text)%"
         return tracks("""
-            SELECT \(Self.trackColumns) FROM tracks
-            WHERE (liked_at IS NOT NULL OR total_play_ms > 0 OR video_id IN (SELECT video_id FROM playlist_items))
-              AND (title LIKE ? OR artists_text LIKE ?)
-            ORDER BY liked_at IS NULL, total_play_ms DESC LIMIT ?
-            """, [pattern, pattern, limit])
+            SELECT \(Self.columns("t")) FROM tracks t LEFT JOIN track_overrides o ON o.video_id = t.video_id
+            WHERE (t.liked_at IS NOT NULL OR t.total_play_ms > 0 OR t.video_id IN (SELECT video_id FROM playlist_items))
+              AND (t.title LIKE ? OR t.artists_text LIKE ? OR o.title LIKE ? OR o.artists_text LIKE ?)
+            ORDER BY t.liked_at IS NULL, t.total_play_ms DESC LIMIT ?
+            """, [pattern, pattern, pattern, pattern, limit])
     }
 
     // MARK: - «Не показывать этот трек»
@@ -691,7 +721,7 @@ public final class Library: Sendable {
                 try db.execute(sql: """
                     INSERT OR IGNORE INTO content_blocks (type, key, level, title, subtitle, thumbnail_url, blocked_at)
                     VALUES ('track', ?, 'not_interested', ?, ?, ?, ?)
-                    """, arguments: [track.videoId, track.title, track.artistsText, track.thumbnailUrl, EpochMs.now()])
+                    """, arguments: [track.videoId, track.raw.title, track.raw.artistsText, track.thumbnailUrl, EpochMs.now()])
             } else {
                 try db.execute(sql: "DELETE FROM content_blocks WHERE type = 'track' AND key = ? AND level = 'not_interested'",
                                arguments: [track.videoId])
@@ -705,7 +735,7 @@ public final class Library: Sendable {
                 try db.execute(sql: """
                     INSERT OR REPLACE INTO content_blocks (type, key, level, title, subtitle, thumbnail_url, blocked_at)
                     VALUES ('track', ?, 'hide', ?, ?, ?, ?)
-                    """, arguments: [track.videoId, track.title, track.artistsText, track.thumbnailUrl, EpochMs.now()])
+                    """, arguments: [track.videoId, track.raw.title, track.raw.artistsText, track.thumbnailUrl, EpochMs.now()])
             } else {
                 try db.execute(sql: "DELETE FROM content_blocks WHERE type = 'track' AND key = ?", arguments: [track.videoId])
             }
@@ -714,8 +744,8 @@ public final class Library: Sendable {
 
     public func hiddenTracks() -> [Track] {
         read { db in
-            try Row.fetchAll(db, sql: "SELECT key, title, subtitle, thumbnail_url FROM content_blocks WHERE type = 'track' AND level = 'hide' ORDER BY blocked_at DESC")
-                .map { Track(videoId: $0["key"], title: $0["title"] ?? $0["key"], artistsText: $0["subtitle"], thumbnailUrl: $0["thumbnail_url"]) }
+            try Self.overridden(db, try Row.fetchAll(db, sql: "SELECT key, title, subtitle, thumbnail_url FROM content_blocks WHERE type = 'track' AND level = 'hide' ORDER BY blocked_at DESC")
+                .map { Track(videoId: $0["key"], title: $0["title"] ?? $0["key"], artistsText: $0["subtitle"], thumbnailUrl: $0["thumbnail_url"]) })
         } ?? []
     }
 
@@ -795,6 +825,7 @@ public final class LibraryObservation: @unchecked Sendable {
         let libraryRegion = DatabaseRegionObservation(tracking: [
             Table("tracks"), Table("albums"), Table("artists"), Table("playlists"), Table("playlist_items"),
             Table("play_events"), Table("content_blocks"), Table("album_tracks"), Table("download_collections"),
+            Table("track_overrides"),
         ])
         cancellables.append(libraryRegion.start(in: writer, onError: { error in
             Log.error("library", "Наблюдение: \(error.localizedDescription)")

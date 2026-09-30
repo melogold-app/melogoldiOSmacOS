@@ -84,7 +84,64 @@ public final class LyricsStore: Sendable {
     /// сбросить.
     @discardableResult
     public func shift(_ videoId: String, by delta: Int64?) -> StoredLyrics? {
-        transact(videoId) { current in LyricsRules.shifted(current, by: delta) }
+        let row = transact(videoId) { current in LyricsRules.shifted(current, by: delta) }
+        // Сдвиг «позже» закреплённого текста обновляет закрепление (задание 0015)
+        if let row, let pin = pin(videoId), let updated = LyricsPinRules.shifted(pin, row: row) { setPin(videoId, updated) }
+        return row
+    }
+
+    // MARK: - Закреплённый текст (задание 0015)
+
+    /// Закрепление трека: ссылка на текст у поставщика, одинаковая на всех устройствах аккаунта.
+    public func pin(_ videoId: String) -> LyricsPin? {
+        (try? database.writer.read { db in try Self.readPin(db, videoId) }) ?? nil
+    }
+
+    public func setPin(_ videoId: String, _ pin: LyricsPin?) {
+        _ = try? database.writer.write { db in
+            if let pin {
+                try db.execute(sql: """
+                    INSERT OR REPLACE INTO lyrics_pins (video_id, source, ref, start_time_ms, updated_at) VALUES (?, ?, ?, ?, ?)
+                    """, arguments: [videoId, pin.source, pin.ref, pin.startTimeMs, EpochMs.now()])
+            } else {
+                try db.execute(sql: "DELETE FROM lyrics_pins WHERE video_id = ?", arguments: [videoId])
+            }
+        }
+    }
+
+    /// Трек проиграл 30 с (`LyricsPinRules.pinAfterMs`): текст, найденный автоматически и не изменённый, закрепляется.
+    /// Уже закреплённый текст не перезакрепляется — первое закрепление общее для всех устройств. Своего текста нет →
+    /// закреплять нечего. Одной транзакцией: строка не успеет измениться между чтением и записью. Возвращает `true`,
+    /// если закрепление записано.
+    @discardableResult
+    public func pinPlayed(_ videoId: String) -> Bool {
+        (try? database.writer.write { db -> Bool in
+            guard try Self.readPin(db, videoId) == nil, let row = try Self.read(db, videoId),
+                  let pin = LyricsPinRules.pin(of: row) else { return false }
+            try db.execute(sql: """
+                INSERT INTO lyrics_pins (video_id, source, ref, start_time_ms, updated_at) VALUES (?, ?, ?, ?, ?)
+                """, arguments: [videoId, pin.source, pin.ref, pin.startTimeMs, EpochMs.now()])
+            return true
+        }) ?? false
+    }
+
+    /// Следить за закреплением трека (его может принести синк с другого устройства): `onChange` — на главном акторе, со
+    /// значением сразу и после каждой правки.
+    @MainActor
+    public func observePin(_ videoId: String, onChange: @escaping @MainActor (LyricsPin?) -> Void) -> LyricsObservation {
+        let cancellable = ValueObservation.tracking { db in try Self.readPin(db, videoId) }.removeDuplicates().start(
+            in: database.writer,
+            scheduling: .immediate,
+            onError: { error in Log.warning("lyrics", "Наблюдение за закреплением \(videoId): \(error)") },
+            onChange: onChange
+        )
+        return LyricsObservation(cancellable)
+    }
+
+    private static func readPin(_ db: Database, _ videoId: String) throws -> LyricsPin? {
+        try Row.fetchOne(db, sql: "SELECT source, ref, start_time_ms FROM lyrics_pins WHERE video_id = ?", arguments: [videoId]).flatMap {
+            LyricsPin(source: $0["source"], ref: $0["ref"], startTimeMs: $0["start_time_ms"])
+        }
     }
 
     /// Удалить текст трека (свой — сервер получит надгробие при ближайшем синке).
@@ -145,12 +202,13 @@ public final class LyricsStore: Sendable {
         }
     }
 
-    private static let columns = "synced, plain, source, plain_source, offset_ms, language, chosen"
+    private static let columns = "synced, plain, source, plain_source, offset_ms, language, chosen, synced_ref, plain_ref"
 
     private static func read(_ db: Database, _ videoId: String) throws -> StoredLyrics? {
         try Row.fetchOne(db, sql: "SELECT \(columns) FROM lyrics WHERE video_id = ?", arguments: [videoId]).map { row in
             StoredLyrics(synced: row["synced"], plain: row["plain"], syncedSource: row["source"], plainSource: row["plain_source"],
-                         offsetMs: row["offset_ms"] ?? 0, language: row["language"], chosen: (row["chosen"] as Int64? ?? 0) != 0)
+                         offsetMs: row["offset_ms"] ?? 0, language: row["language"], chosen: (row["chosen"] as Int64? ?? 0) != 0,
+                         syncedRef: row["synced_ref"], plainRef: row["plain_ref"])
         }
     }
 
@@ -160,10 +218,11 @@ public final class LyricsStore: Sendable {
             return
         }
         try db.execute(sql: """
-            INSERT OR REPLACE INTO lyrics (video_id, synced, plain, source, plain_source, offset_ms, language, chosen, fetched_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT OR REPLACE INTO lyrics (video_id, synced, plain, source, plain_source, offset_ms, language, chosen, fetched_at,
+                                           synced_ref, plain_ref)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, arguments: [videoId, lyrics.synced, lyrics.plain, lyrics.syncedSource, lyrics.plainSource, lyrics.offsetMs,
-                             lyrics.language, lyrics.chosen ? 1 : 0, EpochMs.now()])
+                             lyrics.language, lyrics.chosen ? 1 : 0, EpochMs.now(), lyrics.syncedRef, lyrics.plainRef])
     }
 }
 

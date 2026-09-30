@@ -74,5 +74,13 @@ enum SyncMigrations {
                 CREATE TABLE synced_lyrics_pins (video_id TEXT PRIMARY KEY, source TEXT NOT NULL, ref TEXT NOT NULL, start_time_ms INTEGER);
                 """)
         },
+        DatabaseMigration("lyrics-refs-v1") { db in
+            // Ссылка на найденный текст у поставщика (задание 0015): номер записи LrcLib, browseId текста YouTube Music
+            // (`MPLYt…`), `<id>:<accesskey>` KuGou — отдельно у синхронной и обычной стороны. Из неё строится закрепление.
+            try db.execute(sql: """
+                ALTER TABLE lyrics ADD COLUMN synced_ref TEXT;
+                ALTER TABLE lyrics ADD COLUMN plain_ref TEXT;
+                """)
+        },
     ]
 }

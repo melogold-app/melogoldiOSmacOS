@@ -30,9 +30,14 @@ public struct TrackOverride: Equatable, Hashable, Sendable {
     }
 
     /// Трек, как его показывать: правленые поля поверх; правка исполнителя убирает карту исполнителей YouTube (она
-    /// вела бы на чужую страницу), правка альбома — ссылку на альбом YouTube.
+    /// вела бы на чужую страницу), правка альбома — ссылку на альбом YouTube. Показанный трек помнит оригинал
+    /// (`Track.original`): повторный вызов и вызов для уже показанного трека берут оригинал, а не наслаивают правку.
     public func apply(to track: Track) -> Track {
-        var shown = track
+        var shown = track.raw
+        guard !isEmpty else { return shown }
+        shown.original = TrackOriginal(
+            title: shown.title, artists: shown.artists, artistsText: shown.artistsText, albumId: shown.albumId, albumTitle: shown.albumTitle
+        )
         if let title { shown.title = title }
         if let artistsText {
             shown.artistsText = artistsText
@@ -43,6 +48,18 @@ public struct TrackOverride: Equatable, Hashable, Sendable {
             shown.albumId = nil
         }
         return shown
+    }
+
+    /// Правка, как её видит «Итоги» (`StatOverride`).
+    public var statOverride: StatOverride { StatOverride(title: title, artistsText: artistsText, albumTitle: albumTitle) }
+
+    /// Правка, которую надо показать в «Сведениях о треке»: поля, равные оригиналу, — не правка.
+    public func removingRedundant(against original: Track) -> TrackOverride {
+        TrackOverride(
+            title: title == original.title ? nil : title,
+            artistsText: artistsText == original.artistsText ? nil : artistsText,
+            albumTitle: albumTitle == original.albumTitle ? nil : albumTitle
+        )
     }
 }
 

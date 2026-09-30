@@ -221,22 +221,5 @@ extension LinkTarget {
     }
 }
 
-/// Ссылки «Поделиться»: песни и альбомы — на YouTube Music, видео и каналы — на YouTube.
-enum ShareLinks {
-    static func track(_ track: Track) -> URL {
-        let host = track.isVideo && track.videoType != VideoType.video ? "www.youtube.com" : "music.youtube.com"
-        return URL(string: "https://\(host)/watch?v=\(track.videoId)")!
-    }
-
-    static func album(_ browseId: String) -> URL {
-        URL(string: "https://music.youtube.com/browse/\(browseId)")!
-    }
-
-    static func playlist(_ playlistId: String) -> URL {
-        URL(string: "https://music.youtube.com/playlist?list=\(playlistId)")!
-    }
-
-    static func artist(_ browseId: String, isChannel: Bool) -> URL {
-        URL(string: isChannel ? "https://www.youtube.com/channel/\(browseId)" : "https://music.youtube.com/channel/\(browseId)")!
-    }
-}
+/// Ссылки «Поделиться» (задание 0019): песни и альбомы — на YouTube Music, видео и каналы — на YouTube.
+typealias ShareLinks = ShareURLs

@@ -9,6 +9,8 @@ final class FakeFetcher: LyricsFetching, Sendable {
     struct Call: Sendable {
         let videoId: String
         let current: StoredLyrics?
+        let pin: LyricsPin?
+        let track: Track
     }
 
     private struct State {
@@ -45,8 +47,8 @@ final class FakeFetcher: LyricsFetching, Sendable {
         waiters.forEach { $0.resume() }
     }
 
-    func fetch(_ track: Track, durationMs: Int64, current: StoredLyrics?) async -> LyricsFetchResult {
-        state.withLock { $0.calls.append(Call(videoId: track.videoId, current: current)) }
+    func fetch(_ track: Track, durationMs: Int64, current: StoredLyrics?, pin: LyricsPin?) async -> LyricsFetchResult {
+        state.withLock { $0.calls.append(Call(videoId: track.videoId, current: current, pin: pin, track: track)) }
         await withCheckedContinuation { continuation in
             let proceed = state.withLock { state in
                 if state.held {

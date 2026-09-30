@@ -6,7 +6,7 @@ import Observation
 
 /// Цепочка поиска текста, какой её видит модель: по треку и уже имеющемуся тексту (`current`) находит недостающее.
 public protocol LyricsFetching: Sendable {
-    func fetch(_ track: Track, durationMs: Int64, current: StoredLyrics?) async -> LyricsFetchResult
+    func fetch(_ track: Track, durationMs: Int64, current: StoredLyrics?, pin: LyricsPin?) async -> LyricsFetchResult
 }
 
 extension LyricsFetcher: LyricsFetching {}
@@ -43,6 +43,12 @@ public final class LyricsModel {
     @ObservationIgnored private let playerDurationMs: @MainActor () -> Int64
     @ObservationIgnored private var task: Task<Void, Never>?
     @ObservationIgnored private var observation: LyricsObservation?
+    @ObservationIgnored private var pinObservation: LyricsObservation?
+    /// Закрепление трека, каким модель его знает; изменение приходит наблюдением (синк с другого устройства).
+    @ObservationIgnored private var knownPin: LyricsPin?
+    /// Закрепления, которые в этом запуске уже пробовали достать (`videoId|источник:ссылка`): поставщик не отдал —
+    /// заново на каждый показ не ходим (как `triedPin` Android).
+    @ObservationIgnored private var triedPins: Set<String> = []
 
     /// `playerDurationMs` — длительность играющего трека, мс, если её нет у самого трека.
     public init(fetcher: any LyricsFetching, store: LyricsStore?, playerDurationMs: @escaping @MainActor () -> Int64 = { 0 }) {
@@ -103,26 +109,60 @@ public final class LyricsModel {
     private func start(_ track: Track, saved: StoredLyrics?, force: Bool) {
         task?.cancel()
         observation?.cancel()
+        pinObservation?.cancel()
         self.track = track
         preferSynced = true
         setContent(saved)
         watch(track.videoId)
+        let pin = store?.pin(track.videoId)
+        knownPin = pin
+        watchPin(track.videoId)
+        // Порядок выбора (задание 0015): свой текст → закреплённый → найденный. Найденный здесь текст другой, чем
+        // закреплённый аккаунтом, — на его место встаёт закреплённый
+        let repin = needsPin(track.videoId, saved, pin)
         let complete = saved.map { $0.synced != nil && $0.plain != nil } ?? false
-        if complete, !force {
+        if complete, !force, !repin {
             state = hasAny ? .loaded : .notFound
             return
         }
         state = hasAny ? .loaded : .loading
-        search(track, baseline: saved)
+        search(track, baseline: saved, pin: pin, repin: repin)
     }
 
-    private func search(_ track: Track, baseline: StoredLyrics?) {
+    /// Закрепление есть, текст не свой и не тот, на который оно указывает, и достать закрепление в этом запуске ещё не
+    /// пробовали. Отмечает пробу.
+    private func needsPin(_ videoId: String, _ row: StoredLyrics?, _ pin: LyricsPin?) -> Bool {
+        guard let pin, row?.isOwn != true, !LyricsPinRules.shows(row, pin) else { return false }
+        return triedPins.insert("\(videoId)|\(pin.source):\(pin.ref)").inserted
+    }
+
+    private func search(_ track: Track, baseline: StoredLyrics?, pin: LyricsPin? = nil, repin: Bool = false) {
         let durationMs = track.durationMs ?? playerDurationMs()
+        // Замена найденного закреплённым: найденные стороны забываются, свой текст остаётся (у него закрепления нет)
+        let current = repin ? LyricsRules.forgetFound(baseline) : baseline
         task = Task {
-            let result = await fetcher.fetch(track, durationMs: durationMs, current: baseline)
+            let result = await fetcher.fetch(track, durationMs: durationMs, current: current, pin: pin)
             guard !Task.isCancelled, self.track?.videoId == track.videoId else { return }
             finishSearch(track.videoId, baseline: baseline, result)
         }
+    }
+
+    /// Закрепление трека изменилось не здесь — синк принёс его с другого устройства: показанный найденный текст
+    /// заменяется закреплённым.
+    private func watchPin(_ videoId: String) {
+        guard let store else { return }
+        pinObservation = store.observePin(videoId) { [weak self] pin in
+            self?.pinChanged(videoId, pin)
+        }
+    }
+
+    private func pinChanged(_ videoId: String, _ pin: LyricsPin?) {
+        guard track?.videoId == videoId, pin != knownPin else { return }
+        knownPin = pin
+        guard let track, needsPin(videoId, content.stored, pin) else { return }
+        task?.cancel()
+        state = hasAny ? .loaded : .loading
+        search(track, baseline: content.stored, pin: pin, repin: true)
     }
 
     private func finishSearch(_ videoId: String, baseline: StoredLyrics?, _ result: LyricsFetchResult) {

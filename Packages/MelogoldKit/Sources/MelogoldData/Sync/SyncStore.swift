@@ -226,7 +226,7 @@ public struct SyncTx {
     let db: Database
 
     private static let trackColumns = "video_id, title, artists_text, artists_json, album_id, album_title, duration_ms, duration_text, thumbnail_url, explicit, video_type, metadata_stub"
-    private static let lyricsColumns = "synced, plain, source, plain_source, offset_ms, language, chosen"
+    private static let lyricsColumns = "synced, plain, source, plain_source, offset_ms, language, chosen, synced_ref, plain_ref"
 
     // MARK: - Состояние
 
@@ -651,17 +651,19 @@ public struct SyncTx {
 
     private static func readLyrics(_ row: Row) -> StoredLyrics {
         StoredLyrics(synced: row["synced"], plain: row["plain"], syncedSource: row["source"], plainSource: row["plain_source"],
-                     offsetMs: row["offset_ms"] ?? 0, language: row["language"], chosen: (row["chosen"] as Int64? ?? 0) != 0)
+                     offsetMs: row["offset_ms"] ?? 0, language: row["language"], chosen: (row["chosen"] as Int64? ?? 0) != 0,
+                     syncedRef: row["synced_ref"], plainRef: row["plain_ref"])
     }
 
     public func saveLyrics(_ videoId: String, _ lyrics: StoredLyrics) throws {
         try db.execute(
             sql: """
-                INSERT OR REPLACE INTO lyrics (video_id, synced, plain, source, plain_source, offset_ms, language, chosen, fetched_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT OR REPLACE INTO lyrics (video_id, synced, plain, source, plain_source, offset_ms, language, chosen, fetched_at,
+                                               synced_ref, plain_ref)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
             arguments: [videoId, lyrics.synced, lyrics.plain, lyrics.syncedSource, lyrics.plainSource, lyrics.offsetMs, lyrics.language,
-                        lyrics.chosen ? 1 : 0, EpochMs.now()]
+                        lyrics.chosen ? 1 : 0, EpochMs.now(), lyrics.syncedRef, lyrics.plainRef]
         )
     }
 

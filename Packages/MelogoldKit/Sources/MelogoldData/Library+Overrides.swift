@@ -35,9 +35,32 @@ extension Library {
         } ?? [:]
     }
 
-    /// Трек, как его показывать: со своей правкой поверх, если она есть.
+    /// Трек, как его показывать: со своей правкой поверх, если она есть; трек, показанный с прежней правкой,
+    /// возвращается к оригиналу, когда правки уже нет.
     public func displayed(_ track: Track) -> Track {
-        trackOverride(track.videoId)?.apply(to: track) ?? track
+        trackOverride(track.videoId)?.apply(to: track) ?? track.raw
+    }
+
+    /// Треки, как их показывать, — одним чтением правок.
+    public func displayed(_ tracks: [Track]) -> [Track] {
+        read { db in try Self.overridden(db, tracks) } ?? tracks
+    }
+
+    /// Правки в памяти базы: их немного (руками собранные альбомы), поэтому читаются целиком и один раз на список.
+    static func allOverrides(_ db: Database) throws -> [String: TrackOverride] {
+        try Row.fetchAll(db, sql: "SELECT video_id, title, artists_text, album_title FROM track_overrides").reduce(into: [:]) { result, row in
+            result[row["video_id"] as String] = TrackOverride(title: row["title"], artistsText: row["artists_text"], albumTitle: row["album_title"])
+        }
+    }
+
+    static func overridden(_ db: Database, _ tracks: [Track]) throws -> [Track] {
+        guard !tracks.isEmpty else { return tracks }
+        let overrides = try allOverrides(db)
+        return overrides.isEmpty ? tracks : tracks.map { shown($0, overrides) }
+    }
+
+    static func shown(_ track: Track, _ overrides: [String: TrackOverride]) -> Track {
+        overrides[track.videoId]?.apply(to: track) ?? track
     }
 
     /// «Сохранить» в «Сведениях о треке»: замена целиком; все поля пустые («Как на YouTube») — правка снята.

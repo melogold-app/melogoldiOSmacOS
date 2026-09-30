@@ -33,6 +33,16 @@ public enum VideoType {
     }
 }
 
+/// Поля трека, какими их дал YouTube, до правки пользователя (задание 0014). Трек, показанный со своим названием,
+/// помнит их: запись в базу и в снимок очереди берёт оригинал, а «Изменить сведения…» показывает его серым.
+public struct TrackOriginal: Hashable, Sendable {
+    public var title: String
+    public var artists: [ArtistRef]
+    public var artistsText: String?
+    public var albumId: String?
+    public var albumTitle: String?
+}
+
 /// Трек — любое видео YouTube (DESIGN §3.3): песня YTM, клип, обычное видео, трансляция. Видео и песни — равные
 /// источники: ищутся, играют и лежат в очереди одинаково (docs/PROMPT.md §1).
 public struct Track: Hashable, Codable, Sendable, Identifiable {
@@ -50,6 +60,9 @@ public struct Track: Hashable, Codable, Sendable, Identifiable {
     /// Только для показа: «1,2 млн просмотров» (числа из строк YouTube не разбираются).
     public var viewsText: String?
     public var unavailable: Bool
+    /// Есть, когда название, исполнитель или альбом показаны свои (`TrackOverride.apply`): что было у YouTube. Наружу
+    /// — в базу, в JSON очереди, на сервер — уходит оригинал (`raw`).
+    public var original: TrackOriginal?
 
     public var id: String { videoId }
 
@@ -72,6 +85,22 @@ public struct Track: Hashable, Codable, Sendable, Identifiable {
         self.unavailable = unavailable
     }
 
+    /// Показан со своей правкой (`TrackOverride`).
+    public var isOverridden: Bool { original != nil }
+
+    /// Трек, каким его дал YouTube: правка снята. У трека без правки — он сам.
+    public var raw: Track {
+        guard let original else { return self }
+        var track = self
+        track.title = original.title
+        track.artists = original.artists
+        track.artistsText = original.artistsText
+        track.albumId = original.albumId
+        track.albumTitle = original.albumTitle
+        track.original = nil
+        return track
+    }
+
     /// Видео обычного YouTube (не песня каталога): метка «YouTube», квадратная обложка из превью 16:9.
     public var isVideo: Bool {
         guard let videoType else { return false }
@@ -86,6 +115,44 @@ public struct Track: Hashable, Codable, Sendable, Identifiable {
     /// Первый исполнитель или канал со ссылкой: «Открыть исполнителя» / «Открыть канал».
     public var primaryArtistId: String? {
         artists.first { $0.id != nil }?.id
+    }
+
+    // Кодируется оригинал: правка живёт в своей таблице, а не в очереди, которая её пережила бы.
+    private enum CodingKeys: String, CodingKey {
+        case videoId, title, artists, artistsText, albumId, albumTitle, durationMs, thumbnailUrl, explicit, videoType, viewsText, unavailable
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        videoId = try c.decode(String.self, forKey: .videoId)
+        title = try c.decode(String.self, forKey: .title)
+        artists = try c.decode([ArtistRef].self, forKey: .artists)
+        artistsText = try c.decodeIfPresent(String.self, forKey: .artistsText)
+        albumId = try c.decodeIfPresent(String.self, forKey: .albumId)
+        albumTitle = try c.decodeIfPresent(String.self, forKey: .albumTitle)
+        durationMs = try c.decodeIfPresent(Int64.self, forKey: .durationMs)
+        thumbnailUrl = try c.decodeIfPresent(String.self, forKey: .thumbnailUrl)
+        explicit = try c.decode(Bool.self, forKey: .explicit)
+        videoType = try c.decodeIfPresent(String.self, forKey: .videoType)
+        viewsText = try c.decodeIfPresent(String.self, forKey: .viewsText)
+        unavailable = try c.decode(Bool.self, forKey: .unavailable)
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        let track = raw
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(track.videoId, forKey: .videoId)
+        try c.encode(track.title, forKey: .title)
+        try c.encode(track.artists, forKey: .artists)
+        try c.encodeIfPresent(track.artistsText, forKey: .artistsText)
+        try c.encodeIfPresent(track.albumId, forKey: .albumId)
+        try c.encodeIfPresent(track.albumTitle, forKey: .albumTitle)
+        try c.encodeIfPresent(track.durationMs, forKey: .durationMs)
+        try c.encodeIfPresent(track.thumbnailUrl, forKey: .thumbnailUrl)
+        try c.encode(track.explicit, forKey: .explicit)
+        try c.encodeIfPresent(track.videoType, forKey: .videoType)
+        try c.encodeIfPresent(track.viewsText, forKey: .viewsText)
+        try c.encode(track.unavailable, forKey: .unavailable)
     }
 }
 
