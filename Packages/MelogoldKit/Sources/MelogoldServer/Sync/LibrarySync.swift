@@ -452,7 +452,12 @@ public final class LibrarySync {
 
     /// Ops по разнице со снимком, кроме тех, что сервер не принимает (`skipped`).
     private func build(store: SyncStore) async throws -> SyncBuild {
-        let builder = SyncOpBuilder(mergeUploadMax: account.serverInfo?.limits?.history?.mergeUploadMax)
+        // Виды ops сервера (`features.sync.kinds`) — из сведений о сервере, не старше `featuresMaxAge`
+        await refreshServerInfo()
+        let builder = SyncOpBuilder(
+            mergeUploadMax: account.serverInfo?.limits?.history?.mergeUploadMax,
+            kinds: Set(account.serverInfo?.features.sync?.kinds ?? [])
+        )
         var built = try await store.write { tx in try builder.build(tx) }
         if !skipped.isEmpty { built.ops.removeAll { skipped.contains($0.content) } }
         return built
@@ -591,6 +596,12 @@ public final class LibrarySync {
 
     /// Модуль текстов есть на сервере (`features.lyrics`): без него маршруты текстов не трогаются.
     private func lyricsAvailable() async -> Bool {
+        await refreshServerInfo()
+        return account.serverInfo?.features.lyrics != nil
+    }
+
+    /// Сведения о сервере (`/server/info`) не старше `featuresMaxAge`; не пришли — остаются прежние.
+    private func refreshServerInfo() async {
         let now = ContinuousClock.now
         if account.serverInfo != nil, featuresCheckedAt == nil { featuresCheckedAt = now }
         if account.serverInfo == nil || featuresCheckedAt.map({ now - $0 > timing.featuresMaxAge }) == true {
@@ -601,7 +612,6 @@ public final class LibrarySync {
                 Log.info("sync", "Сведения о сервере не пришли: \(error)")
             }
         }
-        return account.serverInfo?.features.lyrics != nil
     }
 
     /// Цикл текстов (§3.3): свои тексты, изменившиеся со снимка, — `PUT` и `DELETE`; затем свои версии с сервера после

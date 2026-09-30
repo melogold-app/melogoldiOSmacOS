@@ -40,6 +40,11 @@ struct TrackMenuItems: View {
             Button { model.playlistPicker = PlaylistPickerRequest(tracks: [track]) } label: {
                 Label("menu.addToPlaylist", systemImage: "text.badge.plus")
             }
+            #if !os(watchOS)
+            Button { model.trackDetails = track } label: {
+                Label("menu.editDetails", systemImage: "pencil")
+            }
+            #endif
         }
         Section {
             downloadItem
@@ -67,9 +72,15 @@ struct TrackMenuItems: View {
             }
         }
         Section {
-            ShareLink(item: ShareLinks.track(track)) {
+            ShareLink(item: ShareLinks.track(track), subject: Text(verbatim: track.title),
+                      message: Text(verbatim: ShareText.line(track.title, track.artistsText))) {
                 Label("menu.share", systemImage: "square.and.arrow.up")
             }
+            #if os(macOS)
+            Button { model.copyLink(ShareLinks.track(track)) } label: {
+                Label("share.copyLink", systemImage: "link")
+            }
+            #endif
             #if !os(watchOS)
             Button { model.saveAsFile(track) } label: {
                 Label("menu.saveFile", systemImage: "square.and.arrow.down.on.square")
@@ -154,7 +165,8 @@ struct TrackMenuButton: View {
 
 extension AppModel {
     /// «Другие версии»: поиск по названию и исполнителю.
-    func searchOtherVersions(of track: Track) {
+    func searchOtherVersions(of shown: Track) {
+        let track = displayed(shown)
         let query = [track.title, track.artistsText].compactMap { $0 }.joined(separator: " ")
         section = .search
         routes[.search] = []
@@ -170,6 +182,8 @@ struct RowActions: ViewModifier {
     @Environment(AppModel.self) private var model
     let target: (String) -> RowTarget?
     var context: (String) -> TrackMenuContext? = { _ in nil }
+    var rowIds: [String] = []
+    var collectionName: String?
 
     func body(content: Content) -> some View {
         content.contextMenu(forSelectionType: String.self) { ids in
@@ -177,7 +191,14 @@ struct RowActions: ViewModifier {
                 switch target {
                 case .list(let tracks, let index): TrackMenuItems(track: tracks[index], context: context(id))
                 case .single(let track): TrackMenuItems(track: track, context: context(id))
-                case .open, .mix: EmptyView()
+                case .open, .mix, .action: EmptyView()
+                }
+            } else if ids.count > 1 {
+                // Несколько выделенных строк (задание 0013): те же действия, треки — в порядке списка
+                let scope = SelectionScope(target: target, context: context, rowIds: rowIds, collectionName: collectionName)
+                let tracks = scope.tracks(ids)
+                if !tracks.isEmpty {
+                    SelectionMenuItems(tracks: tracks, removal: scope.removal(ids), collectionName: collectionName)
                 }
             }
         } primaryAction: { ids in
@@ -189,8 +210,9 @@ struct RowActions: ViewModifier {
 
 extension View {
     func rowActions(_ target: @escaping (String) -> RowTarget?,
-                    context: @escaping (String) -> TrackMenuContext? = { _ in nil }) -> some View {
-        modifier(RowActions(target: target, context: context))
+                    context: @escaping (String) -> TrackMenuContext? = { _ in nil },
+                    rowIds: [String] = [], collectionName: String? = nil) -> some View {
+        modifier(RowActions(target: target, context: context, rowIds: rowIds, collectionName: collectionName))
     }
 }
 
@@ -201,5 +223,13 @@ enum RowID {
     static func split(_ id: String) -> (section: String, key: String)? {
         guard let bar = id.firstIndex(of: "|") else { return nil }
         return (String(id[..<bar]), String(id[id.index(after: bar)...]))
+    }
+}
+
+/// Текст сообщения «Поделиться»: «Название — Исполнитель» (задание 0019).
+enum ShareText {
+    static func line(_ title: String, _ subtitle: String?) -> String {
+        let sub = subtitle?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return sub.isEmpty ? title : "\(title) — \(sub)"
     }
 }

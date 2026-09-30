@@ -8,6 +8,10 @@ import MelogoldInnerTube
 struct DetailPage<Header: View, Rows: View>: View {
     let title: String
     var twoColumns = true
+    /// Метки всех строк-треков в порядке списка — включают выбор нескольких треков (задание 0013).
+    var rowIds: [String] = []
+    var collectionName: String?
+    var showsSelectButton = true
     @ViewBuilder let header: () -> Header
     @ViewBuilder let rows: () -> Rows
     let target: (String) -> RowTarget?
@@ -40,7 +44,8 @@ struct DetailPage<Header: View, Rows: View>: View {
     }
 
     private func list(includeHeader: Bool) -> some View {
-        SelectableList(target: target, context: context) {
+        SelectableList(target: target, context: context, rowIds: rowIds, collectionName: collectionName ?? title,
+                       showsSelectButton: showsSelectButton) {
             if includeHeader {
                 header()
                     .frame(maxWidth: .infinity)

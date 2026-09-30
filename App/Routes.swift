@@ -32,6 +32,10 @@ enum Route: Hashable {
     case savedArtists
     case localPlaylist(Int64)
     case hiddenTracks
+    /// «Плейлист по ссылке» (задание 0019): снимок с сервера из ссылки, без входа.
+    case sharedPlaylist(server: String, id: String)
+    /// «Итоги» (задание 0018).
+    case stats
     /// Настройки (срез 8): «Сведения о потоке», «Диагностика», «Лицензии».
     case streamInfo
     case diagnostics

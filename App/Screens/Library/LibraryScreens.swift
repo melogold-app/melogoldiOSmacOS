@@ -14,7 +14,7 @@ struct FavoritesView: View {
         let visible = tracks.filter { !model.isHidden(PendingKey.like($0.videoId)) && matches($0, filter) }
         SelectableList(target: { id in
             RowID.split(id).flatMap { key in visible.firstIndex { $0.videoId == key.key }.map { .list(visible, $0) } }
-        }, context: { _ in .favorites }) {
+        }, context: { _ in .favorites }, rowIds: visible.map { RowID.make("f", $0.videoId) }) {
             if !visible.isEmpty {
                 TrackListHeader(summary: LibraryText.summary(visible)) {
                     model.playAll(visible, shuffled: false)
@@ -77,7 +77,7 @@ struct AllTracksView: View {
         let tracks = visible.map(\.track)
         SelectableList(target: { id in
             RowID.split(id).flatMap { key in tracks.firstIndex { $0.videoId == key.key }.map { .list(tracks, $0) } }
-        }) {
+        }, rowIds: tracks.map { RowID.make("a", $0.videoId) }) {
             if !tracks.isEmpty {
                 TrackListHeader(summary: LibraryText.summary(tracks)) {
                     model.playAll(tracks, shuffled: false)

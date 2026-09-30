@@ -52,5 +52,35 @@ enum SyncMigrations {
                   AND COALESCE(plain_source, '') NOT IN ('user', 'file');
                 """)
         },
+        DatabaseMigration("overrides-pins-v1") { db in
+            // Своё название трека (задание 0014) и закреплённый текст (задание 0015) и их снимки синка
+            // (`track.override.set`, `lyrics.pin.set`, API §4.8). Время — epoch-мс.
+            try db.execute(sql: """
+                CREATE TABLE track_overrides (
+                    video_id TEXT PRIMARY KEY,
+                    title TEXT,
+                    artists_text TEXT,
+                    album_title TEXT,
+                    updated_at INTEGER NOT NULL
+                );
+                CREATE TABLE lyrics_pins (
+                    video_id TEXT PRIMARY KEY,
+                    source TEXT NOT NULL,
+                    ref TEXT NOT NULL,
+                    start_time_ms INTEGER,
+                    updated_at INTEGER NOT NULL
+                );
+                CREATE TABLE synced_overrides (video_id TEXT PRIMARY KEY, title TEXT, artists_text TEXT, album_title TEXT);
+                CREATE TABLE synced_lyrics_pins (video_id TEXT PRIMARY KEY, source TEXT NOT NULL, ref TEXT NOT NULL, start_time_ms INTEGER);
+                """)
+        },
+        DatabaseMigration("lyrics-refs-v1") { db in
+            // Ссылка на найденный текст у поставщика (задание 0015): номер записи LrcLib, browseId текста YouTube Music
+            // (`MPLYt…`), `<id>:<accesskey>` KuGou — отдельно у синхронной и обычной стороны. Из неё строится закрепление.
+            try db.execute(sql: """
+                ALTER TABLE lyrics ADD COLUMN synced_ref TEXT;
+                ALTER TABLE lyrics ADD COLUMN plain_ref TEXT;
+                """)
+        },
     ]
 }

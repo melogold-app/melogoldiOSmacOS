@@ -1,5 +1,6 @@
 import Foundation
 import MelogoldCore
+import MelogoldInnerTube
 
 /// Адрес аудиопотока трека и то, как по нему ходить.
 public struct StreamInfo: Hashable, Sendable {
@@ -57,10 +58,38 @@ public struct StreamError: Error, Sendable, CustomStringConvertible {
 
     public let kind: Kind
     public let message: String
+    /// `.geo`: страна, в которой YouTube видит устройство, и в скольких странах трек открыт (задание 0010).
+    public var country: String?
+    public var availableCountries: Int?
 
-    public init(_ kind: Kind, _ message: String) {
+    public init(_ kind: Kind, _ message: String, country: String? = nil, availableCountries: Int? = nil) {
         self.kind = kind
         self.message = message
+        self.country = country
+        self.availableCountries = availableCountries
+    }
+
+    /// Итог диагноза (задание 0010 §2.3), по порядку: страна вне списка стран трека — закрыт в стране (со страной и
+    /// числом); фразы о стране — закрыт в стране (без числа); о возрасте — возраст; об удалении — удалено; иначе `nil`
+    /// (остаётся прежняя ошибка).
+    public static func diagnosed(_ playability: Playability, streamMessage: String?) -> StreamError? {
+        if playability.isBlockedHere {
+            let others = playability.availableCountries.count
+            return StreamError(.geo, "\(playability.country ?? "?") не среди \(others) стран", country: playability.country, availableCountries: others)
+        }
+        let text = [streamMessage, playability.reason].compactMap { $0 }.joined(separator: " ").lowercased()
+        let geo = ["available in your country", "not made this video available in your country", "blocked it in your country"]
+        if geo.contains(where: text.contains) {
+            return StreamError(.geo, playability.reason ?? streamMessage ?? "", country: playability.country)
+        }
+        if ["confirm your age", "age-restricted", "inappropriate for some users"].contains(where: text.contains) {
+            return StreamError(.age, playability.reason ?? streamMessage ?? "")
+        }
+        let removed = ["private video", "has been removed", "account associated with this video has been terminated", "no longer available"]
+        if removed.contains(where: text.contains) {
+            return StreamError(.unavailable, playability.reason ?? streamMessage ?? "")
+        }
+        return nil
     }
 
     /// Сколько раз повторить, прежде чем пропустить трек: сеть — 2, таймаут, бот и прочее — 1, гео, возраст,

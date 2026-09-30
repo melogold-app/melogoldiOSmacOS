@@ -132,6 +132,96 @@ struct LiveSyncTests {
         }
     }
 
+    /// Задания 0014 и 0015 на настоящем сервере: своё название и закреплённый текст с A приходят на B, снятие с B
+    /// снимает на A; лайк с оригинальными метаданными правку не сбрасывает.
+    @Test func overridesAndPinsTravel() async throws {
+        let a = try Device(name: "Test Mac", platform: "macos", recording: true)
+        let b = try Device(name: "Test iPhone", platform: "ios", recording: true)
+        try await withAccount(a, b) {
+            let video = "dQw4w9WgXcQ"
+            try a.track(video, liked: true)
+            a.library.setTrackOverride(video, TrackOverride(title: "Песня", artistsText: "Группа", albumTitle: "Потерянный альбом"))
+            a.library.setLyricsPin(video, LyricsPin(source: "lrclib", ref: "123456", startTimeMs: 800))
+            await a.synced()
+            #expect(try a.strings("SELECT title FROM synced_overrides") == ["Песня"])
+
+            await b.synced()
+            #expect(b.library.trackOverride(video) == TrackOverride(title: "Песня", artistsText: "Группа", albumTitle: "Потерянный альбом"))
+            #expect(b.library.lyricsPin(video) == LyricsPin(source: "lrclib", ref: "123456", startTimeMs: 800))
+            // Лайк на B с оригинальными метаданными правку не трогает
+            try b.sql("UPDATE tracks SET liked_at = NULL WHERE video_id = ?", [video])
+            await b.synced()
+            await a.synced()
+            #expect(a.library.trackOverride(video)?.albumTitle == "Потерянный альбом")
+
+            b.library.setTrackOverride(video, TrackOverride())
+            b.library.setLyricsPin(video, nil)
+            await b.synced()
+            await a.synced()
+            #expect(a.library.trackOverride(video) == nil)
+            #expect(a.library.lyricsPin(video) == nil)
+            let quiet = await a.traffic { await a.synced() }
+            #expect(quiet.filter { $0.path == "/sync" }.allSatisfy { ($0.json["ops"] as? [Any])?.isEmpty ?? true })
+        }
+    }
+
+    /// Задание 0015 на настоящем сервере: найденный и не изменённый текст закрепляется после 30 с прослушивания (там, где
+    /// прослушивание пишется в историю), закрепление приходит на B со ссылкой у поставщика; сдвиг «позже» обновляет его.
+    @Test func pinAfterListeningTravelsToTheOtherDevice() async throws {
+        let a = try Device(name: "Test Mac", platform: "macos", recording: true)
+        let b = try Device(name: "Test iPhone", platform: "ios", recording: true)
+        try await withAccount(a, b) {
+            let video = "dQw4w9WgXcQ"
+            try a.track(video)
+            let store = LyricsStore(database: a.database)
+            store.save(video, StoredLyrics(synced: "[00:01.00]Never gonna", plain: "Never gonna", syncedSource: "lrclib", plainSource: "lrclib",
+                                           syncedRef: "555", plainRef: "555"))
+            #expect(store.pinPlayed(video))
+            await a.synced()
+            await b.synced()
+            #expect(b.library.lyricsPin(video) == LyricsPin(source: "lrclib", ref: "555"))
+            #expect(try b.strings("SELECT video_id FROM lyrics").isEmpty, "найденный текст сам не уезжает — только ссылка")
+
+            store.shift(video, by: -700)
+            await a.synced()
+            await b.synced()
+            #expect(b.library.lyricsPin(video)?.startTimeMs == 700, "«позже» обновляет закрепление")
+        }
+    }
+
+    /// Задание 0019 на настоящем сервере: снимок своего плейлиста со своими названиями, чтение без входа с сервера из
+    /// ссылки, «Мои ссылки», удаление — ссылка перестаёт открываться.
+    @Test func shareSnapshotLifecycle() async throws {
+        let a = try Device(name: "Test Mac", platform: "macos")
+        let b = try Device(name: "Test iPhone", platform: "ios")
+        try await withAccount(a, b) {
+            let server = try #require(liveServerURL)
+            _ = try await a.account.check()
+            let fan = Track(videoId: "dQw4w9WgXcQ", title: "Кино — Звезда (live)", artistsText: "Fan", durationMs: 200_000)
+            let shown = TrackOverride(title: "Звезда", artistsText: "Кино", albumTitle: "Концерт").apply(to: fan)
+            let outcome = await a.account.sharePlaylist(name: "Концерт", tracks: [shown, Track(videoId: "kJQP7kiw5Fk", title: "Вторая")])
+            guard case .onServer(let url, let shareId) = outcome else { Issue.record("\(outcome)"); return }
+            #expect(url.absoluteString == "\(server)/s/\(shareId)")
+
+            // Читает устройство, которое к этому серверу не подключено: снимок отдаётся без входа
+            let reader = Account(settings: AppSettings(defaults: UserDefaults(suiteName: "live-\(UUID())")!), secrets: MemorySecretStore(),
+                                 identity: DeviceIdentity(platform: "ios", platformId: UUID().uuidString.lowercased(), name: "Reader", osVersion: "27.0", model: "Test", clientVersion: "0.1.0"))
+            let share = try await reader.publicShare(server: server, id: shareId)
+            #expect(share.name == "Концерт" && share.playlistTracks.map(\.videoId) == ["dQw4w9WgXcQ", "kJQP7kiw5Fk"])
+            #expect(share.playlistTracks.first?.title == "Звезда" && share.playlistTracks.first?.albumTitle == "Концерт")
+
+            #expect(try await a.account.shares().shares.map(\.shareId) == [shareId])
+            try await a.account.deleteShare(shareId)
+            #expect(try await a.account.shares().shares.isEmpty)
+            do {
+                _ = try await reader.publicShare(server: server, id: shareId)
+                Issue.record("после удаления ссылка должна не открываться")
+            } catch let error as APIError {
+                #expect(error.status == 404 && error.code == "share_not_found")
+            }
+        }
+    }
+
     /// Приёмка среза 5 от начала до конца: A — лайк, плейлист из трёх треков с переносом, закладка альбома, три
     /// прослушивания и свой текст; B получает всё это. B — снятый лайк, убранный трек плейлиста и «Убрать из истории»;
     /// A получает это. Синхронизация без правок ops не шлёт.

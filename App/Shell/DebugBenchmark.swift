@@ -22,7 +22,10 @@ enum DebugBenchmark {
                 return
             }
             let player = model.services.player
-            if defaults.bool(forKey: "MelogoldBenchmarkMute") { player.volume = 0 }
+            if defaults.bool(forKey: "MelogoldBenchmarkMute") {
+                player.volume = 0
+                player.outputMuted = true
+            }
             var latencies: [Double] = []
             for track in tracks {
                 model.play(single: track)

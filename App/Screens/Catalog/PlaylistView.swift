@@ -26,7 +26,7 @@ struct PlaylistView: View {
 
     private func content(_ details: PlaylistDetails) -> some View {
         let tracks = page.tracks
-        return DetailPage(title: details.playlist.title) {
+        return DetailPage(title: details.playlist.title, rowIds: tracks.map { RowID.make("t", $0.videoId) }) {
             CollectionHeader(artworkURL: details.playlist.thumbnailUrl, title: details.playlist.title) {
                 VStack(spacing: 4) {
                     if let author = details.authorText {
@@ -88,7 +88,8 @@ struct PlaylistView: View {
                     Button { model.playMix("RDAMPL" + playlistId) } label: {
                         Label("playlist.radio", systemImage: "dot.radiowaves.left.and.right")
                     }
-                    ShareLink(item: ShareLinks.playlist(playlistId)) {
+                    ShareLink(item: ShareLinks.playlist(playlistId), subject: Text(verbatim: details.playlist.title),
+                              message: Text(verbatim: details.playlist.title)) {
                         Label("menu.share", systemImage: "square.and.arrow.up")
                     }
                 } label: {

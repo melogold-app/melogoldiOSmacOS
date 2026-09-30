@@ -47,6 +47,11 @@ public final class AppSettings {
         didSet { store(lyricsView.rawValue, SettingsKey.lyricsView, isDefault: lyricsView == .synced) }
     }
 
+    /// «Управление с других устройств» (задание 0020): включено по умолчанию.
+    public var remoteControl: Bool {
+        didSet { store(remoteControl, SettingsKey.remoteControl, isDefault: remoteControl) }
+    }
+
     /// «Не сохранять историю».
     public var historyPaused: Bool {
         didSet { store(historyPaused, SettingsKey.historyPaused, isDefault: !historyPaused) }
@@ -81,6 +86,7 @@ public final class AppSettings {
         lastTab = AppSection(storedValue: defaults.string(forKey: SettingsKey.lastTab))
         normalization = defaults.object(forKey: SettingsKey.playbackNormalization) as? Bool ?? true
         autoplay = defaults.object(forKey: SettingsKey.playbackAutoplay) as? Bool ?? true
+        remoteControl = defaults.object(forKey: SettingsKey.remoteControl) as? Bool ?? true
         speed = min(max(defaults.object(forKey: SettingsKey.playbackSpeed) as? Double ?? 1.0, 0.5), 2.0)
         lyricsKeepScreenOn = defaults.bool(forKey: SettingsKey.lyricsKeepScreenOn)
         lyricsView = LyricsView(rawValue: defaults.string(forKey: SettingsKey.lyricsView) ?? "") ?? .synced

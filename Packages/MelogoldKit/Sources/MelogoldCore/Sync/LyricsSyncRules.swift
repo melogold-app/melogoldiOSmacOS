@@ -24,10 +24,13 @@ public struct StoredLyrics: Equatable, Sendable {
     public var offsetMs: Int64
     public var language: String?
     public var chosen: Bool
+    /// Номер найденного текста у поставщика (задание 0015): у синхронной и обычной стороны свой; у своего текста нет.
+    public var syncedRef: String?
+    public var plainRef: String?
 
     public init(
         synced: String?, plain: String?, syncedSource: String?, plainSource: String?, offsetMs: Int64 = 0, language: String? = nil,
-        chosen: Bool = false
+        chosen: Bool = false, syncedRef: String? = nil, plainRef: String? = nil
     ) {
         self.synced = synced
         self.plain = plain
@@ -36,6 +39,8 @@ public struct StoredLyrics: Equatable, Sendable {
         self.offsetMs = offsetMs
         self.language = language
         self.chosen = chosen
+        self.syncedRef = syncedRef
+        self.plainRef = plainRef
     }
 }
 

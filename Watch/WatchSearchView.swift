@@ -64,12 +64,13 @@ struct WatchSearchView: View {
 
     private func rows(_ tracks: [Track]) -> some View {
         ForEach(tracks) { track in
+            let shown = model.displayed(track)
             Button { model.play(single: track) } label: {
                 HStack(spacing: 8) {
-                    ArtworkView(url: track.artworkURL, size: 32)
+                    ArtworkView(url: shown.artworkURL, size: 32)
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(track.title).font(.footnote).lineLimit(2)
-                        Text(track.artistsText ?? "").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                        Text(shown.title).font(.footnote).lineLimit(2)
+                        Text(shown.artistsText ?? "").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                     }
                 }
             }

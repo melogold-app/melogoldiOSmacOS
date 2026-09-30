@@ -63,6 +63,11 @@ public final class PlayerEngine {
     public var volume: Float = 1 {
         didSet { applyVolume() }
     }
+    /// Выход без звука при любой `volume` — отладочный `-MelogoldMute` (Mac и симуляторы общие, рядом спят):
+    /// команда пульта «громкость 30» меняет `volume` и сообщается серверу, но из динамиков не звучит.
+    public var outputMuted = false {
+        didSet { applyVolume() }
+    }
 
     public var current: QueueItem? { index.flatMap { items.indices.contains($0) ? items[$0] : nil } }
     public var currentTrack: Track? { current?.track }
@@ -75,6 +80,12 @@ public final class PlayerEngine {
     public var isExcluded: ((Track) -> Bool)?
     /// Трек списка пропускается при переходе: «Не показывать этот трек», скрытие E (REWRITE §4.10.7).
     public var shouldSkip: ((Track) -> Bool)?
+    /// Как показывать трек: со своим названием, исполнителем и альбомом (задание 0014). Очередь хранит уже показанные
+    /// треки — так «Сейчас играет», мини-плеер, «Очередь», часы и системная карточка получают правку данными, а не каждый
+    /// свой код; трек помнит оригинал (`Track.original`), и в базу, в снимок очереди и на сервер уходит он.
+    public var display: ((Track) -> Track)? {
+        didSet { refreshDisplay() }
+    }
     /// Растёт при любой правке очереди — для сохранения очереди и экрана «Очередь».
     public private(set) var queueRevision = 0
     /// Перемешивание: порядок после текущего трека случайный; выключение возвращает исходный.
@@ -162,12 +173,30 @@ public final class PlayerEngine {
 
     // MARK: - Очередь
 
+    private func shown(_ track: Track) -> Track { display?(track) ?? track }
+
+    private func queueItem(_ track: Track, fromAutoplay: Bool = false) -> QueueItem {
+        QueueItem(track: shown(track), fromAutoplay: fromAutoplay)
+    }
+
+    /// Правка названий изменилась (своя, с другого устройства или снятая): очередь и карточка «Сейчас играет» системы
+    /// показывают новое.
+    public func refreshDisplay() {
+        let updated = items.map { item -> QueueItem in
+            var shownItem = item
+            shownItem.track = shown(item.track)
+            return shownItem
+        }
+        if updated != items { items = updated }
+        syncNowPlaying()
+    }
+
     /// Нажатие по треку в списке: очередь — весь список, начиная с выбранного (REWRITE §2.3).
     public func play(tracks: [Track], startAt: Int) {
         guard tracks.indices.contains(startAt) else { return }
         radioTask?.cancel()
         radio = nil
-        items = tracks.map { QueueItem(track: $0) }
+        items = tracks.map { queueItem($0) }
         index = startAt
         queueId = UUID()
         startCurrent(tapped: true)
@@ -177,7 +206,7 @@ public final class PlayerEngine {
     /// позиция (ссылка с `t=`).
     public func playSingle(_ track: Track, from seconds: Double = 0) {
         radioTask?.cancel()
-        items = [QueueItem(track: track)]
+        items = [queueItem(track)]
         index = 0
         queueId = UUID()
         radio = RadioState(seedVideoId: track.videoId, playlistId: "RDAMVM" + track.videoId)
@@ -188,7 +217,7 @@ public final class PlayerEngine {
     /// Радио плейлиста или микса (`RD…`): очередь «Далее» этого списка с первого трека.
     public func playRadio(playlistId: String, seed: Track) {
         radioTask?.cancel()
-        items = [QueueItem(track: seed)]
+        items = [queueItem(seed)]
         index = 0
         queueId = UUID()
         radio = RadioState(seedVideoId: seed.videoId, playlistId: playlistId)
@@ -203,7 +232,7 @@ public final class PlayerEngine {
             play(tracks: tracks, startAt: 0)
             return
         }
-        items.insert(contentsOf: tracks.map { QueueItem(track: $0) }, at: index + 1)
+        items.insert(contentsOf: tracks.map { queueItem($0) }, at: index + 1)
         upcomingChanged()
     }
 
@@ -215,7 +244,7 @@ public final class PlayerEngine {
             return
         }
         let firstAutoplay = items.indices.dropFirst(index + 1).first { items[$0].fromAutoplay } ?? items.count
-        items.insert(contentsOf: tracks.map { QueueItem(track: $0) }, at: firstAutoplay)
+        items.insert(contentsOf: tracks.map { queueItem($0) }, at: firstAutoplay)
         upcomingChanged()
     }
 
@@ -227,7 +256,7 @@ public final class PlayerEngine {
         let fresh = tracks.filter { !known.contains($0.videoId) }
         guard !fresh.isEmpty else { return true }
         let wasLast = index.map { $0 + 1 >= items.count } ?? false
-        items.append(contentsOf: fresh.map { QueueItem(track: $0) })
+        items.append(contentsOf: fresh.map { queueItem($0) })
         if wasLast { upcomingChanged() }
         return true
     }
@@ -462,7 +491,11 @@ public final class PlayerEngine {
     /// Отмена «Очистить»: вернуть треки после текущего.
     public func restoreUpcoming(_ saved: [QueueItem]) {
         guard let index else { return }
-        items = Array(items[...index]) + saved
+        items = Array(items[...index]) + saved.map { item in
+            var shownItem = item
+            shownItem.track = shown(item.track)
+            return shownItem
+        }
         upcomingChanged()
     }
 
@@ -550,7 +583,7 @@ public final class PlayerEngine {
         guard snapshot.items.indices.contains(snapshot.index) else { return }
         radioTask?.cancel()
         flushSession()
-        items = snapshot.items.map { QueueItem(track: $0.track, fromAutoplay: $0.fromAutoplay) }
+        items = snapshot.items.map { queueItem($0.track, fromAutoplay: $0.fromAutoplay) }
         index = snapshot.index
         queueId = UUID()
         radio = snapshot.radioSeed.map { RadioState(seedVideoId: $0, playlistId: snapshot.radioPlaylistId, continuation: snapshot.radioContinuation) }
@@ -916,7 +949,7 @@ public final class PlayerEngine {
     /// Громкие треки тише (`loudnessDb` > 0). Тихие не усиливаются: громкость рендерера — не больше 1.
     private func applyVolume() {
         let gain = Float(pow(10, appliedGainDb / 20))
-        pipeline.volume = max(0, min(1, volume * gain))
+        pipeline.volume = outputMuted ? 0 : max(0, min(1, volume * gain))
     }
 
     /// Усиление нормализации текущего трека, дБ: 0 или меньше.
@@ -963,7 +996,7 @@ public final class PlayerEngine {
                 let known = Set(items.map(\.track.videoId))
                 let excluded = self.isExcluded
                 let fresh = page.tracks.filter { !known.contains($0.videoId) && !$0.unavailable && !(excluded?($0) ?? false) }.prefix(25)
-                items.append(contentsOf: fresh.map { QueueItem(track: $0, fromAutoplay: true) })
+                items.append(contentsOf: fresh.map { queueItem($0, fromAutoplay: true) })
                 radio?.continuation = page.continuation
                 radio?.playlistId = page.playlistId ?? state.playlistId
                 radio?.loading = false

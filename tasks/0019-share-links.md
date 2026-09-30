@@ -1,6 +1,6 @@
 # Ссылки: поделиться треком, альбомом, плейлистом; открыть ссылку Spotify, Apple Music, Яндекса
 
-Статус: открыто — утверждено пользователем 2026-09-30. Контракт сервера — `melogoldServer/tasks/0003-share-links.md` (дальше `docs/API.md`); «снимок своего плейлиста» — когда сервер объявит `features.share` (сервер 0.1.2), остальное можно сразу
+Статус: сделано (слайс S6, 2026-09-30) — кроме «Поделиться» в меню «…» самого плеера (`PlayerMenu.swift`) с текстом «Название — Исполнитель»
 
 Те же задания: `melogoldAndroid/tasks/0017-share-links.md`, `melogoldWindows/tasks/0016-share-links.md`, `melogoldLinux/tasks/0010-share-links.md`. Сервер — `melogoldServer/tasks/0003-share-links.md`.
 Образец — Android (делается сейчас, `melogoldAndroid/tasks/0017-share-links.md`).

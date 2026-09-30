@@ -119,7 +119,9 @@ struct ExportedAudio: FileDocument {
 
 extension AppModel {
     /// «Сохранить файлом»: на Mac — сразу в «Музыку», на iPhone и iPad — окно «Файлов».
-    func saveAsFile(_ track: Track) {
+    func saveAsFile(_ shown: Track) {
+        // Теги файла — со своими названием, исполнителем и альбомом (задание 0014)
+        let track = displayed(shown)
         toast = Toast(text: String(localized: "export.preparing"))
         Task {
             do {

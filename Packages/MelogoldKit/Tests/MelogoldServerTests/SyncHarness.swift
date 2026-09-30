@@ -21,7 +21,7 @@ final class SyncHarness {
     let engine: LibrarySync
 
     /// `bound` — это устройство уже синхронизировалось с этим аккаунтом: курсор `c.1.1`, слияние позади.
-    init(lyrics: Bool = true, bound: Bool = true) throws {
+    init(lyrics: Bool = true, bound: Bool = true, kinds: [String] = []) throws {
         database = try AppDatabase.inMemory()
         store = SyncStore(database: database)
         library = Library(database: database)
@@ -35,7 +35,7 @@ final class SyncHarness {
         secrets.set(try JSONEncoder().encode(session), for: Account.sessionAccount)
         account = Account(settings: settings, secrets: secrets, identity: AccountTests.identity, urlSession: StubServer.session())
         engine = LibrarySync(account: account, library: library, timing: Self.timing, liveEvents: false)
-        server.on("GET", "/server/info") { _ in (200, SyncFixtures.serverInfo(lyrics: lyrics)) }
+        server.on("GET", "/server/info") { _ in (200, SyncFixtures.serverInfo(lyrics: lyrics, kinds: kinds)) }
         server.on("POST", "/auth/me/lyrics/changes") { _ in (200, #"{"items":[],"rev":0,"more":false}"#) }
         if bound {
             try sql("INSERT INTO sync_state (key, value) VALUES ('binding', ?), ('cursor', 'c.1.1'), ('needsMerge', '0'), ('historyMerge', '0')",
@@ -81,11 +81,13 @@ final class SyncHarness {
 
 /// Ответы сервера синка. Вне `@MainActor`: их строят обработчики заглушки в потоках URLSession.
 enum SyncFixtures {
-    static func serverInfo(lyrics: Bool) -> String {
+    static func serverInfo(lyrics: Bool, kinds: [String] = []) -> String {
         let feature = lyrics ? #","lyrics":{"version":1}"# : ""
         return #"{"software":"melogold-server","version":"0.1.0","revision":"abc1234","apiVersion":1,"minApiVersion":1,"serverId":""#
             + AccountTests.serverId
-            + #"","instanceName":"Melogold","publicUrl":null,"secureTransport":true,"registration":"open","features":{"sync":{"protocol":1,"minProtocol":1,"kinds":[],"streams":["library","history"]}"#
+            + #"","instanceName":"Melogold","publicUrl":null,"secureTransport":true,"registration":"open","features":{"sync":{"protocol":1,"minProtocol":1,"kinds":["#
+            + kinds.map { "\"\($0)\"" }.joined(separator: ",")
+            + #"],"streams":["library","history"]}"#
             + feature
             + #"},"limits":{"sync":{"maxOpsPerRequest":500},"history":{"retentionDays":400,"maxEvents":50000,"mergeUploadMax":20000}},"links":{"source":"x","privacy":null,"contact":null},"serverTime":"2026-09-25T10:00:00.000Z"}"#
     }
@@ -106,7 +108,7 @@ enum SyncFixtures {
         rows: [String: String] = [:]
     ) -> String {
         let results = ops(request).map { result($0["opId"] as? String ?? "", $0["kind"] as? String ?? "") }.joined(separator: ",")
-        let arrays = ["tracks", "playlists", "items", "likes", "bookmarks", "plays", "playStats", "playForgets"]
+        let arrays = ["tracks", "playlists", "items", "likes", "bookmarks", "overrides", "lyricsPins", "plays", "playStats", "playForgets"]
             .map { #""\#($0)":\#(rows[$0] ?? "[]")"# }.joined(separator: ",")
         return #"{"results":[\#(results)],"cursor":"\#(cursor)","hasMore":\#(hasMore),"serverTime":"2026-09-25T10:00:00.000Z",\#(arrays)}"#
     }

@@ -35,7 +35,8 @@ struct LocalPlaylistView: View {
         let canReorder = sort == .custom && filter.isEmpty
         Group {
             if let playlist {
-                DetailPage(title: playlist.name) {
+                DetailPage(title: playlist.name, rowIds: visible.map { RowID.make("p", $0.videoId) }, collectionName: playlist.name,
+                           showsSelectButton: !canReorder) {
                     header(playlist, visible)
                 } rows: {
                     if updating {
@@ -155,9 +156,12 @@ struct LocalPlaylistView: View {
                             Label("playlist.link.update", systemImage: "arrow.triangle.2.circlepath")
                         }
                     }
-                    if let browseId = playlist.browseId {
-                        ShareLink(item: ShareLinks.playlist(browseId)) { Label("menu.share", systemImage: "square.and.arrow.up") }
-                    }
+                }
+                if let browseId = playlist.browseId {
+                    ShareLink(item: ShareLinks.playlist(browseId), subject: Text(verbatim: playlist.name),
+                              message: Text(verbatim: playlist.name)) { Label("menu.share", systemImage: "square.and.arrow.up") }
+                } else {
+                    Button { model.share(playlist) } label: { Label("menu.share", systemImage: "square.and.arrow.up") }
                 }
                 Divider()
                 Button(role: .destructive) { model.deletePlaylist(playlist) } label: { Label("playlist.delete", systemImage: "trash") }

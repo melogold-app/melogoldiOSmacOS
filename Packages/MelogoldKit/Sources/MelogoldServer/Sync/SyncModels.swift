@@ -105,6 +105,13 @@ public struct SyncOp: Encodable, Sendable, Hashable {
     public var eventsBefore: String?
     public var resetTotal: Bool?
     public var tracks: [TrackInput]?
+    /// `track.override.set` (с `title`).
+    public var artistsText: String?
+    public var albumTitle: String?
+    /// `lyrics.pin.set`.
+    public var source: String?
+    public var ref: String?
+    public var startTimeMs: Int64?
 
     public init(opId: String, kind: String, at: String, base: String?) {
         self.opId = opId
@@ -198,6 +205,26 @@ public struct PlayForgetRow: Decodable, Sendable, Equatable {
     public let totalBefore: String?
 }
 
+/// Своё название трека на сервере (API §4.8, задание 0014); `deleted` — правка снята.
+public struct TrackOverrideRow: Decodable, Sendable, Equatable {
+    public let videoId: String
+    public let title: String?
+    public let artistsText: String?
+    public let albumTitle: String?
+    public let updatedAt: String
+    public let deleted: Bool
+}
+
+/// Закреплённый текст на сервере (задание 0015); `deleted` или без ссылки — закрепление снято.
+public struct LyricsPinRow: Decodable, Sendable, Equatable {
+    public let videoId: String
+    public let source: String?
+    public let ref: String?
+    public let startTimeMs: Int64?
+    public let updatedAt: String
+    public let deleted: Bool
+}
+
 public struct SyncResponse: Decodable, Sendable, Equatable {
     public let results: [OpResult]
     public let cursor: String
@@ -211,9 +238,11 @@ public struct SyncResponse: Decodable, Sendable, Equatable {
     public let plays: [PlayRow]
     public let playStats: [PlayStatRow]
     public let playForgets: [PlayForgetRow]
+    public let overrides: [TrackOverrideRow]
+    public let lyricsPins: [LyricsPinRow]
 
     enum CodingKeys: String, CodingKey {
-        case results, cursor, hasMore, serverTime, tracks, playlists, items, likes, bookmarks, plays, playStats, playForgets
+        case results, cursor, hasMore, serverTime, tracks, playlists, items, likes, bookmarks, plays, playStats, playForgets, overrides, lyricsPins
     }
 
     public init(from decoder: any Decoder) throws {
@@ -230,6 +259,8 @@ public struct SyncResponse: Decodable, Sendable, Equatable {
         plays = try c.decodeIfPresent([PlayRow].self, forKey: .plays) ?? []
         playStats = try c.decodeIfPresent([PlayStatRow].self, forKey: .playStats) ?? []
         playForgets = try c.decodeIfPresent([PlayForgetRow].self, forKey: .playForgets) ?? []
+        overrides = try c.decodeIfPresent([TrackOverrideRow].self, forKey: .overrides) ?? []
+        lyricsPins = try c.decodeIfPresent([LyricsPinRow].self, forKey: .lyricsPins) ?? []
     }
 }
 

@@ -33,6 +33,9 @@ struct WatchLibraryView: View {
             NavigationLink(value: WatchRoute.library(.history)) {
                 Label("library.history", systemImage: "clock.arrow.circlepath")
             }
+            NavigationLink(value: WatchRoute.stats) {
+                Label("stats.title", systemImage: "chart.bar.xaxis")
+            }
         }
         .navigationTitle(Text(AppSection.library.title))
     }

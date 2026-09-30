@@ -19,4 +19,12 @@ struct ShareLinkTests {
         #expect(ShareLink.parse(URL(string: "https://example.org/s/Ab3dE5gH9")!) == nil)
         #expect(ShareLink.parse(URL(string: "https://example.org/x/Ab3dE5gH9k")!) == nil)
     }
+
+    @Test func linkInsideText() {
+        let text = "Слушай плейлист (https://example.org/s/Ab3dE5gH9k)."
+        #expect(ShareLink.parse(text: text) == ShareLink(server: "https://example.org", shareId: "Ab3dE5gH9k"))
+        #expect(ShareLink.parse(text: "melogold://share?v=1&url=https%3A%2F%2Fa.example&id=Ab3dE5gH9k, ура")?.server == "https://a.example")
+        #expect(ShareLink.parse(text: "нет ссылки") == nil)
+        #expect(ShareLink.parse(text: "https://example.org/about") == nil)
+    }
 }

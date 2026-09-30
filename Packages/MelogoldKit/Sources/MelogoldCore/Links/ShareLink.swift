@@ -8,9 +8,24 @@ public struct ShareLink: Equatable, Sendable {
     public let server: String
     public let shareId: String
 
+    public init(server: String, shareId: String) {
+        self.server = server
+        self.shareId = shareId
+    }
+
     /// 10 знаков base62 (`SHARE_ID_PATTERN` сервера).
     public static func isShareId(_ text: String) -> Bool {
         text.wholeMatch(of: /^[0-9A-Za-z]{10}$/) != nil
+    }
+
+    /// Первая ссылка на снимок в тексте (вставка в Поиске, сообщение): `melogold://share…` или `https://<сервер>/s/<код>`,
+    /// где бы они ни стояли; знаки после ссылки — точка, скобка — отбрасываются.
+    public static func parse(text: String) -> ShareLink? {
+        guard let match = text.firstMatch(of: /(?i)(?:melogold|https?):\/\/\S+/) else { return nil }
+        let trailing = Set(".,;:!?)]}>»\"'…")
+        var link = String(match.output)
+        while let last = link.last, trailing.contains(last) { link.removeLast() }
+        return URL(string: link).flatMap(parse)
     }
 
     public static func parse(_ url: URL) -> ShareLink? {

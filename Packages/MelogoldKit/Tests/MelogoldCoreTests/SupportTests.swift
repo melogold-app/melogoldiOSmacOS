@@ -56,3 +56,18 @@ struct SupportTests {
         #expect(FileManager.default.fileExists(atPath: directory.appendingPathComponent(Log.previousFileName).path))
     }
 }
+
+@Suite("Формы множественного числа")
+struct PluralCategoryTests {
+    @Test func russian() {
+        let forms: [(Int, PluralCategory)] = [(1, .one), (2, .few), (4, .few), (5, .many), (11, .many), (12, .many), (14, .many),
+                                              (21, .one), (22, .few), (25, .many), (101, .one), (111, .many), (0, .many)]
+        for (n, form) in forms { #expect(PluralCategory.of(n, language: "ru") == form, "\(n)") }
+    }
+
+    @Test func english() {
+        #expect(PluralCategory.of(1, language: "en") == .one)
+        #expect(PluralCategory.of(0, language: "en") == .other)
+        #expect(PluralCategory.of(2, language: "en") == .other)
+    }
+}

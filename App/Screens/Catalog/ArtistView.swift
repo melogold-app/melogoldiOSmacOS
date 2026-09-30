@@ -26,8 +26,18 @@ struct ArtistView: View {
 
     // MARK: - Исполнитель: одна прокрутка (REWRITE §3.7.1)
 
+    /// Метки строк-треков исполнителя в порядке экрана: «В вашей библиотеке», затем песни.
+    private func rowIds(_ details: ArtistDetails) -> [String] {
+        let liked = model.library?.library.likedTracks(ofArtist: details.browseId, name: details.name) ?? []
+        var ids = liked.prefix(5).map { RowID.make("l", $0.videoId) }
+        for (index, shelf) in details.shelves.enumerated() where ArtistPageModel.isSongs(shelf) {
+            ids += shelf.tracks.map { RowID.make("s\(index)", $0.videoId) }
+        }
+        return ids
+    }
+
     private func artist(_ details: ArtistDetails) -> some View {
-        DetailPage(title: details.name, twoColumns: false) {
+        DetailPage(title: details.name, twoColumns: false, rowIds: rowIds(details)) {
             CollectionHeader(artworkURL: details.thumbnailUrl, circle: true, title: details.name) {
                 VStack(spacing: 8) {
                     if let subscribers = details.subscribersText {
@@ -99,7 +109,8 @@ struct ArtistView: View {
                             Label("artist.radio", systemImage: "dot.radiowaves.left.and.right")
                         }
                     }
-                    ShareLink(item: ShareLinks.artist(details.browseId, isChannel: false)) {
+                    ShareLink(item: ShareLinks.artist(details.browseId, isChannel: false), subject: Text(verbatim: details.name),
+                              message: Text(verbatim: details.name)) {
                         Label("menu.share", systemImage: "square.and.arrow.up")
                     }
                 } label: {
@@ -162,7 +173,8 @@ struct ArtistView: View {
         }
         .toolbar {
             ToolbarItem {
-                ShareLink(item: ShareLinks.artist(details.browseId, isChannel: true)) {
+                ShareLink(item: ShareLinks.artist(details.browseId, isChannel: true), subject: Text(verbatim: details.name),
+                          message: Text(verbatim: details.name)) {
                     Label("menu.share", systemImage: "square.and.arrow.up")
                 }
             }

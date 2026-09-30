@@ -17,6 +17,8 @@ public enum SettingsKey {
     public static let downloadsWifiOnly = "downloads.wifiOnly"
     public static let cacheStreamLimit = "cache.streamLimit"
     public static let serverURL = "server.url"
+    /// «Управление с других устройств» (задание 0020): поток событий с `remote=1`.
+    public static let remoteControl = "playback.remoteControl"
 
     /// Сортировка списка: `sort.favorites`, `sort.downloads`, `sort.playlistItems` и т. д.
     /// Значение — «Поле:asc» или «Поле:desc», как на Android (`SortPreferences.kt`).

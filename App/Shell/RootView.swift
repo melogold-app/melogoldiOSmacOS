@@ -40,6 +40,14 @@ struct RootView: View {
             .sheet(item: $model.playlistPicker) { request in
                 PlaylistPickerSheet(request: request)
             }
+            .sheet(item: $model.trackDetails) { track in
+                TrackDetailsSheet(track: track)
+            }
+            .sheet(item: $model.playlistShare) { request in
+                PlaylistShareSheet(playlist: request.playlist)
+            }
+            .modifier(SelectionPromptModifier())
+            .modifier(WrappedPresentation())
             .alert(Text("playlist.rename"), isPresented: Binding(get: { model.renameRequest != nil },
                                                                  set: { if !$0 { model.renameRequest = nil } })) {
                 TextField(text: $renameText) { Text("playlist.name") }
@@ -162,6 +170,10 @@ struct RouteView: View {
             LocalPlaylistView(playlistId: id)
         case .hiddenTracks:
             HiddenTracksView()
+        case .sharedPlaylist(let server, let id):
+            SharedPlaylistView(server: server, shareId: id)
+        case .stats:
+            StatsView()
         case .streamInfo:
             StreamInfoView()
         case .diagnostics:

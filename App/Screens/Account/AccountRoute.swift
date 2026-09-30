@@ -12,6 +12,8 @@ enum AccountRoute: Hashable {
     case overview
     case addDevice
     case changePassword
+    /// «Мои ссылки»: снимки своих плейлистов (задание 0019).
+    case myShares
 }
 
 struct AccountRouteView: View {
@@ -27,6 +29,7 @@ struct AccountRouteView: View {
         case .overview: AccountOverviewView()
         case .addDevice: AddDeviceView()
         case .changePassword: ChangePasswordView()
+        case .myShares: MySharesView()
         }
     }
 }

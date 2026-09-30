@@ -21,7 +21,7 @@ struct SearchView: View {
                 }
             }
             .searchSuggestions {
-                if let title = YouTubeLinkParser.parse(model.searchQuery).openTitle {
+                if let title = AppLink.classify(model.searchQuery).openTitle {
                     Button {
                         model.openLink(model.searchQuery)
                     } label: {
@@ -57,7 +57,7 @@ struct SearchView: View {
 
     /// Enter: ссылка YouTube открывает свою цель (REWRITE §2.3), остальное — поиск.
     private func submit() {
-        if YouTubeLinkParser.parse(model.searchQuery).openTitle != nil {
+        if AppLink.classify(model.searchQuery).openTitle != nil {
             model.openLink(model.searchQuery)
         } else {
             model.search.submit(model.searchQuery)
@@ -193,7 +193,7 @@ private struct AllResultsList: View {
                 Label("search.nothingFound", systemImage: "magnifyingglass")
             }
         } else {
-            SelectableList(target: target) {
+            SelectableList(target: target, rowIds: rowIds) {
                 if musicEmpty {
                     Section {
                         videosRows(all.videos)
@@ -224,6 +224,17 @@ private struct AllResultsList: View {
                 }
             }
         }
+    }
+
+    /// Метки строк-треков выдачи в порядке экрана — для выбора нескольких (задание 0013).
+    private var rowIds: [String] {
+        let all = model.search.all
+        var ids: [String] = []
+        func isTrack(_ item: MusicItem) -> Bool { if case .track = item { true } else { false } }
+        if let top = all.top, isTrack(top) { ids.append(RowID.make("top", top.id)) }
+        if case .loaded(let items) = all.music { ids += items.filter(isTrack).map { RowID.make("m", $0.id) } }
+        if case .loaded(let videos) = all.videos { ids += videos.map { RowID.make("v", $0.videoId) } }
+        return ids
     }
 
     private func target(_ id: String) -> RowTarget? {
@@ -273,7 +284,7 @@ private struct PagedResultsList<Chips: View>: View {
         SelectableList(target: { id in
             guard let (_, key) = RowID.split(id) else { return nil }
             return state.items.first { $0.id == key }.flatMap(RowTarget.of)
-        }) {
+        }, rowIds: state.items.filter { if case .track = $0 { true } else { false } }.map { RowID.make("p", $0.id) }) {
             Section {
                 switch state.state {
                 case .failed(let kind):

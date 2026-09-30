@@ -18,6 +18,8 @@ final class AppModel {
     /// Синк библиотеки, истории и своих текстов с аккаунтом (срез 5). «Убрать из истории» и «Очистить историю»
     /// библиотеки уходят его очередью на все устройства аккаунта.
     let sync: LibrarySync
+    /// Пульт (задание 0020): что играет здесь — серверу, команды других устройств — плееру.
+    @ObservationIgnored private(set) var remoteBridge: RemoteBridge?
     @ObservationIgnored private var lifecycle: [any NSObjectProtocol] = []
     @ObservationIgnored private var wasOnline = true
     var settings: AppSettings { services.settings }
@@ -60,6 +62,21 @@ final class AppModel {
 
     /// Лист «Добавить в плейлист…» для этих треков.
     var playlistPicker: PlaylistPickerRequest?
+
+    /// «Новый плейлист…» и «Указать альбом…» для выделенного: окно с полем ввода (задание 0013).
+    var selectionPrompt: SelectionPrompt?
+
+    /// Растёт, когда действие с выделенным закончено (плейлист создан, альбом указан): списки выходят из выделения.
+    var selectionFinished = 0
+
+    /// «Изменить сведения…»: лист «Сведения о треке» (задание 0014).
+    var trackDetails: Track?
+
+    /// «Итоги года» на весь экран: год (задание 0018).
+    var wrappedYear: Int?
+
+    /// «Поделиться» своим плейлистом: лист со ссылкой (задание 0019).
+    var playlistShare: PlaylistShareRequest?
 
     /// «Сохранить файлом» на iPhone и iPad: готовый файл для системного окна сохранения.
     var exportedFile: ExportedAudio?
@@ -115,6 +132,9 @@ final class AppModel {
         wasOnline = services.network.isOnline
         observeNetwork()
         observeRejectedLyrics()
+        remoteBridge = RemoteBridge(account: account, sync: sync, player: services.player, settings: services.settings) { [weak self] text in
+            self?.toast = Toast(text: text)
+        }
     }
 
     /// Сервер не принял свой текст как слишком большой (413, задание 0001 §3.7): сказать человеку, что текст остался
@@ -232,6 +252,11 @@ final class AppModel {
         Log.info("links", "Открыта ссылка \(url.scheme ?? "?")://\(url.host() ?? "")")
         if url.scheme?.lowercased() != "melogold" {
             openLink(url.absoluteString)
+            return
+        }
+        // «Плейлист по ссылке» (API §7.2, задание 0019): открывается без входа, с сервера из ссылки
+        if let share = MelogoldCore.ShareLink.parse(url) {
+            openSharedPlaylist(share)
             return
         }
         switch MelogoldLink.parse(url) {

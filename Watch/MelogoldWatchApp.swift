@@ -38,7 +38,10 @@ struct MelogoldWatchApp: App {
                 #if DEBUG
                 .task {
                     let defaults = UserDefaults.standard
-                    if defaults.bool(forKey: "MelogoldMute") { model.services.player.volume = 0 }
+                    if defaults.bool(forKey: "MelogoldMute") {
+                        model.services.player.volume = 0
+                        model.services.player.outputMuted = true
+                    }
                     if let query = defaults.string(forKey: "MelogoldSearch") {
                         model.pendingQuery = query
                         model.path = [.section(.search)]
@@ -104,6 +107,8 @@ enum WatchRoute: Hashable {
     case queue
     case lyrics
     case sleepTimer
+    /// «Итоги»: минуты и трек месяца (задание 0018).
+    case stats
 }
 
 /// Состояние приложения часов.
@@ -157,6 +162,11 @@ final class WatchModel {
 
     func download(_ track: Track) {
         services.downloads?.download(track)
+    }
+
+    /// Трек, как его показывать: со своим названием, исполнителем и альбомом (задание 0014).
+    func displayed(_ track: Track) -> Track {
+        services.library?.displayed(track) ?? track
     }
 
     /// «Слушать» и «Перемешать» коллекции.

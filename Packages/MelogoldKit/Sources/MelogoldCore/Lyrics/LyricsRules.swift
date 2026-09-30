@@ -12,10 +12,13 @@ public struct FoundLyrics: Equatable, Sendable {
     public var language: String?
     /// Текст взят из своей версии пользователя на сервере: он выбран, остаётся своим (задание 0011).
     public var chosen: Bool
+    /// Ссылка на найденный текст у поставщика (задание 0015).
+    public var syncedRef: String?
+    public var plainRef: String?
 
     public init(
         synced: String?, plain: String?, syncedSource: String? = nil, plainSource: String? = nil, offsetMs: Int64? = nil,
-        language: String? = nil, chosen: Bool = false
+        language: String? = nil, chosen: Bool = false, syncedRef: String? = nil, plainRef: String? = nil
     ) {
         self.synced = synced
         self.plain = plain
@@ -24,6 +27,8 @@ public struct FoundLyrics: Equatable, Sendable {
         self.offsetMs = offsetMs
         self.language = language
         self.chosen = chosen
+        self.syncedRef = syncedRef
+        self.plainRef = plainRef
     }
 }
 
@@ -45,16 +50,20 @@ public enum LyricsRules {
             guard let text, !text.isEmpty else { return false }
             return current?.chosen == true || LyricsSources.isOwn(source)
         }
-        if let side = found.synced, side != baseline?.synced, current?.synced == baseline?.synced,
-           !isProtected(current?.synced, current?.syncedSource) {
+        // Тот же текст, но теперь с известной ссылкой (закрепление, задание 0015), тоже записывается: без этого текст,
+        // найденный до ссылок, искался бы заново при каждом показе
+        if let side = found.synced, side != baseline?.synced || found.syncedRef != baseline?.syncedRef,
+           current?.synced == baseline?.synced, !isProtected(current?.synced, current?.syncedSource) {
             merged.synced = side
             merged.syncedSource = found.syncedSource
+            merged.syncedRef = side.isEmpty ? nil : found.syncedRef
             takenSynced = true
         }
-        if let side = found.plain, side != baseline?.plain, current?.plain == baseline?.plain,
-           !isProtected(current?.plain, current?.plainSource) {
+        if let side = found.plain, side != baseline?.plain || found.plainRef != baseline?.plainRef,
+           current?.plain == baseline?.plain, !isProtected(current?.plain, current?.plainSource) {
             merged.plain = side
             merged.plainSource = found.plainSource
+            merged.plainRef = side.isEmpty ? nil : found.plainRef
             takenPlain = true
         }
         guard takenSynced || takenPlain else { return current }
@@ -75,11 +84,13 @@ public enum LyricsRules {
         if !keepSynced {
             row.synced = nil
             row.syncedSource = nil
+            row.syncedRef = nil
             row.offsetMs = 0
         }
         if !keepPlain {
             row.plain = nil
             row.plainSource = nil
+            row.plainRef = nil
         }
         return row
     }
@@ -96,7 +107,9 @@ public enum LyricsRules {
             plainSource: plain == nil ? current?.plainSource : source,
             offsetMs: synced == nil ? (current?.offsetMs ?? 0) : 0,
             language: language ?? current?.language,
-            chosen: current?.chosen ?? false
+            chosen: current?.chosen ?? false,
+            syncedRef: synced == nil ? current?.syncedRef : nil,
+            plainRef: plain == nil ? current?.plainRef : nil
         )
     }
 

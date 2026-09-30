@@ -41,7 +41,8 @@ struct HistoryView: View {
             guard let (section, key) = RowID.split(id) else { return nil }
             if section == "r" { return visibleRecent.first { $0.track.videoId == key }.map { .single($0.track) } }
             return topTracks.firstIndex { $0.videoId == key }.map { .list(topTracks, $0) }
-        }, context: { _ in .history }) {
+        }, context: { _ in .history },
+        rowIds: mode == .recent ? visibleRecent.map { RowID.make("r", $0.track.videoId) } : topTracks.map { RowID.make("t", $0.videoId) }) {
             Section {
                 Picker(selection: $mode) {
                     Text("history.recent").tag(Mode.recent)
@@ -110,6 +111,12 @@ struct HistoryView: View {
         #endif
         .inlineTitle()
         .toolbar {
+            ToolbarItem {
+                Button { model.open(.stats) } label: {
+                    Label("stats.title", systemImage: "chart.bar.xaxis")
+                }
+                .accessibilityIdentifier("history.stats")
+            }
             if !devices.isEmpty {
                 ToolbarItem {
                     deviceMenu
