@@ -47,6 +47,7 @@ struct DownloadMenuItem: View {
             switch model.services.downloads?.store.entry(track.videoId)?.wait {
             case .wifi?: String(localized: "downloads.wait.wifi")
             case .storage?: String(localized: "downloads.wait.storage")
+            case .botCheck?: String(localized: "player.skip.botCheck")
             default: String(localized: "downloads.wait.network")
             }
         case .paused: String(localized: "downloads.paused")

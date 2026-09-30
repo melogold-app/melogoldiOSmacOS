@@ -25,6 +25,9 @@ public actor StreamSource {
     private let cache: AudioCache?
     private let downloads: DownloadStore?
     private let session: URLSession
+    /// Источник создан действием пользователя (нажатие, «Далее», «Повторить»): пока YouTube не пускает адрес, такой
+    /// источник всё же пробует один запрос потока (`StreamResolver.resolve(_:userInitiated:)`).
+    private let userInitiated: Bool
     /// Трек скачан целиком: байты — из загрузок, сети не нужно.
     private var downloaded = false
     private var info: StreamInfo?
@@ -39,8 +42,10 @@ public actor StreamSource {
     /// Сколько раз запрашивался адрес потока.
     public private(set) var resolveCount = 0
 
-    public init(videoId: String, resolver: StreamResolver, cache: AudioCache?, downloads: DownloadStore? = nil, session: URLSession) {
+    public init(videoId: String, resolver: StreamResolver, cache: AudioCache?, downloads: DownloadStore? = nil, session: URLSession,
+                userInitiated: Bool = false) {
         self.videoId = videoId
+        self.userInitiated = userInitiated
         self.resolver = resolver
         self.cache = cache
         self.downloads = downloads
@@ -118,7 +123,7 @@ public actor StreamSource {
         if let info, !info.url.isEmpty, info.expiresAt > Date() { return info }
         do {
             resolveCount += 1
-            let fresh = try await resolver.resolve(videoId)
+            let fresh = try await resolver.resolve(videoId, userInitiated: userInitiated)
             info = fresh
             generation += 1
             return fresh

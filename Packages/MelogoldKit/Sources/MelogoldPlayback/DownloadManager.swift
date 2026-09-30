@@ -8,6 +8,11 @@ import MelogoldData
 /// «недоступно» и возрастное ограничение — сразу ошибка. Без сети, без Wi‑Fi при «Только по Wi‑Fi» и без места —
 /// ожидание с причиной.
 ///
+/// Проверка на бота (`StreamError.stopsQueue`) — это адрес, а не трек: ни повтора, ни ошибки. Вся очередь встаёт в
+/// ожидание с причиной `.botCheck` (порядок и скачанные куски сохраняются), новые загрузки не начинаются. Очередь
+/// идёт дальше по «Повторить» / «Продолжить» (`resumeAfterBotCheck`) и при смене сети (`networkChanged`): резолвер
+/// забывает закрытый адрес, и первая же загрузка проверяет его одним запросом.
+///
 /// iPhone, iPad, Mac, Vision: загрузка идёт, пока приложение открыто или играет музыка (docs/PROMPT.md §4). Часы: все
 /// куски трека ставятся сразу в фоновую сессию URLSession — система докачивает без приложения (§5.6).
 @MainActor
@@ -17,6 +22,9 @@ public final class DownloadManager {
     public private(set) var revision = 0
     /// Доля скачанного у треков в работе.
     public private(set) var progress: [String: Double] = [:]
+    /// YouTube не пускает адрес: очередь стоит, пока пользователь не нажмёт «Повторить» или не сменится сеть.
+    public private(set) var blockedByBotCheck = false
+    @ObservationIgnored private var resuming = false
     /// «Только по Wi‑Fi».
     public var wifiOnly = false {
         didSet { if oldValue != wifiOnly { pump() } }
@@ -110,13 +118,32 @@ public final class DownloadManager {
     public func retryFailed() {
         store.retryFailed()
         changed()
+        resumeAfterBotCheck()
         pump()
     }
 
     public func retry(_ videoId: String) {
         store.retry(videoId)
         changed()
+        resumeAfterBotCheck()
         pump()
+    }
+
+    /// «Повторить» у остановленной проверкой на бота очереди: резолвер забывает метку «адрес закрыт», ждущие встают в
+    /// очередь, и первая же загрузка проверяет адрес одним запросом. Если он всё ещё закрыт — очередь снова встанет.
+    public func resumeAfterBotCheck() {
+        // Двойное нажатие не должно снять метку второй раз, когда первая проба уже ответила проверкой на бота
+        guard blockedByBotCheck, !resuming else { return }
+        resuming = true
+        Task { [weak self, resolver] in
+            await resolver.forgetBlock()
+            guard let self else { return }
+            self.resuming = false
+            self.blockedByBotCheck = false
+            self.store.release(.botCheck)
+            self.changed()
+            self.pump()
+        }
     }
 
     /// «Пауза» и «Продолжить» у всех активных загрузок.
@@ -128,7 +155,10 @@ public final class DownloadManager {
         }
         store.setPaused(paused)
         changed()
-        if !paused { pump() }
+        if !paused {
+            resumeAfterBotCheck()
+            pump()
+        }
     }
 
     public var isPaused: Bool {
@@ -145,13 +175,21 @@ public final class DownloadManager {
 
     /// Сеть или настройки поменялись — ожидающие пробуют снова.
     public func networkChanged() {
-        pump()
+        if blockedByBotCheck {
+            resumeAfterBotCheck()
+        } else {
+            pump()
+        }
     }
 
     // MARK: - Очередь
 
     /// Занять свободные места загрузками из очереди.
     public func pump() {
+        if blockedByBotCheck {
+            holdQueue()
+            return
+        }
         let free = Self.maxParallel - workers.count
         guard free > 0 else { return }
         let candidates = store.pending(limit: free + workers.count).filter { workers[$0] == nil }.prefix(free)
@@ -165,6 +203,11 @@ public final class DownloadManager {
                 await self?.run(videoId)
             }
         }
+    }
+
+    /// Адрес закрыт: все ждущие очереди остаются на местах с причиной «YouTube не пускает адрес».
+    private func holdQueue() {
+        if store.hold(.botCheck) > 0 { changed() }
     }
 
     private func waitReason() -> DownloadWait? {
@@ -227,6 +270,16 @@ public final class DownloadManager {
 
     /// Ошибка: окончательные классы — сразу `failed`, прочие — до трёх попыток.
     func failed(_ videoId: String, _ error: StreamError) {
+        if error.stopsQueue {
+            // Проверка на бота: не трек и не попытка. Трек остаётся на своём месте, очередь стоит (без повторов и без
+            // ошибки) — другие загрузки не начинают новых запросов к закрытому адресу.
+            Log.warning("downloads", "\(videoId): \(error) — очередь стоит, пока пользователь не нажмёт «Повторить» или не сменится сеть")
+            blockedByBotCheck = true
+            store.setState(videoId, .waiting, wait: .botCheck)
+            holdQueue()
+            changed()
+            return
+        }
         let attempts = store.incrementAttempts(videoId)
         Log.warning("downloads", "\(videoId): \(error) (попытка \(attempts))")
         if error.isFinal || attempts >= 3 {

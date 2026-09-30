@@ -55,8 +55,13 @@ struct DownloadsView: View {
                         Text("downloads.active \(active.count)")
                         Spacer()
                         let paused = active.allSatisfy { $0.state == .paused }
-                        Button(paused ? "downloads.resume" : "downloads.pause") { manager?.setPaused(!paused) }
-                            .font(.subheadline)
+                        if active.contains(where: { $0.wait == .botCheck }) {
+                            // YouTube не пускает адрес: очередь стоит, «Повторить» проверяет его одним запросом
+                            Button("common.retry") { manager?.resumeAfterBotCheck() }.font(.subheadline)
+                        } else {
+                            Button(paused ? "downloads.resume" : "downloads.pause") { manager?.setPaused(!paused) }
+                                .font(.subheadline)
+                        }
                     }
                 }
             }
@@ -129,7 +134,7 @@ struct DownloadsView: View {
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
                 Text(verbatim: entry.track?.title ?? entry.videoId).lineLimit(1)
-                Text(status(entry)).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                Text(status(entry)).font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
             }
             Spacer()
             Button { manager?.remove(entry.videoId) } label: {
@@ -190,13 +195,14 @@ struct DownloadsView: View {
         }
     }
 
-    /// «45 %», «Ждём Wi‑Fi», «Нет сети», «Не хватает места», «Пауза», «В очереди».
+    /// «45 %», «Ждём Wi‑Fi», «Нет сети», «Не хватает места», «YouTube не пускает этот адрес…», «Пауза», «В очереди».
     private func status(_ entry: DownloadEntry) -> LocalizedStringResource {
         switch entry.state {
         case .waiting:
             switch entry.wait {
             case .wifi: "downloads.wait.wifi"
             case .storage: "downloads.wait.storage"
+            case .botCheck: "player.skip.botCheck"
             default: "downloads.wait.network"
             }
         case .paused: "downloads.paused"
