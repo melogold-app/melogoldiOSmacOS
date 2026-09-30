@@ -41,13 +41,8 @@ struct PlayerMenuItems: View {
             Button { model.playlistPicker = PlaylistPickerRequest(tracks: [track]) } label: {
                 Label("menu.addToPlaylist", systemImage: "text.badge.plus")
             }
-            if model.services.downloads != nil {
-                if model.library?.downloadStates[track.videoId] == .completed {
-                    Button(role: .destructive) { model.removeDownload(track) } label: { Label("menu.removeDownload", systemImage: "trash") }
-                } else if model.library?.downloadStates[track.videoId] == nil {
-                    Button { model.download(track) } label: { Label("menu.download", systemImage: "arrow.down.circle") }
-                }
-            }
+            // Как в меню трека: «Скачать» → «Отменить загрузку · 42 %» → «Удалить загрузку» (задание 0009)
+            DownloadMenuItem(track: track)
             Button { model.searchOtherVersions(of: track); model.showNowPlaying = false } label: {
                 Label("menu.otherVersions", systemImage: "square.on.square")
             }

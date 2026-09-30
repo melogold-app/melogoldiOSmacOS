@@ -1,6 +1,6 @@
 # Загрузки, «Сохранить файлом», метки и понятное «Хранилище»
 
-Статус: сделано (2026-09-30) — кроме меню «…» самого плеера (`PlayerMenu.swift`, редизайн «Сейчас играет»): там пункт загрузки пока без процентов и без «Трансляцию нельзя скачать» — заменить его блок на `DownloadMenuItem(track:)`
+Статус: сделано (2026-09-30)
 
 Дополнение к `docs/PROMPT.md` («Кэш и загрузки», «Хранилище и данные»), делается вместе с загрузками по REWRITE §4.7. Те же задания: `melogoldWindows/tasks/0009-storage-explained.md` (сделано, Windows 0.1.8) и `melogoldAndroid/tasks/0007-storage-explained.md`. Эталон — Android (`ui/components/menu/MediaItemMenu.kt`: `DownloadEntry`, `SaveFileEntry`; `ui/kit/DownloadBadge.kt`; `data/downloads/FileExport.kt`, `Mp4Tags.kt`) и Windows (`src/Melogold.Playback/Mp4Writer.cs`, `TrackDownloads.cs`).
 
