@@ -51,9 +51,10 @@ struct SharedPlaylistView: View {
 
     private func content(_ share: ShareDto) -> some View {
         let tracks = share.playlistTracks
-        return DetailPage(title: share.name, rowIds: tracks.map { RowID.make("t", $0.videoId) }, collectionName: share.name) {
-            CollectionHeader(artworkURL: tracks.first?.thumbnailUrl, title: share.name) {
-                VStack(spacing: 4) {
+        return DetailPage(title: share.name, fullBleedHeader: DetailLayout.compactCover == .hero,
+                          rowIds: tracks.map { RowID.make("t", $0.videoId) }, collectionName: share.name) {
+            CollectionHeader(artworkURL: tracks.first?.thumbnailUrl, style: DetailLayout.compactCover, title: share.name) {
+                HeaderSubtitle {
                     Text(verbatim: LibraryText.summary(tracks))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -96,6 +97,7 @@ struct SharedPlaylistView: View {
         .controlSize(.large)
         .buttonBorderShape(.capsule)
         .frame(maxWidth: 420)
+        .headerInset()
         .disabled(saved != nil || tracks.isEmpty)
         .accessibilityIdentifier("shared.save")
     }

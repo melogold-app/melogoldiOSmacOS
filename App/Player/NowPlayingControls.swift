@@ -19,7 +19,7 @@ struct NowPlayingTitle: View {
                     .font(large ? Font.title.weight(.bold) : .playerTitle)
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                PlayerStatusLine(font: large ? .title3 : .playerArtist)
+                PlayerStatusLine(font: large ? .title3 : .playerArtist, detailed: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             TrackActionCircles(size: large ? .title3 : .body)
@@ -133,22 +133,21 @@ struct QueueToggleButton: View {
     }
 }
 
-/// Нижний ряд: «Текст», AirPlay, «Очередь» поровну по ширине, одного цвета (AirPlay — акцентом, только пока звук идёт на
-/// другое устройство). «…» — у названия, режимы — в ряду транспорта.
+/// Нижний ряд: «Текст», «Устройство» (AirPlay или лист пульта, задание 0020), «Очередь» поровну по ширине, одного цвета;
+/// над ним — «Играет на «…»», пока пульт управляет другим устройством. «…» — у названия, режимы — в ряду транспорта.
 struct PlayerActionBar: View {
     var body: some View {
-        HStack(spacing: 0) {
-            LyricsToggleButton()
-            Spacer(minLength: 0)
-            #if !os(visionOS)
-            RoutePickerButton()
-                .frame(width: Design.Size.minTap, height: Design.Size.minTap)
-                .accessibilityLabel(Text("player.airplay"))
-            Spacer(minLength: 0)
-            #endif
-            QueueToggleButton()
+        VStack(spacing: Design.Space.xs) {
+            RemotePlayingPill()
+            HStack(spacing: 0) {
+                LyricsToggleButton()
+                Spacer(minLength: 0)
+                DeviceButton()
+                Spacer(minLength: 0)
+                QueueToggleButton()
+            }
+            .padding(.horizontal, Design.Space.l)
         }
-        .padding(.horizontal, Design.Space.l)
         .iconTypeSize()
     }
 }

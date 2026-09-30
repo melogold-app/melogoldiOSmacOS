@@ -134,6 +134,10 @@ public actor StreamResolver {
             throw error
         }
         var last: StreamError?
+        // Проверка на бота бывает у одного клиента, а у другого нет (30.09.2026, выход VPN в Германии: VISIONOS и
+        // ANDROID_VR — «вы не бот», IOS — поток): каждый клиент спрашивается один раз, а адрес закрыт, только когда
+        // отказали все
+        var botCheck: StreamError?
         for profile in clients {
             try Task.checkCancellation()
             let started = Date()
@@ -147,9 +151,8 @@ public actor StreamResolver {
                 Log.warning("stream", "\(videoId): \(error)")
                 throw await diagnose(videoId, error)
             } catch let error as StreamError where error.stopsQueue {
-                blocked = (error, now())
-                Log.warning("stream", "\(videoId): \(profile.name) — \(error); YouTube не пускает адрес: без других клиентов, диагноза и повторов")
-                throw error
+                Log.warning("stream", "\(videoId): \(profile.name) — \(error)")
+                botCheck = error
             } catch let error as StreamError {
                 Log.warning("stream", "\(videoId): \(profile.name) — \(error)")
                 last = error
@@ -158,6 +161,12 @@ public actor StreamResolver {
             } catch {
                 last = StreamError(.network, error.localizedDescription)
             }
+        }
+        if let botCheck {
+            // Ни один клиент не дал потока, и YouTube просит подтвердить, что это не бот: без диагноза и повторов
+            blocked = (botCheck, now())
+            Log.warning("stream", "\(videoId): YouTube не пускает адрес — без диагноза и повторов, фон молчит 10 минут")
+            throw botCheck
         }
         throw await diagnose(videoId, last ?? StreamError(.extractor, "no stream clients"))
     }

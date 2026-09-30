@@ -61,6 +61,10 @@ extension XCTestCase {
         let loginField = app.textFields["Логин"]
         XCTAssertTrue(loginField.waitForExistence(timeout: 5))
         loginField.tap()
+        // После завершённого сеанса поле уже заполнено прежним логином
+        if let current = loginField.value as? String, !current.isEmpty, current != loginField.placeholderValue {
+            loginField.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count))
+        }
         loginField.typeText(login)
         XCTAssertEqual(loginField.value as? String, login, "симулятор потерял символы логина")
         app.buttons["account.signIn.submit"].tap()
@@ -208,6 +212,39 @@ struct TestDevice: Sendable {
         _ = try await Self.call(server, "POST", "/playback/commands", token: token, body: body)
     }
 
+    /// Поток событий этого устройства с `remote=1` (пульт, задание 0020): устройство «в сети» и управляемо, пока поток
+    /// открыт; `actions` — действия пришедших `playback.command`. `cancel()` закрывает поток.
+    func openRemoteStream() -> RemoteStream {
+        let stream = RemoteStream()
+        var request = URLRequest(url: URL(string: server + "/auth/me/events?remote=1")!, timeoutInterval: 300)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        stream.task = Task {
+            guard let (bytes, _) = try? await URLSession.shared.bytes(for: request) else { return }
+            do {
+                for try await line in bytes.lines where line.hasPrefix("data: ") {
+                    guard let data = line.dropFirst(6).data(using: .utf8),
+                          let event = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                          event["type"] as? String == "playback.command",
+                          let action = (event["payload"] as? [String: Any])?["action"] as? String else { continue }
+                    await stream.record(action)
+                }
+            } catch {}
+        }
+        return stream
+    }
+
+    /// «Что играет» этого устройства (`PUT /playback/state`): один трек, играет.
+    func reportPlaying(videoId: String, title: String, artist: String) async throws {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        _ = try await Self.call(server, "PUT", "/playback/state", token: token, body: [
+            "sessionId": UUID().uuidString.lowercased(), "queueVersion": 0, "at": formatter.string(from: Date()),
+            "index": 0, "positionMs": 30_000, "durationMs": 213_000, "playing": true, "volume": 40,
+            "queue": [["videoId": videoId, "title": title, "artistsText": artist]],
+        ])
+    }
+
     /// Изменения истории после `cursor` (API §4.8): `plays`, `playStats`, `playForgets` и новый курсор.
     func changes(since cursor: String) async throws -> [String: Any] {
         try await sync(ops: [], cursor: cursor)
@@ -296,4 +333,19 @@ struct TestDevice: Sendable {
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter.string(from: date)
     }
+}
+
+/// Команды пульта, пришедшие в поток `remote=1` тестового устройства.
+actor RemoteStreamLog {
+    private(set) var actions: [String] = []
+    func record(_ action: String) { actions.append(action) }
+}
+
+final class RemoteStream: @unchecked Sendable {
+    let log = RemoteStreamLog()
+    var task: Task<Void, Never>?
+
+    func record(_ action: String) async { await log.record(action) }
+    var actions: [String] { get async { await log.actions } }
+    func cancel() { task?.cancel() }
 }

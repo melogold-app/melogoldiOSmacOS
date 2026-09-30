@@ -24,6 +24,7 @@ enum LibraryText {
 
 /// Шапка списка треков библиотеки: сводка и «Слушать · Перемешать», у скачиваемых — «Скачать».
 struct TrackListHeader<Extra: View>: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
     let summary: String
     let play: () -> Void
     let shuffle: () -> Void
@@ -34,7 +35,7 @@ struct TrackListHeader<Extra: View>: View {
             Text(verbatim: summary)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            HStack(spacing: 12) {
+            (typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 12)) : AnyLayout(HStackLayout(spacing: 12))) {
                 PlayButton(action: play)
                 ShuffleButton(action: shuffle)
                 extra()
@@ -160,6 +161,10 @@ struct EmptyRow: View {
 struct PlaylistArtwork: View {
     let playlist: LibraryPlaylist
     var size: CGFloat
+    /// Радиус углов; без него — по стороне (`Design.Radius.artwork`), у шапки — радиус крупной обложки.
+    var cornerRadius: CGFloat?
+
+    private var radius: CGFloat { cornerRadius ?? Design.Radius.artwork(size) }
 
     var body: some View {
         Group {
@@ -176,12 +181,12 @@ struct PlaylistArtwork: View {
                     }
                 }
                 .frame(width: size, height: size)
-                .clipShape(RoundedRectangle(cornerRadius: max(4, size * 0.12), style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
             } else if let url = playlist.thumbnailUrl ?? playlist.mosaic.first {
-                ArtworkView(url: url, size: size)
+                ArtworkView(url: url, size: size, cornerRadius: radius)
             } else {
                 ZStack {
-                    RoundedRectangle(cornerRadius: max(4, size * 0.12), style: .continuous).fill(.quaternary)
+                    RoundedRectangle(cornerRadius: radius, style: .continuous).fill(.quaternary)
                     Image(systemName: "music.note.list")
                         .font(.system(size: size * 0.35))
                         .foregroundStyle(.secondary)

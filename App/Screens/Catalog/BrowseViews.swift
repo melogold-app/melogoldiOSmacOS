@@ -143,20 +143,22 @@ private struct GridPage: View {
     }
 }
 
-/// Сетка карточек по ширине окна.
+/// Сетка карточек по ширине окна: колонки подбираются по ширине, карточка занимает колонку целиком (на iPhone — две
+/// колонки, на iPad и Mac — пять и больше).
 struct CardGrid: View {
     @Environment(\.cardMetrics) private var metrics
     let items: [MusicItem]
 
     var body: some View {
         ScrollView {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: metrics.square, maximum: metrics.square + 40), spacing: 14, alignment: .top)],
-                      alignment: .leading, spacing: 18) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: metrics.compact ? 140 : 160, maximum: 240), spacing: metrics.gap + 4, alignment: .top)],
+                      alignment: .leading, spacing: Design.Space.l) {
                 ForEach(items) { item in
-                    ItemCard(item: item)
+                    ItemCard(item: item, fill: true)
                 }
             }
-            .padding(metrics.margin)
+            .padding(.horizontal, metrics.margin)
+            .padding(.vertical, Design.Space.s)
         }
     }
 }

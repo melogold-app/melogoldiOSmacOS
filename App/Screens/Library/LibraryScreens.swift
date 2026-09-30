@@ -159,22 +159,17 @@ struct PlaylistsView: View {
             !model.isHidden(PendingKey.playlist($0.id))
                 && (filter.isEmpty || $0.name.localizedCaseInsensitiveContains(filter))
         })
-        List {
-            Button { newPlaylist = true } label: {
-                Label("library.newPlaylist", systemImage: "plus")
-            }
-            .buttonStyle(.borderless)
-            ForEach(visible) { playlist in
-                NavigationLink(value: Route.localPlaylist(playlist.id)) {
-                    PlaylistRow(playlist: playlist)
-                }
-                .contextMenu { PlaylistMenuItems(playlist: playlist) }
-                .swipeActions {
-                    Button(role: .destructive) { model.deletePlaylist(playlist) } label: {
-                        Label("playlist.delete", systemImage: "trash")
-                    }
+        // Обложки крупно в адаптивной сетке, как «Альбомы»; переименовать и удалить — в меню карточки (долгое нажатие,
+        // правый щелчок)
+        ScrollView {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150, maximum: 220), spacing: 16, alignment: .top)], alignment: .leading, spacing: 20) {
+                if filter.isEmpty { NewPlaylistTile { newPlaylist = true } }
+                ForEach(visible) { playlist in
+                    PlaylistCard(playlist: playlist)
                 }
             }
+            .padding(.horizontal, Design.Space.m)
+            .padding(.vertical, Design.Space.s)
             if visible.isEmpty {
                 EmptyRow(title: "library.playlists", systemImage: "music.note.list", description: "library.playlists.empty", filter: filter)
             }
@@ -291,7 +286,7 @@ struct SavedArtistsView: View {
             ForEach(visible) { artist in
                 NavigationLink(value: Route.artist(artist.browseId)) {
                     HStack(spacing: 12) {
-                        ArtworkView(url: artist.thumbnailUrl, size: 48, shape: .circle)
+                        ArtworkView(url: artist.thumbnailUrl, size: Design.Layout.rowArtwork, shape: .circle)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(verbatim: artist.name).lineLimit(1)
                             if artist.isChannel {
@@ -310,6 +305,7 @@ struct SavedArtistsView: View {
                 EmptyRow(title: "library.artists", systemImage: "music.mic", description: "library.artists.empty", filter: filter)
             }
         }
+        .listStyle(.plain)
         .navigationTitle(Text("library.artists"))
         .inlineTitle()
         .searchable(text: $filter, prompt: Text("library.filter"))

@@ -53,6 +53,14 @@ struct SearchView: View {
             .onChange(of: model.searchFocusRequest) { focused = true }
             .onChange(of: focused) { _, value in model.textInputActive = value }
             .onAppear { if model.searchFocusRequest > 0 { focused = true } }
+            #if DEBUG
+            // -MelogoldSearchBlur YES: поле без фокуса через пару секунд — снимок выдачи без клавиатуры и подсказок
+            .task {
+                guard UserDefaults.standard.bool(forKey: "MelogoldSearchBlur") else { return }
+                try? await Task.sleep(for: .seconds(4))
+                focused = false
+            }
+            #endif
     }
 
     /// Enter: ссылка YouTube открывает свою цель (REWRITE §2.3), остальное — поиск.
@@ -77,6 +85,7 @@ private struct PasteLinkButton: View {
         }
         .labelStyle(.titleAndIcon)
         .buttonBorderShape(.capsule)
+        .controlSize(.large)
     }
 }
 
@@ -114,6 +123,7 @@ private struct SearchRootView: View {
                 List {
                     Section {
                         PasteLinkButton()
+                            .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
                     }
                     if !search.recent.isEmpty {
@@ -148,6 +158,7 @@ private struct SearchRootView: View {
                     }
                     RecentlyPlayedSection(entries: recentPlays)
                 }
+                .listStyle(.plain)
             }
         }
         .task(id: model.library?.revision) {
@@ -223,6 +234,7 @@ private struct AllResultsList: View {
                     }
                 }
             }
+            .listStyle(.plain)
         }
     }
 
@@ -261,16 +273,24 @@ private struct AllResultsList: View {
     }
 
     private func sectionHeader(_ title: String, more scope: SearchModel.Scope) -> some View {
-        HStack {
+        HStack(alignment: .firstTextBaseline) {
             Text(verbatim: title)
+                .font(.title3.bold())
+                .foregroundStyle(Color.primary)
             Spacer()
             Button {
                 model.search.scope = scope
             } label: {
-                Text("common.more")
+                HStack(spacing: 2) {
+                    Text("common.more")
+                    Image(systemName: "chevron.forward").imageScale(.small).fontWeight(.semibold).accessibilityHidden(true)
+                }
+                .contentShape(Rectangle().inset(by: -12))
             }
             .font(.subheadline)
+            .buttonStyle(.borderless)
         }
+        .textCase(nil)
     }
 }
 
@@ -307,6 +327,7 @@ private struct PagedResultsList<Chips: View>: View {
                 chips()
             }
         }
+        .listStyle(.plain)
     }
 }
 
@@ -327,6 +348,9 @@ private struct FilterChips<Option: Hashable>: View {
                         Text(title(option))
                     }
                     .buttonStyle(.bordered)
+                    .buttonBorderShape(.capsule)
+                    // Зона нажатия не ниже 44 pt (HIG «Buttons»); у `.regular` ряд фильтров был 34 pt
+                    .controlSize(.large)
                     .tint(selected ? .accentColor : .secondary)
                     .accessibilityAddTraits(selected ? .isSelected : [])
                 }

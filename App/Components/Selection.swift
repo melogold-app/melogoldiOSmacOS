@@ -202,8 +202,20 @@ struct SelectableList<Content: View>: View {
                 .environment(\.editMode, editMode)
                 .toolbar {
                     if showsSelectButton, !rowIds.isEmpty {
+                        // Своя «капсула» у «Выбрать»: значки действий экрана и выбор не слипаются в одну панель (выбор — отдельный режим)
+                        #if !os(visionOS)
+                        ToolbarSpacer(.fixed, placement: .primaryAction)
+                        #endif
+                        // Значок, а не слово: с тремя группами кнопок название экрана («Избранное») обрезалось до «Избран…»
                         ToolbarItem(placement: .primaryAction) {
-                            Button(isSelecting ? "common.done" : "selection.select") { toggleSelecting() }
+                            if isSelecting {
+                                Button("common.done") { toggleSelecting() }
+                            } else {
+                                Button { toggleSelecting() } label: {
+                                    Label("selection.select", systemImage: "checkmark.circle")
+                                }
+                                .accessibilityIdentifier("selection.select")
+                            }
                         }
                     }
                 }

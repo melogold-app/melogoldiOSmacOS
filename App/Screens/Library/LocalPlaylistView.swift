@@ -35,7 +35,8 @@ struct LocalPlaylistView: View {
         let canReorder = sort == .custom && filter.isEmpty
         Group {
             if let playlist {
-                DetailPage(title: playlist.name, rowIds: visible.map { RowID.make("p", $0.videoId) }, collectionName: playlist.name,
+                DetailPage(title: playlist.name, fullBleedHeader: DetailLayout.compactCover == .hero,
+                           rowIds: visible.map { RowID.make("p", $0.videoId) }, collectionName: playlist.name,
                            showsSelectButton: !canReorder) {
                     header(playlist, visible)
                 } rows: {
@@ -68,6 +69,8 @@ struct LocalPlaylistView: View {
                     RowID.split(id).flatMap { key in visible.firstIndex { $0.videoId == key.key }.map { .list(visible, $0) } }
                 } context: { _ in .playlist(playlistId) }
                 .searchable(text: $filter, prompt: Text("library.filter"))
+                // Поле фильтра не лежит поверх обложки шапки: поиск сворачивается в кнопку панели
+                .searchMinimizedInToolbar()
                 .toolbar { toolbar(playlist) }
                 .sheet(isPresented: $linkSheet) { LinkModeSheet(playlist: playlist) }
             } else {
@@ -81,30 +84,19 @@ struct LocalPlaylistView: View {
     }
 
     private func header(_ playlist: LibraryPlaylist, _ visible: [Track]) -> some View {
-        VStack(spacing: 12) {
-            PlaylistArtwork(playlist: playlist, size: 200)
-            Text(verbatim: playlist.name)
-                .font(.title2.weight(.bold))
-                .multilineTextAlignment(.center)
-            Text(verbatim: LibraryText.summary(tracks))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            linkLine(playlist)
-            HStack(spacing: 12) {
-                PlayButton { model.playAll(visible, shuffled: false) }
-                ShuffleButton { model.playAll(visible, shuffled: true) }
+        CollectionHeader(style: DetailLayout.compactCover, title: playlist.name, artwork: { side in
+            PlaylistArtwork(playlist: playlist, size: side, cornerRadius: DetailLayout.compactCover == .hero && side > 340 ? 0 : Design.Radius.cover)
+        }, subtitle: {
+            HeaderSubtitle {
+                Text(verbatim: LibraryText.summary(tracks))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                linkLine(playlist)
             }
-            .controlSize(.large)
-            .buttonBorderShape(.capsule)
-            .frame(maxWidth: 480)
-            Picker(selection: $sort) {
-                ForEach(PlaylistItemsSort.allCases, id: \.self) { Text($0.title).tag($0) }
-            } label: {
-                Text("library.sort")
-            }
-            .pickerStyle(.menu)
-        }
-        .frame(maxWidth: .infinity)
+        }, actions: {
+            PlayButton { model.playAll(visible, shuffled: false) }
+            ShuffleButton { model.playAll(visible, shuffled: true) }
+        })
     }
 
     /// «⛓ YouTube · Только добавлять · обновлено 2 ч назад»; режим другого устройства — «Взять на себя».
@@ -148,6 +140,13 @@ struct LocalPlaylistView: View {
         }
         ToolbarItem {
             Menu {
+                // Порядок строк — в меню «…»: в панели и так «Скачать», «…», «Изменить» и «Выбрать»
+                Picker(selection: $sort) {
+                    ForEach(PlaylistItemsSort.allCases, id: \.self) { Text($0.title).tag($0) }
+                } label: {
+                    Text("library.sort")
+                }
+                .pickerStyle(.inline)
                 Button { model.renameRequest = playlist } label: { Label("playlist.rename", systemImage: "pencil") }
                 if playlist.browseId != nil {
                     Button { linkSheet = true } label: { Label("playlist.link.menu", systemImage: "link") }

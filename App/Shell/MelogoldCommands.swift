@@ -137,6 +137,8 @@ struct MelogoldCommands: Commands {
                 Text("player.repeat")
             }
             SleepTimerMenu().environment(model)
+            Divider()
+            Button("remote.device.menu") { model.remoteSheet = true }
         }
 
         // «Окно»: главное окно (⌘0) и мини-плеер (⌥⌘M) — вместо пунктов, которые система добавляет сама без сочетаний

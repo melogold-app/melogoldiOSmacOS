@@ -11,14 +11,14 @@ struct NewView: View {
         let store = model.services.explore
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(alignment: .leading, spacing: 28) {
+                VStack(alignment: .leading, spacing: Design.Layout.shelfGap) {
                     if store.fromCache, let page = store.page {
-                        CachedDataChip(date: page.loadedAt).padding(.horizontal)
+                        CachedDataChip(date: page.loadedAt).shelfInset()
                     }
                     if let releases = store.page?.newReleases {
-                        VStack(alignment: .leading, spacing: 10) {
+                        VStack(alignment: .leading, spacing: Design.Layout.headerGap) {
                             ShelfHeader(title: Text("new.releases"), more: .newReleases)
-                                .padding(.horizontal)
+                                .shelfInset()
                             CardCarousel(items: releases.items)
                         }
                     } else if case .failed(let kind) = store.state {
@@ -29,7 +29,8 @@ struct NewView: View {
                     }
                     forYou
                 }
-                .padding(.vertical, 8)
+                .padding(.top, Design.Space.xs)
+                .padding(.bottom, Design.Space.l)
                 .id(ScrollTop.id)
             }
             .onChange(of: model.scrollToTopRequest(for: .new)) {
@@ -57,14 +58,14 @@ struct NewView: View {
     private var forYou: some View {
         let store = model.services.forYou
         if let picks = store.picks, !picks.tracks.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: Design.Layout.headerGap) {
                 HStack(alignment: .firstTextBaseline) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("new.forYou").font(.title3.weight(.semibold)).accessibilityAddTraits(.isHeader)
+                        Text("new.forYou").font(.title2.bold()).accessibilityAddTraits(.isHeader)
                         Text("new.forYou.basedOn \(picks.seeds.map(\.title).joined(separator: ", "))")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                            .lineLimit(1)
+                            .lineLimit(2)
                         if store.fromCache {
                             Text("new.forYou.updated \(picks.loadedAt.formatted(.relative(presentation: .named)))")
                                 .font(.caption)
@@ -77,8 +78,9 @@ struct NewView: View {
                     }
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.capsule)
+                    .fixedSize()
                 }
-                .padding(.horizontal)
+                .shelfInset()
                 TrackGrid(tracks: picks.tracks, numbered: false) { track in
                     model.library?.library.setNotInterested(track, true)
                     store.remove(track.videoId)
@@ -97,12 +99,12 @@ struct NewView: View {
                 shelf("new.playlistsForYou", picks.playlists.map(MusicItem.playlist))
             }
         } else if store.loading {
-            VStack(alignment: .leading, spacing: 10) {
-                ShelfHeader(title: Text("new.forYou")).padding(.horizontal)
+            VStack(alignment: .leading, spacing: Design.Layout.headerGap) {
+                ShelfHeader(title: Text("new.forYou")).shelfInset()
                 LoadingView().frame(height: 160)
             }
         } else {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: Design.Layout.headerGap) {
                 ShelfHeader(title: Text("new.forYou"))
                 VStack(alignment: .leading, spacing: 12) {
                     Text("new.forYou.empty")
@@ -115,13 +117,13 @@ struct NewView: View {
                 .padding(16)
                 .background(.fill.tertiary, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
-            .padding(.horizontal)
+            .shelfInset()
         }
     }
 
     private func shelf(_ title: LocalizedStringResource, _ items: [MusicItem]) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            ShelfHeader(title: Text(title)).padding(.horizontal)
+        VStack(alignment: .leading, spacing: Design.Layout.headerGap) {
+            ShelfHeader(title: Text(title)).shelfInset()
             CardCarousel(items: items)
         }
     }

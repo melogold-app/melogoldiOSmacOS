@@ -11,15 +11,16 @@ struct TrendsView: View {
         let store = model.services.explore
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(alignment: .leading, spacing: 28) {
+                VStack(alignment: .leading, spacing: Design.Layout.shelfGap) {
                     if store.fromCache, let page = store.page {
-                        CachedDataChip(date: page.loadedAt).padding(.horizontal)
+                        CachedDataChip(date: page.loadedAt).shelfInset()
                     }
                     if let page = store.page {
                         content(page)
                     }
                 }
-                .padding(.vertical, 8)
+                .padding(.top, Design.Space.xs)
+                .padding(.bottom, Design.Space.l)
                 .id(ScrollTop.id)
             }
             .overlay { stateOverlay(store) }
@@ -39,19 +40,19 @@ struct TrendsView: View {
     @ViewBuilder
     private func content(_ page: ExplorePage) -> some View {
         if let trending = page.trending {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: Design.Layout.headerGap) {
                 ShelfHeader(title: Text("trends.trending"), more: page.trendingPlaylistId.map(Route.playlist),
                             moreTitle: "trends.fullList")
-                    .padding(.horizontal)
+                    .shelfInset()
                 TrackGrid(tracks: trending.tracks)
             }
         }
         if let moods = page.moods {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: Design.Layout.headerGap) {
                 ShelfHeader(title: Text("trends.moods"), more: .moods)
                 MoodGrid(moods: moods.items.compactMap(\.mood))
             }
-            .padding(.horizontal)
+            .shelfInset()
         }
     }
 
