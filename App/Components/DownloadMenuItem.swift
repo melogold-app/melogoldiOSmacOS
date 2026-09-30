@@ -53,6 +53,7 @@ struct DownloadMenuItem: View {
         case .queued: String(localized: "downloads.queued")
         default: nil
         }
-        return status.map { "\(title) · \($0)" } ?? title
+        // Неразрывные пробелы: в узком меню «· 42 %» переносится вместе, а не повисает на второй строке
+        return status.map { "\(title)\u{00A0}·\u{00A0}\($0)" } ?? title
     }
 }

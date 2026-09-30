@@ -3358,13 +3358,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld %%"
+            "value" : "%lld %%"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld %%"
+            "value" : "%lld %%"
           }
         }
       }

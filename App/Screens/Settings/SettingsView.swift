@@ -9,8 +9,23 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
 
     var body: some View {
+        #if DEBUG
+        // -MelogoldSettingsScroll storage — «Хранилище и данные» у верхнего края (снимки без прокрутки руками)
+        ScrollViewReader { proxy in
+            form.task {
+                guard let target = UserDefaults.standard.string(forKey: "MelogoldSettingsScroll") else { return }
+                try? await Task.sleep(for: .seconds(1))
+                proxy.scrollTo("settings." + target, anchor: .top)
+            }
+        }
+        #else
+        form
+        #endif
+    }
+
+    private var form: some View {
         @Bindable var settings = model.settings
-        Form {
+        return Form {
             Section {
                 AccountSettingsSection()
                 NavigationLink(value: Route.server(prefill: nil, serverId: nil)) {

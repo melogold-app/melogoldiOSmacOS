@@ -80,6 +80,7 @@ struct StorageSettingsSection: View {
         } header: {
             Text("settings.storage")
         }
+        .id("settings.storage")
         Section {
             CacheUsageRow(used: Int64(artwork), limit: Int64(ArtworkSession.diskCapacity))
         } header: {
