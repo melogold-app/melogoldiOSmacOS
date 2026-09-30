@@ -54,55 +54,46 @@ struct LyricsPanel: View {
     }
 }
 
-/// Меню текста (docs/PROMPT.md §5.7): вид (подпись — по тому, что на экране), «Найти текст», «Редактировать текст»,
-/// сдвиг ±0,1 и ±0,5 с.
-struct LyricsMenu: View {
+/// Пункты меню текста (docs/PROMPT.md §5.7): вид (подпись — по тому, что на экране), «Найти текст», «Редактировать текст»,
+/// сдвиг ±0,1 и ±0,5 с. Живут в меню «…» плеера, в панели управления, а не отдельной кнопкой поверх первой строки
+/// текста (`PlayerMenuItems`).
+struct LyricsMenuItems: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
         let lyrics = model.services.lyrics
-        Menu {
-            if lyrics.synced != nil {
-                Button {
-                    lyrics.preferSynced.toggle()
-                } label: {
-                    if lyrics.showingSynced {
-                        Label("lyrics.plainView", systemImage: "text.alignleft")
-                    } else {
-                        Label("lyrics.syncedView", systemImage: "text.line.first.and.arrowtriangle.forward")
-                    }
+        if lyrics.synced != nil {
+            Button {
+                lyrics.preferSynced.toggle()
+            } label: {
+                if lyrics.showingSynced {
+                    Label("lyrics.plainView", systemImage: "text.alignleft")
+                } else {
+                    Label("lyrics.syncedView", systemImage: "text.line.first.and.arrowtriangle.forward")
                 }
             }
-            Button { model.openLyricsSearch() } label: { Label("lyrics.find", systemImage: "magnifyingglass") }
-            #if !os(visionOS)
-            Button { model.openLyricsEditor() } label: { Label("lyrics.edit", systemImage: "pencil") }
-            #endif
-            if lyrics.showingSynced {
-                Menu {
-                    Button("lyrics.offset.minus05") { lyrics.shift(by: -500) }
-                    Button("lyrics.offset.minus01") { lyrics.shift(by: -100) }
-                    Button("lyrics.offset.plus01") { lyrics.shift(by: 100) }
-                    Button("lyrics.offset.plus05") { lyrics.shift(by: 500) }
-                    if lyrics.offsetMs != 0 {
-                        Button("lyrics.offset.reset") { lyrics.shift(by: nil) }
-                    }
-                } label: {
-                    Label {
-                        Text("lyrics.offset \(OffsetFormat.label(lyrics.offsetMs))")
-                    } icon: {
-                        Image(systemName: "timer")
-                    }
-                }
-            }
-        } label: {
-            Label("menu.more", systemImage: "ellipsis.circle")
-                .labelStyle(.iconOnly)
-                .font(.title3)
-                .frame(minWidth: 44, minHeight: 44)
         }
-        .menuStyle(.button)
-        .buttonStyle(.plain)
-        .accessibilityLabel(Text("lyrics.menu"))
+        Button { model.openLyricsSearch() } label: { Label("lyrics.find", systemImage: "magnifyingglass") }
+        #if !os(visionOS)
+        Button { model.openLyricsEditor() } label: { Label("lyrics.edit", systemImage: "pencil") }
+        #endif
+        if lyrics.showingSynced {
+            Menu {
+                Button("lyrics.offset.minus05") { lyrics.shift(by: -500) }
+                Button("lyrics.offset.minus01") { lyrics.shift(by: -100) }
+                Button("lyrics.offset.plus01") { lyrics.shift(by: 100) }
+                Button("lyrics.offset.plus05") { lyrics.shift(by: 500) }
+                if lyrics.offsetMs != 0 {
+                    Button("lyrics.offset.reset") { lyrics.shift(by: nil) }
+                }
+            } label: {
+                Label {
+                    Text("lyrics.offset \(OffsetFormat.label(lyrics.offsetMs))")
+                } icon: {
+                    Image(systemName: "timer")
+                }
+            }
+        }
     }
 }
 
@@ -132,11 +123,41 @@ struct PlainLyricsView: View {
     }
 }
 
+/// Где стоит текущая строка текста и как она выглядит: размер зависит от области (шире окно — крупнее текст, как у
+/// Windows и Android) и от Dynamic Type; отступы подложки, подпевка и перевод считаются от него (задание 0012 §2).
+enum LyricsStyle {
+    /// Размер строки при обычной области и обычном Dynamic Type: `title` iPhone — 28.
+    static let baseSize: CGFloat = 28
+    /// Верх текущей строки — на 24 pt ниже верха области текста, сразу под полосой затухания кромки
+    /// (задание 0016 §2, Android `LyricsAnchor`).
+    static let anchor: CGFloat = 24
+    /// Полоса затухания снизу — над панелью управления.
+    static let bottomFade: CGFloat = 48
+
+    /// Размер по области: растёт с окном, но не меньше `title` и не больше 40.
+    static func fontSize(in size: CGSize) -> CGFloat {
+        min(40, max(baseSize, min(size.width * 0.05, size.height * 0.05))).rounded()
+    }
+}
+
+/// Рамка подложки: рамка активной строки в координатах содержимого, вместе с полями строки.
+private struct ActiveRowFrameKey: PreferenceKey {
+    static let defaultValue: CGRect? = nil
+
+    static func reduce(value: inout CGRect?, nextValue: () -> CGRect?) {
+        if let next = nextValue() { value = next }
+    }
+}
+
+private let lyricsSpace = "lyrics.content"
+
 struct SyncedLyricsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ScaledMetric(relativeTo: .title) private var typeScale: CGFloat = 1
     @State private var manualUntil: Date?
     @State private var followTick = 0
+    @State private var pill: CGRect?
 
     var body: some View {
         let lyrics = model.services.lyrics
@@ -145,55 +166,125 @@ struct SyncedLyricsView: View {
         let position = lyrics.lyricsPosition(player.position)
         let active = LyricRows.activeIndex(rows, at: position)
         let following = manualUntil.map { $0 < Date() } ?? true
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 18) {
-                    Color.clear.frame(height: 80)
-                    ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
-                        LyricRowView(row: row, index: index, active: active)
-                            .id(index)
+        GeometryReader { proxy in
+            // Крупный Dynamic Type растит текст до 1,7 раза: дальше слова длиннее ширины экрана и ломаются посередине
+            let fontSize = LyricsStyle.fontSize(in: proxy.size) * min(typeScale, 1.7)
+            let scale = fontSize / LyricsStyle.baseSize
+            ScrollViewReader { reader in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 4 * scale) {
+                        ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                            LyricRowView(row: row, index: index, active: active, fontSize: fontSize)
+                                .id(index)
+                        }
+                        // Последняя строка тоже может дойти до верха области
+                        Color.clear.frame(height: proxy.size.height)
                     }
-                    Color.clear.frame(height: 240)
-                }
-                .padding(.horizontal, 24)
-            }
-            .scrollIndicators(.hidden)
-            .onScrollPhaseChange { _, phase in
-                if phase == .interacting { manualUntil = Date().addingTimeInterval(3) }
-            }
-            .onChange(of: active) { _, index in
-                guard manualUntil.map({ $0 < Date() }) ?? true, index >= 0 else { return }
-                withAnimation(reduceMotion ? nil : .smooth(duration: 0.45)) { proxy.scrollTo(index, anchor: UnitPoint(x: 0.5, y: 0.35)) }
-            }
-            .onAppear { if active >= 0 { proxy.scrollTo(active, anchor: UnitPoint(x: 0.5, y: 0.35)) } }
-            .overlay(alignment: .bottom) {
-                if !following, active >= 0 {
-                    Button {
-                        manualUntil = nil
-                        withAnimation { proxy.scrollTo(active, anchor: UnitPoint(x: 0.5, y: 0.35)) }
-                    } label: {
-                        Label("lyrics.backToCurrent", systemImage: "arrow.down")
-                            .font(.subheadline.weight(.semibold))
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
+                    .padding(.horizontal, Design.Space.s)
+                    .coordinateSpace(name: lyricsSpace)
+                    .onPreferenceChange(ActiveRowFrameKey.self) { pill = $0 }
+                    .background(alignment: .topLeading) {
+                        ActiveLinePill(target: pill, radius: Design.Radius.medium * scale)
                     }
-                    .buttonStyle(.plain)
-                    #if os(visionOS)
-                    .glassBackgroundEffect(in: .capsule)
-                    #else
-                    .glassEffect(.regular.interactive(), in: .capsule)
-                    #endif
-                    .padding(.bottom, 12)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+                .contentMargins(.top, LyricsStyle.anchor, for: .scrollContent)
+                .scrollIndicators(.hidden)
+                // Верх затухает на 24 pt, низ — над панелью управления; строки уходят в фон, а не обрезаются
+                .mask(fadeMask(height: proxy.size.height))
+                .onScrollPhaseChange { _, phase in
+                    if phase == .interacting { manualUntil = Date().addingTimeInterval(3) }
+                }
+                .onChange(of: active) { _, index in
+                    guard manualUntil.map({ $0 < Date() }) ?? true, index >= 0 else { return }
+                    withAnimation(reduceMotion ? nil : .smooth(duration: 0.45)) { reader.scrollTo(index, anchor: .top) }
+                }
+                .onChange(of: proxy.size) {
+                    guard following, active >= 0 else { return }
+                    reader.scrollTo(active, anchor: .top)
+                }
+                .onAppear { if active >= 0 { reader.scrollTo(active, anchor: .top) } }
+                .overlay(alignment: .bottom) {
+                    if !following, active >= 0 {
+                        Button {
+                            manualUntil = nil
+                            withAnimation { reader.scrollTo(active, anchor: .top) }
+                        } label: {
+                            Label("lyrics.backToCurrent", systemImage: "arrow.down")
+                                .font(.subheadline.weight(.semibold))
+                                .padding(.horizontal, Design.Space.m)
+                                .padding(.vertical, Design.Space.xs)
+                        }
+                        .buttonStyle(.plain)
+                        .controlGlass(Capsule(), interactive: true)
+                        .padding(.bottom, Design.Space.s)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                }
+                // Через 3 с после ручной прокрутки кнопка уходит, слежение возвращается.
+                .task(id: manualUntil) {
+                    guard let until = manualUntil else { return }
+                    try? await Task.sleep(for: .seconds(max(0, until.timeIntervalSinceNow) + 0.1))
+                    followTick += 1
+                    if active >= 0 { withAnimation(reduceMotion ? nil : .smooth) { reader.scrollTo(active, anchor: .top) } }
                 }
             }
-            // Через 3 с после ручной прокрутки кнопка уходит, слежение возвращается.
-            .task(id: manualUntil) {
-                guard let until = manualUntil else { return }
-                try? await Task.sleep(for: .seconds(max(0, until.timeIntervalSinceNow) + 0.1))
-                followTick += 1
-                if active >= 0 { withAnimation(reduceMotion ? nil : .smooth) { proxy.scrollTo(active, anchor: UnitPoint(x: 0.5, y: 0.35)) } }
-            }
+        }
+    }
+
+    private func fadeMask(height: CGFloat) -> some View {
+        let top = min(0.4, LyricsStyle.anchor / max(1, height))
+        let bottom = min(0.4, LyricsStyle.bottomFade / max(1, height))
+        return LinearGradient(stops: [
+            .init(color: .clear, location: 0),
+            .init(color: .black, location: top),
+            .init(color: .black, location: 1 - bottom),
+            .init(color: .clear, location: 1),
+        ], startPoint: .top, endPoint: .bottom)
+    }
+}
+
+/// Подложка под текущей строкой (задание 0012): скруглённый прямоугольник по размеру строки — самая длинная строка
+/// переноса, подпевка и перевод плюс поля. На следующую строку переезжает и меняет размер пружиной; без текущей строки
+/// (до первой, проигрыш) гаснет за 0,2 с, а с новой строкой проявляется на её месте, не переезжая. Если строка сдвинулась
+/// после раскладки (поворот, размер окна, Dynamic Type), догоняет. При «Уменьшении движения» встаёт на место сразу.
+/// Нажатие не перехватывает.
+private struct ActiveLinePill: View {
+    let target: CGRect?
+    let radius: CGFloat
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var frame = CGRect.zero
+    @State private var shown = false
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: radius, style: .continuous)
+            #if os(visionOS)
+            .fill(.regularMaterial)
+            #else
+            .fill(Color.primary.opacity(0.08))
+            #endif
+            .frame(width: frame.width, height: frame.height)
+            .offset(x: frame.minX, y: frame.minY)
+            // Пока подложка не показана, рамка меняется без переезда: она проявляется там, где строка
+            .animation(reduceMotion || !shown ? nil : .spring(response: 0.25, dampingFraction: 0.78), value: frame)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .opacity(shown ? 1 : 0)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: shown)
+            .allowsHitTesting(false)
+            .onChange(of: target) { _, new in move(to: new) }
+            .onAppear { move(to: target) }
+    }
+
+    private func move(to new: CGRect?) {
+        guard let new else {
+            shown = false
+            return
+        }
+        frame = new
+        guard !shown else { return }
+        // Рамка встала без анимации; показ — на следующем кадре, уже с включённой анимацией рамки
+        Task { @MainActor in
+            await Task.yield()
+            shown = target != nil
         }
     }
 }
@@ -204,6 +295,10 @@ private struct LyricRowView: View {
     let row: LyricRow
     let index: Int
     let active: Int
+    /// Размер основной строки; поля подложки, подпевка, перевод и точки — от него (`LyricsStyle.baseSize` = 28).
+    let fontSize: CGFloat
+
+    private var scale: CGFloat { fontSize / LyricsStyle.baseSize }
 
     var body: some View {
         switch row {
@@ -212,8 +307,9 @@ private struct LyricRowView: View {
         case .interlude(let start, let end, let side):
             if index == active {
                 TimelineView(.animation(minimumInterval: 1.0 / 30)) { _ in
-                    InterludeDots(progress: progress(start, end))
+                    InterludeDots(progress: progress(start, end), scale: scale)
                 }
+                .padding(.horizontal, 16 * scale)
                 .frame(maxWidth: .infinity, alignment: side == .end ? .trailing : .leading)
                 .accessibilityHidden(true)
             }
@@ -233,32 +329,47 @@ private struct LyricRowView: View {
             let target = Double(line.startMs - model.services.lyrics.offsetMs) / 1000
             model.services.player.seek(to: max(0, target))
         } label: {
-            VStack(alignment: alignment, spacing: 4) {
-                if isActive, !line.words.isEmpty {
-                    TimelineView(.animation(minimumInterval: 1.0 / 30)) { _ in
-                        words(line.words, font: .title.weight(.bold))
-                    }
-                } else {
-                    Text(verbatim: line.text)
-                        .font(.title.weight(.bold))
-                        .foregroundStyle(color(isActive: isActive, isPast: isPast))
-                }
-                if let background = line.background {
-                    if isActive, background.words.count > 1 {
+            // Подложка обводит строку вместе с полями: ширина — по самой длинной строке переноса, высота — вся строка
+            // с подпевкой и переводом; строка второй стороны дуэта у конечного края — подложка тоже
+            ShrinkWrap {
+                VStack(alignment: alignment, spacing: 4 * scale) {
+                    if isActive, !line.words.isEmpty {
                         TimelineView(.animation(minimumInterval: 1.0 / 30)) { _ in
-                            words(background.words, font: .title3.weight(.semibold))
+                            words(line.words, size: fontSize, weight: .bold)
                         }
                     } else {
-                        Text(verbatim: background.text)
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(color(isActive: isActive, isPast: isPast).opacity(0.8))
+                        Text(verbatim: line.text)
+                            .font(.system(size: fontSize, weight: .bold))
+                            .foregroundStyle(color(isActive: isActive, isPast: isPast))
+                    }
+                    if let background = line.background {
+                        if isActive, background.words.count > 1 {
+                            TimelineView(.animation(minimumInterval: 1.0 / 30)) { _ in
+                                words(background.words, size: fontSize * 0.64, weight: .semibold)
+                            }
+                        } else {
+                            Text(verbatim: background.text)
+                                .font(.system(size: fontSize * 0.64, weight: .semibold))
+                                .foregroundStyle(color(isActive: isActive, isPast: isPast).opacity(0.8))
+                        }
+                    }
+                    if let translation = line.translation {
+                        Text(verbatim: translation)
+                            .font(.system(size: fontSize * 0.57))
+                            .foregroundStyle(.secondary)
                     }
                 }
-                if let translation = line.translation {
-                    Text(verbatim: translation).font(.body).foregroundStyle(.secondary)
+                .multilineTextAlignment(line.side == .end ? .trailing : .leading)
+            }
+            .padding(.horizontal, 16 * scale)
+            .padding(.vertical, 10 * scale)
+            .background {
+                if isActive {
+                    GeometryReader { proxy in
+                        Color.clear.preference(key: ActiveRowFrameKey.self, value: proxy.frame(in: .named(lyricsSpace)))
+                    }
                 }
             }
-            .multilineTextAlignment(line.side == .end ? .trailing : .leading)
             .frame(maxWidth: .infinity, alignment: line.side == .end ? .trailing : .leading)
             .contentShape(Rectangle())
         }
@@ -275,8 +386,9 @@ private struct LyricRowView: View {
     }
 
     /// Слова загораются по времени; текущее — по мере звучания.
-    private func words(_ words: [SyncedWord], font: Font) -> Text {
+    private func words(_ words: [SyncedWord], size: CGFloat, weight: Font.Weight) -> Text {
         let position = model.services.lyrics.lyricsPosition(model.services.player.livePosition())
+        let font = Font.system(size: size, weight: weight)
         // Одна `AttributedString` со своим шрифтом и цветом у каждого слова: `Text + Text` в iOS 26 устарел
         var line = AttributedString()
         for word in words {
@@ -296,25 +408,53 @@ private struct LyricRowView: View {
     }
 }
 
+/// Стягивает содержимое по ширине: перенос, при котором строки укладываются в предложенную ширину, но сама ширина —
+/// по самой длинной строке, а не на всю область (текст в SwiftUI при переносе занимает всё предложенное). Ищется
+/// наименьшая ширина, при которой высота та же, что при полной ширине.
+private struct ShrinkWrap: Layout {
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) -> CGSize {
+        guard let view = subviews.first else { return .zero }
+        guard let limit = proposal.width, limit.isFinite, limit > 0 else { return view.sizeThatFits(proposal) }
+        let full = view.sizeThatFits(ProposedViewSize(width: limit, height: nil))
+        var narrow: CGFloat = 0
+        var wide = min(limit, full.width)
+        for _ in 0..<12 {
+            let middle = (narrow + wide) / 2
+            if view.sizeThatFits(ProposedViewSize(width: middle, height: nil)).height <= full.height + 0.5 {
+                wide = middle
+            } else {
+                narrow = middle
+            }
+        }
+        return CGSize(width: min(limit, wide.rounded(.up)), height: full.height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) {
+        subviews.first?.place(at: bounds.origin, anchor: .topLeading,
+                              proposal: ProposedViewSize(width: bounds.width, height: bounds.height))
+    }
+}
+
 /// Три точки проигрыша: выскакивают по одной и лопаются перед следующей строкой.
 private struct InterludeDots: View {
     let progress: Double
+    var scale: CGFloat = 1
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 10 * scale) {
             ForEach(0..<3, id: \.self) { index in
                 let appear = Double(index) / 3 * 0.85
                 let visible = progress >= appear
                 let popping = progress > 0.93
                 Circle()
                     .fill(.primary)
-                    .frame(width: 12, height: 12)
+                    .frame(width: 12 * scale, height: 12 * scale)
                     .scaleEffect(popping ? 1.6 : (visible ? 1 : 0.2))
                     .opacity(popping ? 0 : (visible ? 0.9 : 0))
                     .animation(.spring(response: 0.35, dampingFraction: 0.55), value: visible)
                     .animation(.easeIn(duration: 0.2), value: popping)
             }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 8 * scale)
     }
 }

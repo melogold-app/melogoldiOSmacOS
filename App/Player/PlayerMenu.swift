@@ -15,13 +15,15 @@ struct PlayerMoreMenu: View {
                 PlayerMenuItems(track: track)
             }
         } label: {
-            Image(systemName: "ellipsis.circle")
+            Image(systemName: "ellipsis")
                 .font(size)
-                .frame(minWidth: 44, minHeight: 44)
+                .controlSymbol()
+                .frame(minWidth: Design.Size.minTap, minHeight: Design.Size.minTap)
                 .contentShape(Rectangle())
         }
         .menuStyle(.button)
         .buttonStyle(.plain)
+        .menuIndicator(.hidden)
         .accessibilityLabel(Text("menu.more"))
     }
 }
@@ -59,18 +61,7 @@ struct PlayerMenuItems: View {
             ShareLink(item: ShareLinks.track(track)) { Label("menu.share", systemImage: "square.and.arrow.up") }
         }
         if model.lyricsVisible, model.showNowPlaying {
-            Section {
-                let lyrics = model.services.lyrics
-                if lyrics.synced != nil {
-                    Button { lyrics.preferSynced.toggle() } label: {
-                        Label(lyrics.showingSynced ? "lyrics.plainView" : "lyrics.syncedView", systemImage: "text.alignleft")
-                    }
-                }
-                Button { model.openLyricsSearch() } label: { Label("lyrics.find", systemImage: "magnifyingglass") }
-                #if !os(visionOS)
-                Button { model.openLyricsEditor() } label: { Label("lyrics.edit", systemImage: "pencil") }
-                #endif
-            }
+            Section { LyricsMenuItems() }
         }
         Section {
             SleepTimerMenu()
@@ -132,9 +123,9 @@ struct PlayerChips: View {
                         }
                     }
                     .font(.footnote.weight(.semibold))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(.fill.tertiary, in: Capsule())
+                    .padding(.horizontal, Design.Space.s)
+                    .padding(.vertical, 6)
+                    .controlGlass(Capsule(), interactive: true)
                 }
                 .menuStyle(.button)
                 .buttonStyle(.plain)
@@ -147,9 +138,9 @@ struct PlayerChips: View {
                 } label: {
                     Text(verbatim: SpeedFormat.label(Double(player.speed)))
                         .font(.footnote.weight(.semibold).monospacedDigit())
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(.fill.tertiary, in: Capsule())
+                        .padding(.horizontal, Design.Space.s)
+                        .padding(.vertical, 6)
+                        .controlGlass(Capsule(), interactive: true)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(Text("settings.speed"))

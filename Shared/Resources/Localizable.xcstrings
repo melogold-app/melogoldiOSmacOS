@@ -3641,6 +3641,23 @@
         }
       }
     },
+    "editor.next" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Далее"
+          }
+        }
+      }
+    },
     "editor.nudgeEarlier" : {
       "extractionState" : "manual",
       "localizations" : {

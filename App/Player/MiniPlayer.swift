@@ -7,25 +7,38 @@ import MelogoldPlayback
 /// «Следующий трек». На iPhone — `tabViewBottomAccessory`, на iPad — полоса внизу колонки детали, на Vision — орнамент.
 struct MiniPlayer: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.dynamicTypeSize) private var typeSize
+    #if os(iOS)
+    /// `.inline` — панель вкладок свёрнута (`tabBarMinimizeBehavior`), мини-плеер стоит рядом с ней в тесном месте.
+    @Environment(\.tabViewBottomAccessoryPlacement) private var placement
+    #endif
     @State private var dragOffset: CGFloat = 0
+
+    /// Тесный вид: обложка, название, ⏯ — без исполнителя и ⏭. Так же на крупном Dynamic Type.
+    private var compact: Bool {
+        #if os(iOS)
+        if placement == .inline { return true }
+        #endif
+        return typeSize.isAccessibilitySize
+    }
 
     var body: some View {
         let player = model.services.player
         if let track = player.currentTrack {
-            HStack(spacing: 10) {
-                ArtworkView(url: track.artworkURL, size: 36)
+            HStack(spacing: Design.Space.s) {
+                ArtworkView(url: track.artworkURL, size: compact ? 28 : 36, cornerRadius: compact ? 6 : Design.Radius.small)
                 VStack(alignment: .leading, spacing: 0) {
                     Text(track.title)
                         .font(.subheadline.weight(.semibold))
                         .lineLimit(1)
-                    PlayerStatusLine(font: .caption)
+                    if !compact { PlayerStatusLine(font: .caption) }
                 }
                 .offset(x: dragOffset)
-                Spacer(minLength: 4)
+                Spacer(minLength: Design.Space.xxs)
                 PlayPauseButton(size: .title3)
-                NextButton(size: .body)
+                if !compact { NextButton(size: .body) }
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, Design.Space.s)
             .contentShape(Rectangle())
             .onTapGesture { model.showNowPlaying = true }
             .gesture(
@@ -108,15 +121,11 @@ struct ToastHost: View {
         content()
             .font(.subheadline)
             .lineLimit(2)
-            .padding(.horizontal, 16)
+            .padding(.horizontal, Design.Space.m)
             .padding(.vertical, 10)
-            #if os(visionOS)
-            .glassBackgroundEffect(in: .capsule)
-            #else
-            .glassEffect(.regular, in: .capsule)
-            #endif
-            .padding(.horizontal, 16)
-            .padding(.bottom, 8)
+            .controlGlass(Capsule())
+            .padding(.horizontal, Design.Space.m)
+            .padding(.bottom, Design.Space.xs)
             .transition(.move(edge: .bottom).combined(with: .opacity))
             .accessibilityAddTraits(.isStaticText)
     }

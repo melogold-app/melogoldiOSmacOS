@@ -160,29 +160,94 @@ struct LyricsEditorView: View {
     /// Играет уже другой трек: время отмечать не по чему.
     private var trackChanged: Bool { model.services.player.currentTrack?.videoId != track.videoId }
 
+    /// «Далее» — строка, которую отметят следующей, целиком, как её написали (задание 0016 §2): без многоточия и без
+    /// ограничения числа строк, с подпевкой; в режиме «Слова» — отмеченные слова цветом акцента, следующее жирным и
+    /// подчёркнутым. Только очень длинная строка (выше ~200 pt) прокручивается внутри блока, с начала при каждой новой
+    /// строке, — чтобы «Отметить» не уехала с экрана.
+    @ViewBuilder
+    private var nextBlock: some View {
+        if draft.cursor < draft.lines.count {
+            let line = draft.lines[draft.cursor]
+            let content = VStack(alignment: .leading, spacing: Design.Space.xxs) {
+                if draft.timing == .word {
+                    nextWordsLine(line)
+                } else {
+                    Text(verbatim: line.text).font(.title3.weight(.semibold))
+                }
+                if let backing = line.backing {
+                    Text(verbatim: backing).font(.callout).foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: Design.Space.xxs) {
+                Text("editor.next")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                // Короткая строка — как есть, длинная — в прокрутке
+                ViewThatFits(in: .vertical) {
+                    content
+                    ScrollView { content }
+                        .scrollIndicators(.visible)
+                }
+                .frame(maxHeight: 200)
+                .id(draft.cursor)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    private func nextWordsLine(_ line: DraftLine) -> Text {
+        var result = AttributedString()
+        for item in line.words.enumerated() {
+            let marked = item.offset < line.wordStarts.count && line.wordStarts[item.offset] != nil
+            let current = item.offset == draft.wordCursor
+            var word = AttributedString(item.element + " ")
+            word.font = Font.title3.weight(current ? .bold : .semibold)
+            word.foregroundColor = marked ? Color.accentColor : (current ? Color.primary : Color.secondary)
+            if current { word.underlineStyle = .single }
+            result.append(word)
+        }
+        return Text(result)
+    }
+
     private var controls: some View {
         let player = model.services.player
-        return VStack(spacing: 10) {
+        return VStack(spacing: Design.Space.s) {
+            nextBlock
             if trackChanged {
                 Label { Text("editor.trackChanged") } icon: { Image(systemName: "exclamationmark.triangle") }
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
-            HStack(spacing: 20) {
-                Button { player.seek(to: max(0, player.position - 5)) } label: {
-                    Image(systemName: "gobackward.5").font(.title2)
-                }
-                .accessibilityLabel(Text("editor.back5"))
-                PlayPauseButton(size: .title)
-                Button { undo() } label: { Image(systemName: "arrow.uturn.backward").font(.title2) }
+            ControlGlassGroup {
+                HStack(spacing: Design.Space.m) {
+                    Button { player.seek(to: max(0, player.position - 5)) } label: {
+                        Image(systemName: "gobackward.5").font(.title2).frame(width: 48, height: 48)
+                    }
+                    .buttonStyle(.plain)
+                    .glassCircle(48)
+                    .accessibilityLabel(Text("editor.back5"))
+                    PlayPauseButton(glass: GlassSpec(diameter: 56))
+                    Button { undo() } label: {
+                        Image(systemName: "arrow.uturn.backward").font(.title2).frame(width: 48, height: 48)
+                    }
+                    .buttonStyle(.plain)
+                    .glassCircle(48)
                     .disabled(history.isEmpty)
                     .accessibilityLabel(Text("editor.undo"))
-                Button { change(draft.markEnd(position())) } label: {
-                    Label("editor.lineEnd", systemImage: "pause.circle").font(.subheadline)
+                    Button { change(draft.markEnd(position())) } label: {
+                        Label("editor.lineEnd", systemImage: "pause.circle")
+                            .font(.subheadline)
+                            .padding(.horizontal, Design.Space.m)
+                            .frame(minHeight: 48)
+                    }
+                    .buttonStyle(.plain)
+                    .controlGlass(Capsule(), interactive: true)
+                    .disabled(draft.cursor == 0 || trackChanged)
                 }
-                .disabled(draft.cursor == 0 || trackChanged)
             }
-            .buttonStyle(.borderless)
+            .iconTypeSize()
             if let selected, draft.lines.indices.contains(selected) {
                 HStack {
                     Button("editor.minus01") { change(draft.nudge(selected, by: -100)) }
@@ -201,7 +266,7 @@ struct LyricsEditorView: View {
                     .font(.title3.weight(.semibold))
                     .frame(maxWidth: .infinity, minHeight: 44)
             }
-            .buttonStyle(.borderedProminent)
+            .prominentGlassButton()
             .controlSize(.large)
             .disabled(draft.cursor >= draft.lines.count || trackChanged)
             .keyboardShortcut(.return, modifiers: [])
@@ -246,7 +311,28 @@ struct LyricsEditorView: View {
             mode = .text
         }
         text = draft.toText()
+        #if DEBUG
+        applyDebugState()
+        #endif
     }
+
+    #if DEBUG
+    /// `-MelogoldLyricsEditor marks|words|second` — сразу «Разметка»; `words` — по словам, три слова отмечены; `second` —
+    /// первая строка отмечена (курсор на второй, очень длинной): снимки блока «Далее» без нажатий.
+    private func applyDebugState() {
+        guard let state = UserDefaults.standard.string(forKey: "MelogoldLyricsEditor"), state != "YES" else { return }
+        mode = .marks
+        switch state {
+        case "words":
+            draft = draft.withTiming(.word)
+            for index in 0..<3 { draft = draft.mark(Int64(1_000 + index * 500)) }
+        case "second":
+            draft = draft.mark(1_000)
+        default:
+            break
+        }
+    }
+    #endif
 
     private func save() {
         let final = currentDraft

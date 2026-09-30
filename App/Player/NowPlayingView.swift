@@ -2,78 +2,38 @@ import SwiftUI
 import MelogoldCore
 import MelogoldPlayback
 
-/// «Сейчас играет» (docs/PROMPT.md §5.7): обложка (нажатие — текст), название, исполнитель, ♡, ползунок перемотки,
-/// ⇄ ⏮ ⏯ ⏭ ⟲, «Текст», AirPlay. В широком окне и на iPhone боком — обложка слева, управление справа (REWRITE
-/// §3.10.11); с текстом — слева обложка и управление, справа текст. На узком экране текст встаёт на место обложки,
-/// а название — в строку над ним. Очередь, таймер и фон по цвету обложки — в срезе 7.
+/// «Сейчас играет» (docs/PROMPT.md §5.7) на iPhone, iPad, Mac и Vision.
+///
+/// - Фон — мягкий статичный оттенок цвета обложки (`NowPlayingBackground`, §5.1); стекло — только у управления.
+/// - Закрытие: на iPhone и iPad это лист (`.sheet`) с системным grabber и закрытием смахиванием вниз, на Mac — Esc
+///   и кнопка в углу, на Vision — окно.
+/// - Обложка — крупно, нажатие включает текст; на узком экране портретный вид: обложка, название, полоса, транспорт на
+///   стекле, панель действий; с текстом — маленькая шапка, текст, компактный транспорт под ним.
+/// - iPhone боком, iPad и Mac в широком окне (REWRITE §3.10.11): обложка слева, управление справа; с текстом слева
+///   обложка (если помещается) и компактное управление, справа текст.
+/// - Крупный Dynamic Type: обложка и управление прокручиваются, значки не растут дальше ряда.
 struct NowPlayingView: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         @Bindable var model = model
         let player = model.services.player
         GeometryReader { proxy in
-            let wide = proxy.size.width > proxy.size.height * 1.1
             Group {
                 if let track = player.currentTrack {
-                    if wide {
-                        HStack(spacing: 40) {
-                            if model.lyricsVisible {
-                                VStack(spacing: 20) {
-                                    artwork(track, side: min(proxy.size.height * 0.42, proxy.size.width * 0.3))
-                                    controls(track)
-                                }
-                                .frame(maxWidth: 420)
-                                lyricsColumn
-                            } else {
-                                artwork(track, side: min(proxy.size.height - 80, proxy.size.width / 2 - 60))
-                                controls(track).frame(maxWidth: 440)
-                            }
-                        }
-                        .padding(.horizontal, 40)
-                        .padding(.top, 56)
-                        .padding(.bottom, 24)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else if model.lyricsVisible {
-                        VStack(spacing: 12) {
-                            compactHeader(track)
-                                .padding(.top, 56)
-                            lyricsColumn
-                            controls(track, showsTitle: false)
-                                .padding(.bottom, 12)
-                        }
-                        .padding(.horizontal, 24)
-                    } else {
-                        VStack(spacing: 28) {
-                            Spacer(minLength: 0)
-                            artwork(track, side: min(proxy.size.width - 48, proxy.size.height * 0.5))
-                            controls(track)
-                            Spacer(minLength: 0)
-                        }
-                        .padding(.horizontal, 24)
-                    }
+                    content(track, size: proxy.size)
                 } else {
                     ContentUnavailableView { Label("player.nothingPlaying", systemImage: "music.note") }
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
         }
-        .background(.background)
-        .overlay(alignment: .topLeading) {
-            Button { dismiss(); model.showNowPlaying = false } label: {
-                Image(systemName: "chevron.down")
-                    .font(.title3.weight(.semibold))
-                    .frame(width: 44, height: 44)
-            }
-            .buttonStyle(.plain)
-            .padding()
-            .accessibilityLabel(Text("common.collapse"))
-            .keyboardShortcut(.cancelAction)
-        }
+        .modifier(NowPlayingChrome())
         .sheet(item: $model.lyricsSearch) { LyricsSearchSheet(track: $0) }
         #if os(iOS)
-        // iPhone: очередь — лист; iPad с боковой панелью — колонка справа в окне (`SplitShell`).
+        // iPhone и iPad: очередь — лист из «Сейчас играет»
         .sheet(isPresented: $model.queueVisible) {
             NavigationStack { QueueView(inSheet: true) }
                 .presentationDetents([.medium, .large])
@@ -90,93 +50,212 @@ struct NowPlayingView: View {
         #endif
     }
 
-    private var lyricsColumn: some View {
-        LyricsPanel()
-            .overlay(alignment: .topTrailing) { LyricsMenu() }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    // MARK: - Раскладки
+
+    @ViewBuilder
+    private func content(_ track: Track, size: CGSize) -> some View {
+        let landscape = size.width > size.height * 1.1
+        let margin = size.width >= 700 ? Design.Space.xl : Design.Space.l
+        let short = size.height < 520
+        Group {
+            if landscape {
+                landscapeLayout(track, size: size, margin: margin, short: short)
+            } else if model.lyricsVisible {
+                stackedLyrics(track, size: size, margin: margin)
+            } else if typeSize.isAccessibilitySize {
+                scrollingCover(track, size: size, margin: margin)
+            } else {
+                stackedCover(track, size: size, margin: margin)
+            }
+        }
+        .transition(.opacity)
+        .animation(reduceMotion ? nil : .snappy(duration: 0.35), value: model.lyricsVisible)
     }
 
-    private func artwork(_ track: Track, side: CGFloat) -> some View {
+    /// Портрет: обложка занимает то, что осталось от управления, — на любом Dynamic Type и в любом окне.
+    private func stackedCover(_ track: Track, size: CGSize, margin: CGFloat) -> some View {
+        VStack(spacing: Design.Space.l) {
+            artworkArea(track)
+                .padding(.horizontal, margin)
+            controls(track, compact: false, wide: size.width >= 700)
+                .padding(.horizontal, margin)
+        }
+        .padding(.top, Metrics.topInset)
+        .padding(.bottom, Design.Space.l)
+    }
+
+    /// Крупный Dynamic Type без текста: всё в прокрутке, обложка не сжимается до точки.
+    private func scrollingCover(_ track: Track, size: CGSize, margin: CGFloat) -> some View {
+        ScrollView {
+            VStack(spacing: Design.Space.l) {
+                artworkButton(track, side: min(size.width - 2 * margin, 320))
+                controls(track, compact: false, wide: false)
+            }
+            .padding(.horizontal, margin)
+            .padding(.top, Metrics.topInset)
+            .padding(.bottom, Design.Space.l)
+        }
+        .scrollIndicators(.hidden)
+    }
+
+    /// Портрет с текстом: шапка — маленькая обложка и название, текст, под ним компактный транспорт.
+    private func stackedLyrics(_ track: Track, size: CGSize, margin: CGFloat) -> some View {
+        VStack(spacing: Design.Space.s) {
+            lyricsHeader(track)
+                .padding(.horizontal, margin)
+            LyricsPanel()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            controls(track, compact: true, wide: size.width >= 700, showsTitle: false)
+                .padding(.horizontal, margin)
+        }
+        .padding(.top, Metrics.topInset)
+        .padding(.bottom, Design.Space.m)
+    }
+
+    /// Боком и в широком окне: обложка слева, управление справа; с текстом — слева управление, справа текст.
+    private func landscapeLayout(_ track: Track, size: CGSize, margin: CGFloat, short: Bool) -> some View {
+        HStack(spacing: Design.Space.xl) {
+            if model.lyricsVisible {
+                VStack(spacing: Design.Space.m) {
+                    artworkArea(track, minSide: 96)
+                    controls(track, compact: true, wide: false)
+                }
+                .frame(width: min(size.width * 0.42, 440))
+                LyricsPanel()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                artworkArea(track)
+                controls(track, compact: short, wide: !short && size.width >= 900)
+                    .frame(maxWidth: 460)
+            }
+            #if os(macOS)
+            if model.queueVisible {
+                QueueView()
+                    .frame(width: 320)
+                    .clipShape(RoundedRectangle(cornerRadius: Design.Radius.medium, style: .continuous))
+            }
+            #endif
+        }
+        .padding(.horizontal, margin)
+        .padding(.top, Metrics.topInset)
+        .padding(.bottom, Design.Space.l)
+    }
+
+    // MARK: - Части
+
+    /// Обложка в квадрате, вписанном в оставшееся место. Меньше `minSide` — не показывается вовсе (низкое окно с текстом).
+    private func artworkArea(_ track: Track, minSide: CGFloat = 0) -> some View {
+        GeometryReader { area in
+            // На iPad и в большом окне обложка не растёт шире 600 pt: рядом с управлением она остаётся обложкой, а не обоями
+            let side = min(area.size.width, area.size.height, 600)
+            if side >= max(minSide, 1) {
+                artworkButton(track, side: side)
+                    .frame(width: area.size.width, height: area.size.height)
+            }
+        }
+        .frame(minHeight: 0, maxHeight: .infinity)
+    }
+
+    private func artworkButton(_ track: Track, side: CGFloat) -> some View {
         Button {
             withAnimation(.snappy) { model.lyricsVisible = true }
         } label: {
-            NowPlayingArtwork(url: track.artworkURL, side: max(120, side))
-                .shadow(color: .black.opacity(0.2), radius: 16, y: 8)
+            NowPlayingArtwork(url: track.artworkURL, side: max(96, side))
+                .shadow(color: .black.opacity(0.22), radius: 18, y: 10)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text("player.lyrics"))
     }
 
-    /// Узкий экран с текстом: маленькая обложка и название над текстом; нажатие по обложке — обратно к обложке.
-    private func compactHeader(_ track: Track) -> some View {
-        HStack(spacing: 12) {
+    /// Шапка над текстом: маленькая обложка возвращает к обложке, справа ♡.
+    private func lyricsHeader(_ track: Track) -> some View {
+        HStack(spacing: Design.Space.s) {
             Button {
                 withAnimation(.snappy) { model.lyricsVisible = false }
             } label: {
-                ArtworkView(url: track.artworkURL, size: 56)
+                ArtworkView(url: track.artworkURL, size: 56, cornerRadius: Design.Radius.small)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(Text("lyrics.artwork"))
             VStack(alignment: .leading, spacing: 2) {
-                Text(track.title).font(.headline).lineLimit(1)
+                Text(track.title).font(.headline).lineLimit(2)
                 PlayerStatusLine(font: .subheadline)
             }
-            Spacer(minLength: 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
             LikeButton(size: .title3)
         }
     }
 
-    private func controls(_ track: Track, showsTitle: Bool = true) -> some View {
-        VStack(spacing: showsTitle ? 20 : 12) {
-            if showsTitle {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(track.title)
-                            .font(.title2.weight(.bold))
-                            .lineLimit(2)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        PlayerStatusLine(font: .title3)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    LikeButton(size: .title2)
-                }
-            }
+    /// Название, полоса перемотки, транспорт, панель действий. Компактный вид — под текстом и в низком окне.
+    @ViewBuilder
+    private func controls(_ track: Track, compact: Bool, wide: Bool, showsTitle: Bool = true) -> some View {
+        VStack(spacing: compact ? Design.Space.s : Design.Space.l) {
+            if showsTitle { NowPlayingTitle(track: track, large: wide && !compact) }
             SeekBar()
-            HStack(spacing: 28) {
-                ShuffleToggle(size: .title3)
-                PreviousButton(size: .title)
-                PlayPauseButton(size: .largeTitle)
-                NextButton(size: .title)
-                RepeatToggle(size: .title3)
-            }
             PlayerChips()
-            HStack(spacing: 32) {
-                Button {
-                    withAnimation(.snappy) { model.lyricsVisible.toggle() }
-                } label: {
-                    Image(systemName: model.lyricsVisible ? "quote.bubble.fill" : "quote.bubble")
-                        .font(.title3)
-                        .frame(width: 44, height: 44)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(model.lyricsVisible ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-                .accessibilityLabel(Text("player.lyrics"))
-                Button {
-                    model.queueVisible.toggle()
-                } label: {
-                    Image(systemName: "list.bullet")
-                        .font(.title3)
-                        .frame(width: 44, height: 44)
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(model.queueVisible ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-                .accessibilityLabel(Text("player.queue"))
-                RoutePickerButton()
-                    .frame(width: 44, height: 44)
-                    .accessibilityLabel(Text("player.airplay"))
-                PlayerMoreMenu()
-            }
+            TransportRow(compact: compact)
+            #if os(macOS)
+            if wide { VolumeBar().frame(height: 24) }
+            #elseif os(iOS)
+            if wide { SystemVolumeView().frame(height: Design.Size.minTap) }
+            #endif
+            PlayerActionBar(includesModes: !compact)
         }
+        .frame(maxWidth: 520)
+    }
+}
+
+/// Размеры по платформе.
+private enum Metrics {
+    /// Верхний отступ содержимого: на iPhone и iPad — место под grabber листа, на Mac — под кнопками окна.
+    static var topInset: CGFloat {
+        #if os(macOS)
+        56
+        #elseif os(iOS)
+        28
+        #else
+        Design.Space.l
+        #endif
+    }
+}
+
+/// Фон и способ показа: лист с grabber на iPhone и iPad, слой поверх окна на Mac (кнопка закрытия и Esc), Vision — стекло
+/// окна без своего фона.
+private struct NowPlayingChrome: ViewModifier {
+    @Environment(AppModel.self) private var model
+
+    func body(content: Content) -> some View {
+        #if os(iOS)
+        content
+            .presentationBackground { NowPlayingBackground(tint: model.coverTint) }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            .presentationSizing(.page)
+        #elseif os(macOS)
+        content
+            .background { NowPlayingBackground(tint: model.coverTint) }
+            // Панель инструментов окна скрыта, пока открыт «Сейчас играет»: в ней поле поиска и заголовок раздела из
+            // экрана под ним. Скрывает её AppKit, а не `toolbar(.hidden, for: .windowToolbar)` — тот гасит и кнопки окна.
+            .background { MacToolbarHidden() }
+            .overlay(alignment: .topTrailing) {
+                Button {
+                    model.showNowPlaying = false
+                } label: {
+                    Image(systemName: "chevron.down")
+                        .font(.body.weight(.semibold))
+                        .frame(width: 36, height: 36)
+                        .contentShape(Circle())
+                        .controlGlass(Circle(), interactive: true)
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut(.cancelAction)
+                .padding(Design.Space.m)
+                .help(Text("common.collapse"))
+                .accessibilityLabel(Text("common.collapse"))
+            }
+        #else
+        content
+        #endif
     }
 }
 
@@ -190,7 +269,7 @@ struct NowPlayingArtwork: View {
     @State private var wide = false
 
     var body: some View {
-        ArtworkView(url: url, size: side, shape: wide ? .wide : .rounded)
+        ArtworkView(url: url, size: side, shape: wide ? .wide : .rounded, cornerRadius: Design.Radius.cover)
             .animation(.snappy, value: wide)
             .task(id: url) {
                 wide = false
@@ -202,3 +281,38 @@ struct NowPlayingArtwork: View {
             }
     }
 }
+
+#if os(macOS)
+/// Прячет панель инструментов окна на время жизни вида и возвращает её при уходе, как «Вид › Скрыть панель
+/// инструментов»: кнопки окна (красная, жёлтая, зелёная) остаются на месте, название раздела в строке заголовка
+/// тоже скрыто, содержимое окна — под прозрачной строкой заголовка.
+private struct MacToolbarHidden: NSViewRepresentable {
+    func makeNSView(context: Context) -> ToolbarHiderView { ToolbarHiderView() }
+
+    func updateNSView(_ view: ToolbarHiderView, context: Context) {}
+
+    static func dismantleNSView(_ view: ToolbarHiderView, coordinator: ()) { view.restore() }
+
+    final class ToolbarHiderView: NSView {
+        private weak var hiddenIn: NSWindow?
+        private var wasVisible = true
+        private var title = NSWindow.TitleVisibility.visible
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            guard let window, hiddenIn == nil, let toolbar = window.toolbar else { return }
+            hiddenIn = window
+            wasVisible = toolbar.isVisible
+            title = window.titleVisibility
+            toolbar.isVisible = false
+            window.titleVisibility = .hidden
+        }
+
+        func restore() {
+            hiddenIn?.toolbar?.isVisible = wasVisible
+            hiddenIn?.titleVisibility = title
+            hiddenIn = nil
+        }
+    }
+}
+#endif

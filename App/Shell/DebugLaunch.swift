@@ -2,6 +2,7 @@
 import SwiftUI
 import MelogoldCore
 import MelogoldData
+import MelogoldLyrics
 
 /// Только отладочная сборка: параметры запуска для проверки на симуляторе без нажатий.
 ///
@@ -14,6 +15,10 @@ import MelogoldData
 ///     -MelogoldShowNowPlaying YES                      открыть «Сейчас играет», как только появится трек
 ///     -MelogoldShowLyrics YES, -MelogoldLyricsEditor YES   вместе с ним — текст и редактор текста
 ///     -MelogoldShowQueue YES, -MelogoldSleep <мин>       очередь и таймер сна
+///     -MelogoldSeedLyrics YES|editor                    свой синхронный текст играющему треку: короткая и длинная строка,
+///                                                       подпевка, вторая сторона дуэта, перевод, проигрыш 26–34 с; `editor` —
+///                                                       обычный текст без времени, первая строка — длинная японская (редактор)
+///     -MelogoldSeek <с> [-MelogoldSeekPause YES]        перемотать после старта (и встать на паузу) — снимки без гонки со временем
 ///     -MelogoldSeedLibrary YES                          пример библиотеки для снимков: лайки, плейлист, история, альбом
 ///     -MelogoldMiniPlayer YES                            Mac: открыть и окно мини-плеера
 ///     -MelogoldSeedPlays YES                            два своих прослушивания без сети — История и её фильтр
@@ -35,6 +40,42 @@ enum DebugLaunch {
         }
         library.setAlbumSaved(album.album, tracks: tracks, true)
         library.setArtistSaved(ArtistItem(browseId: "UCL9NQ06h7I0CRUcGxPWMtkQ", name: "Кино", thumbnailUrl: nil), true)
+    }
+
+    /// Свой синхронный текст играющему треку для снимков «Сейчас играет»: короткая строка (узкая подложка), длинная с
+    /// переносом, строка с подпевкой, строка второй стороны дуэта с переводом и проигрыш 26–34 с (подложки нет).
+    @MainActor
+    static func seedLyrics(_ model: AppModel, track: Track, plainForEditor: Bool = false) {
+        if plainForEditor {
+            // Для редактора «Синхронизация»: ни одной отметки времени, «Далее» — длинные строки целиком
+            let long = "夜空を見上げて 君の名前を呼んだ 遠い街の灯りが 滲んで見える 風に乗せた言葉は どこまで届くのだろう それでも歩き続けるよ 明日の光を信じて"
+            let veryLong = Array(repeating: long, count: 5).joined(separator: " ")
+            model.services.lyrics.load(track)
+            model.services.lyrics.saveOwn(videoId: track.videoId, synced: "", plain: [long, veryLong, "Обычная строка (подпевка)", "Ещё одна строка"].joined(separator: "\n"),
+                                          source: LyricsSources.user)
+            return
+        }
+        func line(_ start: Int64, _ end: Int64, _ text: String, side: VocalSide = .start, backing: String? = nil, translation: String? = nil) -> SyncedLine {
+            SyncedLine(startMs: start, endMs: end, text: text, agent: side == .end ? "v2" : "v1", side: side,
+                       background: backing.map { BackingVocals(startMs: start, endMs: end, words: [SyncedWord(startMs: start, endMs: end, text: $0)]) },
+                       translation: translation)
+        }
+        let lines = [
+            line(6_000, 9_000, "Привет"),
+            line(9_000, 14_000, "Это очень длинная строка текста песни, которая обязательно не поместится в одну строку и перенесётся на две или даже на три строки"),
+            line(14_000, 18_000, "Мягкое кресло, клетчатый плед", backing: "(эхо)"),
+            line(18_000, 22_000, "Ответ второго голоса", side: .end),
+            line(22_000, 26_000, "Строка с переводом", side: .end, translation: "A line with a translation"),
+            line(34_000, 38_000, "После проигрыша"),
+            line(38_000, 42_000, "Ещё одна строка"),
+            line(42_000, 46_000, "И ещё одна"),
+            line(46_000, 50_000, "Последняя строка для прокрутки"),
+        ]
+        let synced = SyncedLyrics(lines: lines, timing: .line,
+                                  agents: [LyricsAgent(id: "v1", side: .start), LyricsAgent(id: "v2", side: .end)])
+        model.services.lyrics.load(track)
+        model.services.lyrics.saveOwn(videoId: track.videoId, synced: TtmlFormat.write(synced),
+                                      plain: lines.map(\.text).joined(separator: "\n"), source: LyricsSources.user)
     }
 
     /// Два прослушивания этого устройства без сети и без плеера (звук не нужен) — для Истории и фильтра по устройствам
@@ -71,10 +112,13 @@ enum DebugLaunch {
             Task { await seedLibrary(model) }
         }
         if defaults.bool(forKey: "MelogoldSeedPlays") { seedPlays(model) }
-        if defaults.bool(forKey: "MelogoldShowNowPlaying") || defaults.bool(forKey: "MelogoldShowQueue") {
+        if defaults.bool(forKey: "MelogoldShowNowPlaying") || defaults.bool(forKey: "MelogoldShowQueue") || defaults.string(forKey: "MelogoldSeedLyrics") != nil {
             Task {
                 for _ in 0..<300 where model.services.player.currentTrack == nil {
                     try? await Task.sleep(for: .milliseconds(100))
+                }
+                if let seed = defaults.string(forKey: "MelogoldSeedLyrics"), let track = model.services.player.currentTrack {
+                    seedLyrics(model, track: track, plainForEditor: seed == "editor")
                 }
                 model.lyricsVisible = defaults.bool(forKey: "MelogoldShowLyrics")
                 model.showNowPlaying = defaults.bool(forKey: "MelogoldShowNowPlaying") && model.services.player.currentTrack != nil
@@ -84,9 +128,22 @@ enum DebugLaunch {
                     try? await Task.sleep(for: .seconds(3))
                     model.queueVisible = true
                 }
-                if defaults.bool(forKey: "MelogoldLyricsEditor") {
+                if defaults.string(forKey: "MelogoldLyricsEditor") != nil {
                     try? await Task.sleep(for: .seconds(4))
                     model.openLyricsEditor()
+                }
+                if let seconds = defaults.string(forKey: "MelogoldSeek").flatMap(Double.init) {
+                    let player = model.services.player
+                    // Ждём звук, затем перематываем, пока позиция не встанет (первая перемотка на старте бывает потеряна)
+                    for _ in 0..<300 where player.phase != .playing || player.duration <= 0 {
+                        try? await Task.sleep(for: .milliseconds(100))
+                    }
+                    for _ in 0..<20 {
+                        if abs(player.position - seconds) < 2 { break }
+                        player.seek(to: seconds)
+                        try? await Task.sleep(for: .seconds(1))
+                    }
+                    if defaults.bool(forKey: "MelogoldSeekPause") { player.pause() }
                 }
             }
         }

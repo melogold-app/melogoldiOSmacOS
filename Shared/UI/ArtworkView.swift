@@ -12,6 +12,8 @@ struct ArtworkView: View {
     let url: String?
     var size: CGFloat
     var shape: Shape = .rounded
+    /// Радиус скругления вместо стандартного (у `rounded` — 12 % стороны, у `wide` — 8): крупным обложкам он меньше.
+    var cornerRadius: CGFloat?
     @Environment(\.displayScale) private var displayScale
     @State private var image: CGImage?
 
@@ -50,8 +52,8 @@ struct ArtworkView: View {
     private var clip: AnyShape {
         switch shape {
         case .circle: AnyShape(Circle())
-        case .rounded: AnyShape(RoundedRectangle(cornerRadius: max(4, size * 0.12), style: .continuous))
-        case .wide: AnyShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        case .rounded: AnyShape(RoundedRectangle(cornerRadius: cornerRadius ?? max(4, size * 0.12), style: .continuous))
+        case .wide: AnyShape(RoundedRectangle(cornerRadius: cornerRadius ?? 8, style: .continuous))
         case .square: AnyShape(Rectangle())
         }
     }
