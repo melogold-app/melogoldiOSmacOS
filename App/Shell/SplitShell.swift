@@ -1,7 +1,7 @@
 import SwiftUI
 import MelogoldCore
 
-/// iPad в широком окне и Mac: `NavigationSplitView` — те же пять разделов в боковой панели и одна
+/// iPad в широком окне и Mac: `NavigationSplitView` — те же пять разделов (и части Библиотеки, плейлисты) в боковой панели и одна
 /// `NavigationStack` на всю колонку детали (грабли §9 п. 18: без неё у открытой страницы нет «Назад»,
 /// а свой стек в каждом разделе рисует второй заголовок). Стек текущего раздела берётся из модели,
 /// поэтому при переключении разделов он сохраняется.
@@ -11,14 +11,10 @@ struct SplitShell: View {
     var body: some View {
         @Bindable var model = model
         NavigationSplitView {
-            List(selection: Binding(get: { Optional(model.section) }, set: { if let section = $0 { model.select(section) } })) {
-                ForEach(AppSection.allCases) { section in
-                    Label(section.title, systemImage: section.systemImage)
-                        .tag(section)
-                }
-            }
+            // Секции и плейлисты, как в Music.app (`Sidebar`); на iPad та же панель
+            Sidebar()
             #if os(macOS)
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 260)
+            .navigationSplitViewColumnWidth(min: 200, ideal: 220, max: 280)
             #else
             .navigationTitle(Text(verbatim: "Melogold"))
             #endif
@@ -59,6 +55,8 @@ struct SplitShell: View {
             }
         }
         .animation(.snappy, value: model.showNowPlaying)
+        // Пробел и ⌘A не мешают вводу текста: курсор в поле — из AppKit, а не из флага самого поля
+        .background { TextInputWatcher(model: model) }
         #else
         // iPad: лист во всю высоту с системным grabber, закрывается смахиванием вниз
         .sheet(isPresented: $model.showNowPlaying) {
@@ -69,6 +67,8 @@ struct SplitShell: View {
             ToastHost()
                 .padding(.bottom, 90)
         }
+        // ⌘N и «Новый плейлист» в боковой панели: название и открытие созданного в Библиотеке
+        .newPlaylistAlert(isPresented: $model.newPlaylistPrompt) { id in model.selectSidebar(.playlist(id)) }
     }
 }
 
@@ -98,3 +98,27 @@ struct MiniPlayerBar: ViewModifier {
         #endif
     }
 }
+
+#if os(macOS)
+/// Поле поиска в панели инструментов корня каждого раздела, как у Music.app: справа, на одном месте. Щелчок по нему
+/// открывает раздел «Поиск» (в нём то же поле — `SearchView`, с областями, подсказками и фокусом) с курсором в поле, как
+/// ⌘F (docs/PROMPT.md §5.4). В самом «Поиске», на экранах со своим фильтром и на открытых страницах (альбом, плейлист) в
+/// панели их собственные кнопки.
+struct ToolbarSearchField: ViewModifier {
+    let section: AppSection
+    @Environment(AppModel.self) private var model
+    @FocusState private var focused: Bool
+
+    func body(content: Content) -> some View {
+        @Bindable var model = model
+        if section == .search {
+            content
+        } else {
+            content
+                .searchable(text: $model.searchQuery, placement: .toolbar, prompt: Text("search.prompt"))
+                .searchFocused($focused)
+                .onChange(of: focused) { _, isFocused in if isFocused { model.focusSearch() } }
+        }
+    }
+}
+#endif

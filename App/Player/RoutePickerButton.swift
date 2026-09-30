@@ -11,6 +11,11 @@ struct RoutePickerButton: NSViewRepresentable {
     func makeNSView(context: Context) -> AVRoutePickerView {
         let view = AVRoutePickerView()
         view.isRoutePickerButtonBordered = false
+        // Как соседние значки панели: приглушённый, акцентом — пока звук идёт на другое устройство
+        view.setRoutePickerButtonColor(.secondaryLabelColor, for: .normal)
+        view.setRoutePickerButtonColor(.labelColor, for: .normalHighlighted)
+        view.setRoutePickerButtonColor(.controlAccentColor, for: .active)
+        view.setRoutePickerButtonColor(.controlAccentColor, for: .activeHighlighted)
         return view
     }
 

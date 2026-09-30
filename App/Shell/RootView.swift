@@ -10,6 +10,8 @@ struct RootView: View {
     @State private var renameText = ""
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #elseif os(macOS)
+    @Environment(\.openWindow) private var openWindow
     #endif
 
     var body: some View {
@@ -76,7 +78,12 @@ struct RootView: View {
                     model.coverTint = await CoverPalette.shared.tint(for: url)
                 }
             }
-            .onAppear { model.undoManager = undoManager }
+            .onAppear {
+                model.undoManager = undoManager
+                #if os(macOS)
+                model.openMainWindow = { openWindow(id: "main") }
+                #endif
+            }
             .onChange(of: undoManager) { model.undoManager = undoManager }
             .onChange(of: scenePhase) { _, phase in
                 // Уход в фон: отложенное выполняется сразу, очередь сохраняется (docs/PROMPT.md §5.10, §4).
@@ -111,6 +118,9 @@ struct SectionRoot: View {
 
     var body: some View {
         content
+            #if os(macOS)
+            .modifier(ToolbarSearchField(section: section))
+            #endif
             .modifier(MiniPlayerBar(enabled: miniPlayerBar))
             .navigationDestination(for: Route.self) { [miniPlayerBar] in
                 RouteView(route: $0).modifier(MiniPlayerBar(enabled: miniPlayerBar))
@@ -122,7 +132,11 @@ struct SectionRoot: View {
         switch section {
         case .trends: TrendsView()
         case .new: NewView()
+        #if os(macOS)
+        case .library: LibraryView().modifier(LibrarySubtitle())
+        #else
         case .library: LibraryView()
+        #endif
         case .search: SearchView()
         case .settings: SettingsView()
         }
@@ -183,3 +197,15 @@ struct RouteView: View {
         }
     }
 }
+
+#if os(macOS)
+/// Подзаголовок окна «Библиотеки» — сколько в ней треков, как «1 234 песни» у Music.app.
+private struct LibrarySubtitle: ViewModifier {
+    @Environment(AppModel.self) private var model
+
+    func body(content: Content) -> some View {
+        let tracks = model.library?.counts.allTracks ?? 0
+        content.navigationSubtitle(tracks > 0 ? Text("library.tracks \(tracks)") : Text(verbatim: ""))
+    }
+}
+#endif

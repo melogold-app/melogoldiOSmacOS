@@ -72,21 +72,14 @@ struct MelogoldApp: App {
                 }
                 .onChange(of: model.settings.theme) { applyMacAppearance() }
                 #if DEBUG
-                .modifier(DebugWindowOpener())
+                .modifier(DebugWindowOpener(model: model))
                 #endif
         }
+        // Размер и положение окна помнятся между запусками (автосохранение окна «main»); меньше 720 × 480 не сжимается
         .defaultSize(width: 1100, height: 720)
+        .windowResizability(.contentMinSize)
         .commands { MelogoldCommands(model: model) }
-
-        // Мини-плеер — маленькое окно поверх остальных (docs/PROMPT.md §5.4), из меню «Окно».
-        Window(Text("window.miniPlayer"), id: "mini") {
-            MacMiniPlayer()
-                .environment(model)
-        }
-        .windowResizability(.contentSize)
-        .windowLevel(.floating)
-        .windowStyle(.hiddenTitleBar)
-        .defaultPosition(.topTrailing)
+        // Мини-плеер — не сцена, а панель AppKit (`MiniPlayerPanel`): сцена `Window` открывалась при каждом запуске
         #else
         WindowGroup {
             RootView()

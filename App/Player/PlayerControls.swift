@@ -7,6 +7,8 @@ import MelogoldPlayback
 struct PlayerStatusLine: View {
     @Environment(AppModel.self) private var model
     var font: Font = .subheadline
+    /// Нажатие на исполнителя (панель воспроизведения Mac: «по исполнителю — исполнитель», docs/PROMPT.md §5.4).
+    var onArtistTap: (() -> Void)?
 
     var body: some View {
         let player = model.services.player
@@ -22,6 +24,8 @@ struct PlayerStatusLine: View {
                 } else if player.phase == .loading, let since = player.loadingSince, context.date.timeIntervalSince(since) >= 3 {
                     Text("player.gettingStream")
                         .foregroundStyle(.secondary)
+                } else if let onArtistTap, player.currentTrack?.primaryArtistId != nil {
+                    LinkText(text: player.currentTrack?.artistsText ?? "", hint: "menu.goToArtist", action: onArtistTap)
                 } else {
                     Text(player.currentTrack?.artistsText ?? "")
                         .foregroundStyle(.secondary)
@@ -30,6 +34,32 @@ struct PlayerStatusLine: View {
             .font(font)
             .lineLimit(1)
         }
+    }
+}
+
+/// Текст-ссылка панели воспроизведения Mac: приглушённый, при наведении — подчёркнутый и обычным цветом; для
+/// VoiceOver — кнопка. Вне Mac наведения нет, остаётся кнопка без оформления.
+struct LinkText: View {
+    let text: String
+    /// Название, а не подпись: в покое обычным цветом.
+    var prominent = false
+    /// Что сделает нажатие — для VoiceOver («Открыть исполнителя»).
+    var hint: LocalizedStringResource?
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(verbatim: text)
+                .underline(hovering)
+                .foregroundStyle(hovering || prominent ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint(hint.map { Text($0) } ?? Text(verbatim: ""))
+        .onHover { hovering = $0 }
+        #if os(macOS)
+        .pointerStyle(.link)
+        #endif
     }
 }
 
@@ -79,22 +109,35 @@ private extension View {
 }
 
 /// Нажатие крупной кнопки транспорта без рамки: значок чуть сжимается, под ним проступает мягкий круг — как у Apple
-/// Music. Уменьшение движения — без сжатия.
+/// Music. На Mac круг мягче проступает и под указателем. Уменьшение движения — без сжатия.
 struct TransportPressStyle: ButtonStyle {
     var diameter: CGFloat
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
+        TransportPressBody(configuration: configuration, diameter: diameter)
+    }
+}
+
+private struct TransportPressBody: View {
+    let configuration: ButtonStyleConfiguration
+    let diameter: CGFloat
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var hovering = false
+
+    var body: some View {
+        let fill = configuration.isPressed ? 0.12 : (hovering && isEnabled ? 0.07 : 0)
         configuration.label
             .foregroundStyle(isEnabled ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
             .background {
                 Circle()
-                    .fill(.primary.opacity(configuration.isPressed ? 0.1 : 0))
+                    .fill(.primary.opacity(fill))
                     .frame(width: diameter, height: diameter)
             }
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.86 : 1)
             .animation(.spring(response: 0.28, dampingFraction: 0.62), value: configuration.isPressed)
+            .animation(.easeOut(duration: 0.12), value: hovering)
+            .onHover { hovering = $0 }
     }
 }
 
@@ -264,6 +307,17 @@ struct SeekBar: View {
         }
         .onHover { hovering = $0 }
         .disabled(player.duration <= 0)
+        #if os(macOS)
+        // С клавиатуры: Tab — на полосу, ← и → — на 5 секунд (как стрелки у ползунка системы)
+        .focusable()
+        .onMoveCommand { direction in
+            switch direction {
+            case .left: player.seek(to: max(0, player.position - 5))
+            case .right: player.seek(to: min(duration, player.position + 5))
+            default: break
+            }
+        }
+        #endif
         .task(id: released) {
             guard released != nil else { return }
             try? await Task.sleep(for: .milliseconds(900))
@@ -319,6 +373,8 @@ struct LikeButton: View {
     var size: Font = .title3
     /// В стеклянном круге (`TrackActionCircles`), а не просто значком.
     var circle = false
+    /// Зона нажатия значка без круга: 44 pt на сенсорных экранах, меньше — на панели Mac.
+    var tap: CGFloat = Design.Size.minTap
     @State private var taps = 0
 
     var body: some View {
@@ -331,11 +387,12 @@ struct LikeButton: View {
                 Image(systemName: liked ? "heart.fill" : "heart")
                     .font(size.weight(.semibold))
                     .foregroundStyle(liked ? AnyShapeStyle(.pink) : AnyShapeStyle(circle ? .primary : .secondary))
-                    .frame(minWidth: circle ? Design.Size.actionCircle : Design.Size.minTap,
-                           minHeight: circle ? Design.Size.actionCircle : Design.Size.minTap)
+                    .frame(minWidth: circle ? Design.Size.actionCircle : tap,
+                           minHeight: circle ? Design.Size.actionCircle : tap)
                     .contentShape(circle ? AnyShape(Circle()) : AnyShape(Rectangle()))
                     .contentTransition(.symbolEffect(.replace))
                     .modifier(ActionCircleGlass(enabled: circle))
+                    .hoverHighlight(Circle(), enabled: !circle)
             }
             .buttonStyle(.plain)
             .sensoryFeedback(.impact(weight: .medium), trigger: taps)
@@ -350,6 +407,8 @@ struct ShuffleToggle: View {
     var size: Font = .body
     /// Выключенный — приглушённым (ряд транспорта «Сейчас играет»).
     var muted = false
+    /// Зона нажатия: 44 pt на сенсорных экранах, меньше — на панели Mac.
+    var tap: CGFloat = Design.Size.minTap
 
     var body: some View {
         let player = model.services.player
@@ -357,8 +416,9 @@ struct ShuffleToggle: View {
             Image(systemName: "shuffle")
                 .font(size.weight(.semibold))
                 .controlSymbol(active: player.shuffled, muted: muted)
-                .frame(minWidth: Design.Size.minTap, minHeight: Design.Size.minTap)
+                .frame(minWidth: tap, minHeight: tap)
                 .contentShape(Rectangle())
+                .hoverHighlight(Circle())
         }
         .buttonStyle(.plain)
         .sensoryFeedback(.selection, trigger: player.shuffled)
@@ -373,6 +433,8 @@ struct RepeatToggle: View {
     var size: Font = .body
     /// Выключенный — приглушённым (ряд транспорта «Сейчас играет»).
     var muted = false
+    /// Зона нажатия: 44 pt на сенсорных экранах, меньше — на панели Mac.
+    var tap: CGFloat = Design.Size.minTap
 
     var body: some View {
         let player = model.services.player
@@ -386,8 +448,9 @@ struct RepeatToggle: View {
             Image(systemName: player.repeatMode == .one ? "repeat.1" : "repeat")
                 .font(size.weight(.semibold))
                 .controlSymbol(active: player.repeatMode != .off, muted: muted)
-                .frame(minWidth: Design.Size.minTap, minHeight: Design.Size.minTap)
+                .frame(minWidth: tap, minHeight: tap)
                 .contentShape(Rectangle())
+                .hoverHighlight(Circle())
         }
         .buttonStyle(.plain)
         .sensoryFeedback(.selection, trigger: player.repeatMode)
@@ -432,6 +495,17 @@ struct VolumeBar: View {
             Image(systemName: "speaker.wave.3.fill").foregroundStyle(.secondary).font(.caption)
         }
         .onHover { hovering = $0 }
+        #if os(macOS)
+        // С клавиатуры: Tab — на полосу, ← и → — на 5 %
+        .focusable()
+        .onMoveCommand { direction in
+            switch direction {
+            case .left: player.volume = max(0, player.volume - 0.05)
+            case .right: player.volume = min(1, player.volume + 0.05)
+            default: break
+            }
+        }
+        #endif
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("player.volume"))
         .accessibilityValue(Text(verbatim: "\(Int((player.volume * 100).rounded())) %"))

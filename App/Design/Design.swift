@@ -140,3 +140,31 @@ extension View {
         dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 }
+
+// MARK: - Наведение (Mac)
+
+extension View {
+    /// Подсветка под указателем на Mac: мягкая заливка формы кнопки, как у кнопок панелей системных приложений. На
+    /// остальных платформах наведения нет — вид не меняется. Выключенная кнопка не подсвечивается.
+    func hoverHighlight<S: Shape>(_ shape: S, enabled: Bool = true) -> some View {
+        modifier(HoverHighlight(shape: shape, enabled: enabled))
+    }
+}
+
+private struct HoverHighlight<S: Shape>: ViewModifier {
+    let shape: S
+    let enabled: Bool
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var hovering = false
+
+    func body(content: Content) -> some View {
+        #if os(macOS)
+        content
+            .background(shape.fill(.primary.opacity(enabled && isEnabled && hovering ? 0.1 : 0)))
+            .onHover { hovering = $0 }
+            .animation(.easeOut(duration: 0.12), value: hovering)
+        #else
+        content
+        #endif
+    }
+}

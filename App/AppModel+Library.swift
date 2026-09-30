@@ -33,6 +33,7 @@ extension AppModel {
     func replaceQueue(_ perform: () -> Void) {
         let player = services.player
         let previous = player.userItemsCount >= 2 ? player.snapshot() : nil
+        playSource = PlaySource(section: section, routes: routes[section] ?? [])
         perform()
         guard let previous else { return }
         toast = Toast(text: String(localized: "queue.replaced"), actionTitle: "common.undo") { [weak self] in

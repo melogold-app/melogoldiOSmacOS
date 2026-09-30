@@ -111,6 +111,21 @@ final class AppModel {
     /// Курсор в поле ввода: пробел вводит пробел, а не ставит паузу (Mac, docs/PROMPT.md §5.4).
     var textInputActive = false
 
+    /// ⌘N и «Новый плейлист» в боковой панели Mac: окно с названием; созданный плейлист открывается в Библиотеке.
+    var newPlaylistPrompt = false
+
+    /// Открыть главное окно (Mac): мини-плеер и меню зовут его, когда окно закрыто — музыка при этом играет. Ставит
+    /// `RootView`.
+    @ObservationIgnored var openMainWindow: (() -> Void)?
+
+    /// Откуда начали играть: раздел и его стек в тот момент. «К текущему треку» (⌘L) возвращает туда (`goToCurrentTrack`).
+    var playSource: PlaySource?
+
+    struct PlaySource: Equatable {
+        let section: AppSection
+        let routes: [Route]
+    }
+
     struct Notice: Identifiable {
         let id = UUID()
         let title: LocalizedStringResource

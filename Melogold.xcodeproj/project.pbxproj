@@ -32,6 +32,7 @@
 		215CFC95E58BCEEA3194F429 /* SleepFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 713C3A392A064D16A0998F09 /* SleepFormat.swift */; };
 		238ABA984DA91ED32A2D0F22 /* MelogoldCore in Frameworks */ = {isa = PBXBuildFile; productRef = 00E31265CD9323121FDDEB60 /* MelogoldCore */; };
 		27BC3F726C517FCA48A23D30 /* NowPlayingControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 224966FBD9C8AAE03D911296 /* NowPlayingControls.swift */; };
+		3639E22B760A4D817B0529F4 /* MacMiniPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48FFA8DDC645CBE276094E8B /* MacMiniPlayer.swift */; };
 		36BF6117FE82E0774B7F66DE /* SettingsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10E71927F6789EA72F07161B /* SettingsUITests.swift */; };
 		37386CC75DEE3EBD4A5BBEA7 /* Shelves.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05CB98AC0A4C230383AE4920 /* Shelves.swift */; };
 		373ABF28FB0AE1BC2575DFF3 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05609036F2EA8B7D37C79D06 /* RootView.swift */; };
@@ -56,6 +57,7 @@
 		541782B9FFF7E37EAC7D901A /* PlayerMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7704BEE3DFEDE997F23D5CC /* PlayerMenu.swift */; };
 		54E552D63E3171488285F922 /* DebugSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60D5E73AB6179004AA6A76AA /* DebugSnapshot.swift */; };
 		55C88BDF8593BFE632936A56 /* Melogold.icon in Resources */ = {isa = PBXBuildFile; fileRef = B37968274E19904FD5DE23BE /* Melogold.icon */; platformFilters = (ios, macos, ); };
+		55EB51B25631BD2821CB8722 /* MacWindowSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E3D46A2D0984F35D3968E45 /* MacWindowSupport.swift */; };
 		567F265E3BA0A848A0FBEB98 /* DeviceFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 726530CD8E819BED0D77A788 /* DeviceFilter.swift */; };
 		5711F2CB6529289E2C69FA82 /* BrowseViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF26F96C87B32EA1FC1B5889 /* BrowseViews.swift */; };
 		582A1F17CACE0FAE6DACBC76 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = D72E675CA1E535993FE48A90 /* PrivacyInfo.xcprivacy */; };
@@ -75,6 +77,7 @@
 		718BB31932840DC26CC65377 /* WrappedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D14923C98D9F69AD5CB8EF5 /* WrappedView.swift */; };
 		720F7FE75D5D1A3D3EE84ADF /* WatchSearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDE9EE13AFF02588C010A268 /* WatchSearchView.swift */; };
 		73FD23AEAC59899797069BFB /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 0024B4C3F56980A4999F2B94 /* InfoPlist.xcstrings */; };
+		76054FE479A094ED960CFE63 /* DebugScript.swift in Sources */ = {isa = PBXBuildFile; fileRef = E315C0119024CB224210965F /* DebugScript.swift */; };
 		766B5002AF165A002F7E30E0 /* GRDB.txt in Resources */ = {isa = PBXBuildFile; fileRef = BBCE493DD034CF658A9F6866 /* GRDB.txt */; };
 		76AF7E56D0A746CD7C2D6B70 /* CatalogUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 571D3D5AAD367DD65A477BF3 /* CatalogUITests.swift */; };
 		771134A71C28716CD3A30DBA /* MelogoldInnerTube in Frameworks */ = {isa = PBXBuildFile; productRef = DC9CC894B07B9896638342CD /* MelogoldInnerTube */; };
@@ -108,6 +111,7 @@
 		A80173124DB9EE5F48306046 /* PlaybackStorageSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39AD56A4AE2A9E51E2F5D5D1 /* PlaybackStorageSettings.swift */; };
 		AD9762521ADF67969D008192 /* MelogoldCore in Frameworks */ = {isa = PBXBuildFile; productRef = 625BF3FEAD52620894C27DA0 /* MelogoldCore */; };
 		AE34108429CD39DABB31E806 /* ImportExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A4D15A491965FFDE1BA5F21 /* ImportExport.swift */; };
+		B03AC62AFB95558EA9C81D3C /* Sidebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009A6AFD2565F7A7ECA489BE /* Sidebar.swift */; };
 		B045BE9A2854382C256D6413 /* StatsCharts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A005002A9088ABEFA8BF4C43 /* StatsCharts.swift */; };
 		B151712796C5FCDCEC791F52 /* AccountSettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7276233A1B85EC99AD83FB4 /* AccountSettingsSection.swift */; };
 		B22FECA39E16E823BF8F4B17 /* DownloadBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97402686922C656EB2A3FA17 /* DownloadBadge.swift */; };
@@ -148,6 +152,7 @@
 		F6336A9FB5CD02C3A59A76A4 /* NowPlayingUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 428DFD6A2A4B5ED564C603F7 /* NowPlayingUITests.swift */; };
 		F65F688275F404FC37157ED2 /* DebugBenchmark.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5CCDBAD0C5BE71085F14626 /* DebugBenchmark.swift */; };
 		F7625B181D9A6185784449C1 /* WatchLibraryViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD6176B0421F4BED1367019F /* WatchLibraryViews.swift */; };
+		F813750A5DD2C2A81C640DC4 /* AppModel+Shell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87027DFCEC2249247A9BE008 /* AppModel+Shell.swift */; };
 		F8935A4B70FE3862009DCED8 /* AlbumView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B041EBEA60A6B89FA365385A /* AlbumView.swift */; };
 		FBA6FBD34A28B814B61A07C3 /* LyricsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCB0C6153B9A06B75A9C18E7 /* LyricsView.swift */; };
 		FC76178926B9A1944384776F /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E523A3EDBF9604F373F12513 /* SearchView.swift */; };
@@ -196,6 +201,7 @@
 
 /* Begin PBXFileReference section */
 		0024B4C3F56980A4999F2B94 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
+		009A6AFD2565F7A7ECA489BE /* Sidebar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sidebar.swift; sourceTree = "<group>"; };
 		039F87724BDABD8F92A76A71 /* WatchHistoryUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHistoryUITests.swift; sourceTree = "<group>"; };
 		05609036F2EA8B7D37C79D06 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		05CB98AC0A4C230383AE4920 /* Shelves.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shelves.swift; sourceTree = "<group>"; };
@@ -206,6 +212,7 @@
 		09E3FE63121B6413A0852E3E /* Design.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Design.swift; sourceTree = "<group>"; };
 		0D14923C98D9F69AD5CB8EF5 /* WrappedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WrappedView.swift; sourceTree = "<group>"; };
 		0E0F3CDE1537AB387F77F857 /* LyricsEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsEditorView.swift; sourceTree = "<group>"; };
+		0E3D46A2D0984F35D3968E45 /* MacWindowSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacWindowSupport.swift; sourceTree = "<group>"; };
 		0ED1959497A998519DFBAEC6 /* SectionStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionStyle.swift; sourceTree = "<group>"; };
 		10E71927F6789EA72F07161B /* SettingsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsUITests.swift; sourceTree = "<group>"; };
 		13B81A946E728A6A1CF4DBE3 /* AccountRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountRoute.swift; sourceTree = "<group>"; };
@@ -230,6 +237,7 @@
 		428DFD6A2A4B5ED564C603F7 /* NowPlayingUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingUITests.swift; sourceTree = "<group>"; };
 		44E7488F82A5E9E689DE17B0 /* PlayerControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerControls.swift; sourceTree = "<group>"; };
 		464CEB05A2F06733EC5B6804 /* TrackMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackMenu.swift; sourceTree = "<group>"; };
+		48FFA8DDC645CBE276094E8B /* MacMiniPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacMiniPlayer.swift; sourceTree = "<group>"; };
 		4A557709BB203BB81812E446 /* PlaylistShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistShareSheet.swift; sourceTree = "<group>"; };
 		4A6EB7CA2C9AC85995734B19 /* DebugLaunch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLaunch.swift; sourceTree = "<group>"; };
 		571D3D5AAD367DD65A477BF3 /* CatalogUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogUITests.swift; sourceTree = "<group>"; };
@@ -257,6 +265,7 @@
 		830E0EC31CC904F4E2949834 /* DownloadsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsView.swift; sourceTree = "<group>"; };
 		83FA08593BA80C10D1786A94 /* ArtworkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkView.swift; sourceTree = "<group>"; };
 		85E2B2288648108298990241 /* AboutViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutViews.swift; sourceTree = "<group>"; };
+		87027DFCEC2249247A9BE008 /* AppModel+Shell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Shell.swift"; sourceTree = "<group>"; };
 		87A6916777459732260903DC /* ArtistView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistView.swift; sourceTree = "<group>"; };
 		87B089AC25B6613CFBF2E0FF /* Routes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Routes.swift; sourceTree = "<group>"; };
 		88A1BA2E6F1DE9B1CB7537AA /* LibraryUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryUITests.swift; sourceTree = "<group>"; };
@@ -303,6 +312,7 @@
 		E0648684D1F1C038D528F28A /* ArtworkTint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtworkTint.swift; sourceTree = "<group>"; };
 		E06646CDF05B297C32A82774 /* Services.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services.swift; sourceTree = "<group>"; };
 		E2CD0B3EB6727B5331CCE032 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		E315C0119024CB224210965F /* DebugScript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugScript.swift; sourceTree = "<group>"; };
 		E523A3EDBF9604F373F12513 /* SearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
 		E59F5F588452F498D6413117 /* Melogold.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Melogold.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E7276233A1B85EC99AD83FB4 /* AccountSettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSettingsSection.swift; sourceTree = "<group>"; };
@@ -421,6 +431,7 @@
 				0E0F3CDE1537AB387F77F857 /* LyricsEditorView.swift */,
 				EA63165E83727DB40E4E2B0A /* LyricsSearchSheet.swift */,
 				FCB0C6153B9A06B75A9C18E7 /* LyricsView.swift */,
+				48FFA8DDC645CBE276094E8B /* MacMiniPlayer.swift */,
 				6A408396BE12A73C84983051 /* MacPlayerBar.swift */,
 				7D6C4E54E29C8CF7F8B0D862 /* MiniPlayer.swift */,
 				224966FBD9C8AAE03D911296 /* NowPlayingControls.swift */,
@@ -468,6 +479,7 @@
 				DDB65AED585E3C7F98B61195 /* AppModel+Library.swift */,
 				21242EDE140411495940D1F8 /* AppModel+Links.swift */,
 				D973D05A9FF5C0DB6B2438D4 /* AppModel+Selection.swift */,
+				87027DFCEC2249247A9BE008 /* AppModel+Shell.swift */,
 				09C67B6DB37BD9B39F0015A5 /* Info.plist */,
 				A071D3B7B2103C906F45A4F9 /* MelogoldApp.swift */,
 				87B089AC25B6613CFBF2E0FF /* Routes.swift */,
@@ -607,10 +619,13 @@
 				E968415E6F0B73C9B137C4A2 /* CarPlaySceneDelegate.swift */,
 				A5CCDBAD0C5BE71085F14626 /* DebugBenchmark.swift */,
 				4A6EB7CA2C9AC85995734B19 /* DebugLaunch.swift */,
+				E315C0119024CB224210965F /* DebugScript.swift */,
 				60D5E73AB6179004AA6A76AA /* DebugSnapshot.swift */,
+				0E3D46A2D0984F35D3968E45 /* MacWindowSupport.swift */,
 				93441BF35DA128B8AAFCDF1C /* MelogoldCommands.swift */,
 				17319AB7514C7C02C4B6A07A /* RemoteBridge.swift */,
 				05609036F2EA8B7D37C79D06 /* RootView.swift */,
+				009A6AFD2565F7A7ECA489BE /* Sidebar.swift */,
 				68CE44484027E235BABE4E9B /* SplitShell.swift */,
 				2FFA6E1800667B694083CA84 /* SystemIntegration.swift */,
 				74D5802F9DB93D4977628101 /* TabShell.swift */,
@@ -936,6 +951,7 @@
 				5C7F337ACE5ED707155C3DE3 /* AppModel+Library.swift in Sources */,
 				8F0410F2C72FE08F85A6E60E /* AppModel+Links.swift in Sources */,
 				2048FAA1CFA8064D3D5952C9 /* AppModel+Selection.swift in Sources */,
+				F813750A5DD2C2A81C640DC4 /* AppModel+Shell.swift in Sources */,
 				EE794A34E673F168A7B05EAB /* AppModel.swift in Sources */,
 				C323AB54C7CE47E1ECA47C9D /* AppUpdater.swift in Sources */,
 				0AB30F97DC1B704FA12F1A64 /* ArtistView.swift in Sources */,
@@ -946,6 +962,7 @@
 				46E2E7F8D8D807B25B3277F4 /* CoverPalette.swift in Sources */,
 				F65F688275F404FC37157ED2 /* DebugBenchmark.swift in Sources */,
 				6C4AC9EDF614DE121A6F16FD /* DebugLaunch.swift in Sources */,
+				76054FE479A094ED960CFE63 /* DebugScript.swift in Sources */,
 				54E552D63E3171488285F922 /* DebugSnapshot.swift in Sources */,
 				B878443D59B6FEB0FF4FCA92 /* Design.swift in Sources */,
 				3BB36E4150B2B2AEBBE9160E /* DetailPage.swift in Sources */,
@@ -969,7 +986,9 @@
 				B2979E9C8C774653A2852C52 /* LyricsEditorView.swift in Sources */,
 				67CE77D5B52347474A458226 /* LyricsSearchSheet.swift in Sources */,
 				FBA6FBD34A28B814B61A07C3 /* LyricsView.swift in Sources */,
+				3639E22B760A4D817B0529F4 /* MacMiniPlayer.swift in Sources */,
 				D98300DB4AA4D8F5B6903D2D /* MacPlayerBar.swift in Sources */,
+				55EB51B25631BD2821CB8722 /* MacWindowSupport.swift in Sources */,
 				0F943CFE0F06498E564634C0 /* MelogoldApp.swift in Sources */,
 				7EA3249E428FB6CF17568CE9 /* MelogoldCommands.swift in Sources */,
 				066325A2E0A9B9E988EEF947 /* MiniPlayer.swift in Sources */,
@@ -998,6 +1017,7 @@
 				F42A7A749C360FA3E6E10534 /* SettingsView.swift in Sources */,
 				3CD9CCF31D2BC6F259802C5D /* SharedPlaylistView.swift in Sources */,
 				37386CC75DEE3EBD4A5BBEA7 /* Shelves.swift in Sources */,
+				B03AC62AFB95558EA9C81D3C /* Sidebar.swift in Sources */,
 				1A83A03BA63362F319089F9E /* SignInView.swift in Sources */,
 				7A48C339E90DDEB9F20D3B7C /* SleepFormat.swift in Sources */,
 				1B1F41525428EEB1C939DEDF /* SplitShell.swift in Sources */,

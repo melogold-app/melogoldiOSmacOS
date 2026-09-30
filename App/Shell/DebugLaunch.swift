@@ -21,6 +21,7 @@ import MelogoldLyrics
 ///     -MelogoldSeek <с> [-MelogoldSeekPause YES]        перемотать после старта (и встать на паузу) — снимки без гонки со временем
 ///     -MelogoldSeedLibrary YES                          пример библиотеки для снимков: лайки, плейлист, история, альбом
 ///     -MelogoldMiniPlayer YES                            Mac: открыть и окно мини-плеера
+///     -MelogoldScript <файл>                             Mac: сценарий (клавиши, меню, щелчки, снимки) — см. `DebugScript`
 ///     -MelogoldSeedPlays YES                            два своих прослушивания без сети — История и её фильтр
 ///     -MelogoldSeedStats YES                            14 месяцев прослушиваний без сети — «Итоги» и «Итоги года»
 ///     -MelogoldOpen stats, -MelogoldOpenWrapped <год>   «Итоги» и «Итоги года» на весь экран
@@ -201,6 +202,10 @@ enum DebugLaunch {
     @MainActor
     static func apply(to model: AppModel) {
         let defaults = UserDefaults.standard
+        #if os(macOS)
+        // -MelogoldScript <файл> — сценарий проверки окна, меню и клавиш (`DebugScript`)
+        DebugScript.runIfRequested(model: model)
+        #endif
         if defaults.bool(forKey: "MelogoldMute") {
             model.services.player.volume = 0
             // Жёстко: громкость пульта (задание 0020) и ползунок не включат звук
@@ -314,14 +319,45 @@ enum DebugLaunch {
 
 #if os(macOS)
 /// `-MelogoldMiniPlayer YES`: окно мини-плеера вместе с главным — для снимка.
+///
+/// `-MelogoldMiniBackdrop YES` — и цветной фон под ним: стекло мини-плеера пропускает то, что за окном, а снимок одного окна
+/// (`screencapture -l`) рисует стекло на пустом месте ровно серым. Фон — своё окно над обычными окнами (560 × 260 pt, левый
+/// верхний угол в (200, 300) экрана), мини-плеер встаёт по его центру; область снимается `screencapture -R 200,300,560,260`,
+/// чужих окон в кадре нет (проверять: `CGWindowList` — оба окна на экране, фон полностью закрывает область).
 struct DebugWindowOpener: ViewModifier {
-    @Environment(\.openWindow) private var openWindow
+    let model: AppModel
 
     func body(content: Content) -> some View {
         content.task {
             guard UserDefaults.standard.bool(forKey: "MelogoldMiniPlayer") else { return }
             try? await Task.sleep(for: .seconds(2))
-            openWindow(id: "mini")
+            MiniPlayerPanel.shared.show(model: model)
+            guard UserDefaults.standard.bool(forKey: "MelogoldMiniBackdrop"), let screen = NSScreen.main else { return }
+            let frame = NSRect(x: 200, y: screen.frame.height - 300 - 260, width: 560, height: 260)
+            // Панель без активации, как сам мини-плеер: окна приложения, запущенного в фоне, система на экран не выводит
+            let backdrop = NSPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+            backdrop.level = .floating
+            backdrop.hidesOnDeactivate = false
+            backdrop.isReleasedWhenClosed = false
+            backdrop.contentView = NSHostingView(rootView: DebugBackdrop())
+            backdrop.orderFrontRegardless()
+            MiniPlayerPanel.shared.debugPlace(at: NSPoint(x: frame.midX - 190, y: frame.midY - 56))
+            DebugBackdrop.window = backdrop
+        }
+    }
+}
+
+/// Пёстрый фон вместо обоев: градиент и несколько крупных форм, чтобы стекло было видно.
+private struct DebugBackdrop: View {
+    @MainActor static var window: NSWindow?
+
+    var body: some View {
+        ZStack {
+            LinearGradient(colors: [.indigo, .purple, .pink, .orange, .yellow], startPoint: .topLeading, endPoint: .bottomTrailing)
+            Circle().fill(.cyan.opacity(0.7)).frame(width: 150).offset(x: -190, y: -70)
+            RoundedRectangle(cornerRadius: 24).fill(.white.opacity(0.85)).frame(width: 170, height: 70).offset(x: 170, y: 80)
+            Circle().fill(.black.opacity(0.6)).frame(width: 90).offset(x: 190, y: -60)
+            Text(verbatim: "Liquid Glass backdrop").font(.system(size: 28, weight: .heavy)).foregroundStyle(.white).offset(y: -95)
         }
     }
 }

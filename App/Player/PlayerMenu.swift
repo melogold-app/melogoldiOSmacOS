@@ -10,6 +10,8 @@ struct PlayerMoreMenu: View {
     var size: Font = .title3
     /// В стеклянном круге (`TrackActionCircles`), а не просто значком.
     var circle = false
+    /// Зона нажатия значка без круга: 44 pt на сенсорных экранах, меньше — на панели Mac.
+    var tap: CGFloat = Design.Size.minTap
 
     var body: some View {
         Menu {
@@ -20,10 +22,11 @@ struct PlayerMoreMenu: View {
             Image(systemName: "ellipsis")
                 .font(circle ? size.weight(.semibold) : size)
                 .controlSymbol()
-                .frame(minWidth: circle ? Design.Size.actionCircle : Design.Size.minTap,
-                       minHeight: circle ? Design.Size.actionCircle : Design.Size.minTap)
+                .frame(minWidth: circle ? Design.Size.actionCircle : tap,
+                       minHeight: circle ? Design.Size.actionCircle : tap)
                 .contentShape(circle ? AnyShape(Circle()) : AnyShape(Rectangle()))
                 .modifier(ActionCircleGlass(enabled: circle))
+                .hoverHighlight(Circle(), enabled: !circle)
         }
         .menuStyle(.button)
         .buttonStyle(.plain)

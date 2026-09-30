@@ -18,9 +18,9 @@ final class MacAppDelegate: NSObject, NSApplicationDelegate {
                 menu.addItem(title)
                 menu.addItem(.separator())
             }
+            menu.addItem(item(String(localized: "player.previous"), #selector(previous)))
             menu.addItem(item(String(localized: player.isPlaying ? "player.pause" : "player.play"), #selector(togglePlay)))
             menu.addItem(item(String(localized: "player.next"), #selector(next)))
-            menu.addItem(item(String(localized: "player.previous"), #selector(previous)))
             return menu
         }
     }
@@ -34,32 +34,6 @@ final class MacAppDelegate: NSObject, NSApplicationDelegate {
     @objc private func togglePlay() { AppModel.current?.services.player.togglePlayPause() }
     @objc private func next() { AppModel.current?.services.player.next() }
     @objc private func previous() { AppModel.current?.services.player.previous() }
-}
-
-/// Мини-плеер Mac: обложка, название, ⏮ ⏯ ⏭ — окно поверх остальных.
-struct MacMiniPlayer: View {
-    @Environment(AppModel.self) private var model
-
-    var body: some View {
-        let player = model.services.player
-        HStack(spacing: 12) {
-            ArtworkView(url: player.currentTrack?.artworkURL, size: 56)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(player.currentTrack?.title ?? String(localized: "player.nothingPlaying"))
-                    .font(.headline)
-                    .lineLimit(1)
-                PlayerStatusLine(font: .subheadline)
-                HStack(spacing: 14) {
-                    PreviousButton(size: .body)
-                    PlayPauseButton(size: .title3)
-                    NextButton(size: .body)
-                }
-            }
-            .frame(width: 200, alignment: .leading)
-        }
-        .padding(12)
-        .fixedSize()
-    }
 }
 #endif
 
