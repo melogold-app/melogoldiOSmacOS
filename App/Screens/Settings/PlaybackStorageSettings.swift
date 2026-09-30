@@ -34,8 +34,10 @@ struct PlaybackSettingsSection: View {
     }
 }
 
-/// «Хранилище и данные» (задание 0003): размер кэша 32 МБ … 8 ГБ и «Без ограничений», по умолчанию 4 ГБ;
-/// «занято X из Y» и «Очистить кэш прослушивания». Кэш не синхронизируется и не входит в копии.
+/// «Хранилище и данные» (задания 0003 и 0009): размер кэша прослушивания 32 МБ … 8 ГБ и «Без ограничений», по умолчанию
+/// 4 ГБ; у кэша прослушивания и у обложек — «X использовано (N %)» и полоса заполнения (без лимита полосы нет);
+/// «Очистить кэш прослушивания». Описание — как у Android: заполнится — старое сменится новым, делать ничего не нужно, а
+/// скачанное в кэш не входит. Кэш не синхронизируется и не входит в копии.
 struct StorageSettingsSection: View {
     @Environment(AppModel.self) private var model
     @State private var used: Int64 = 0
@@ -60,16 +62,7 @@ struct StorageSettingsSection: View {
                 model.services.cacheLimitChanged(value)
                 refresh()
             }
-            LabeledContent {
-                Text(verbatim: ByteFormat.string(used))
-            } label: {
-                Text("settings.cacheUsed")
-            }
-            LabeledContent {
-                Text(verbatim: ByteFormat.string(Int64(artwork)))
-            } label: {
-                Text("settings.artwork")
-            }
+            CacheUsageRow(used: used, limit: settings.cacheLimit)
             Button("settings.cacheClear", role: .destructive) { confirmClear = true }
                 .disabled(used == 0)
                 .confirmationDialog(Text("settings.cacheClear.title"), isPresented: $confirmClear, titleVisibility: .visible) {
@@ -86,6 +79,12 @@ struct StorageSettingsSection: View {
                 }
         } header: {
             Text("settings.storage")
+        }
+        .id("settings.storage")
+        Section {
+            CacheUsageRow(used: Int64(artwork), limit: Int64(ArtworkSession.diskCapacity))
+        } header: {
+            Text("settings.artwork")
         } footer: {
             Text("settings.cacheFooter")
         }
@@ -102,6 +101,29 @@ struct StorageSettingsSection: View {
                 artwork = artworkBytes
             }
         }
+    }
+}
+
+/// Насколько заполнен кэш (Android `CacheUsageEntry`): «640 МБ использовано (16 %)» и полоса. Без лимита (`limit == 0`) —
+/// только «640 МБ использовано». Кэш освобождается сам, поэтому переполнение показывается как 100 %.
+struct CacheUsageRow: View {
+    let used: Int64
+    /// Байт в кэше; 0 — без ограничений.
+    let limit: Int64
+
+    var body: some View {
+        let size = ByteFormat.string(used)
+        let fraction = limit > 0 ? min(1, max(0, Double(used) / Double(limit))) : nil
+        VStack(alignment: .leading, spacing: 8) {
+            if let fraction {
+                Text("settings.cacheUsed.percent \(size) \(Int((fraction * 100).rounded(.down)))")
+                ProgressView(value: fraction)
+                    .accessibilityHidden(true)
+            } else {
+                Text("settings.cacheUsed.size \(size)")
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -151,7 +173,8 @@ struct LibrarySettingsSection: View {
     }
 }
 
-/// Загрузки в «Хранилище и данные»: сколько занимают, «Только по Wi‑Fi», «Удалить все загрузки» (REWRITE §4.7.5).
+/// Загрузки в «Хранилище и данные» (REWRITE §4.7.5, задание 0009): «X · N треков», «Только по Wi‑Fi», «Удалить все
+/// загрузки» с вопросом. В размер и лимит кэша они не входят, «Очистить кэш» их не трогает.
 struct DownloadSettingsSection: View {
     @Environment(AppModel.self) private var model
     @State private var confirmRemove = false
@@ -162,9 +185,10 @@ struct DownloadSettingsSection: View {
         let store = model.services.downloads?.store
         let count = model.library?.counts.downloads ?? 0
         let bytes = store?.totalBytes() ?? 0
+        let tracks = String(localized: "library.tracks \(count)")
         Section {
             LabeledContent {
-                Text(verbatim: "\(String(localized: "library.tracks \(count)")) · \(ByteFormat.string(bytes))")
+                Text(verbatim: "\(ByteFormat.string(bytes)) · \(tracks)")
             } label: {
                 Text("settings.downloads")
             }
@@ -172,9 +196,10 @@ struct DownloadSettingsSection: View {
                 .onChange(of: settings.downloadsWifiOnly) { _, value in model.services.downloads?.wifiOnly = value }
             Button("settings.downloadsRemoveAll", role: .destructive) { confirmRemove = true }
                 .disabled(bytes == 0 && count == 0)
-                .confirmationDialog(Text("settings.downloadsRemoveAll.confirm \(count) \(ByteFormat.string(bytes))"),
-                                    isPresented: $confirmRemove, titleVisibility: .visible) {
-                    Button("settings.downloadsRemoveAll", role: .destructive) { model.services.downloads?.removeAll() }
+                .confirmationDialog(Text("settings.downloadsRemoveAll.title"), isPresented: $confirmRemove, titleVisibility: .visible) {
+                    Button("downloads.delete", role: .destructive) { model.services.downloads?.removeAll() }
+                } message: {
+                    Text("settings.downloadsRemoveAll.message \(tracks) \(ByteFormat.string(bytes))")
                 }
         } footer: {
             Text("settings.downloadsFooter")

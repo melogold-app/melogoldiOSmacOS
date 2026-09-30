@@ -103,6 +103,24 @@ public final class DownloadStore: @unchecked Sendable {
         return result
     }
 
+    /// Доля скачанного у нескачанных треков с известной длиной: кольцо в строке трека и «Отменить загрузку · 42 %».
+    /// Загрузчик пишет по куску — доля растёт вместе со строкой `downloads`.
+    public func fractions() -> [String: Double] {
+        let rows = (try? database.writer.read { db in
+            try Row.fetchAll(db, sql: """
+                SELECT video_id, downloaded_bytes, content_length FROM downloads
+                WHERE state <> 'completed' AND content_length > 0 AND downloaded_bytes > 0
+                """)
+        }) ?? []
+        var result: [String: Double] = [:]
+        for row in rows {
+            let length: Int64 = row["content_length"]
+            let bytes: Int64 = row["downloaded_bytes"]
+            result[row["video_id"]] = min(1, Double(bytes) / Double(length))
+        }
+        return result
+    }
+
     public func isComplete(_ videoId: String) -> Bool {
         entry(videoId)?.state == .completed
     }

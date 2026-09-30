@@ -2381,6 +2381,23 @@
         }
       }
     },
+    "badge.downloadFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download failed"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось скачать"
+          }
+        }
+      }
+    },
     "badge.downloaded" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3233,6 +3250,23 @@
         }
       }
     },
+    "download.state.percent %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloading · %lld %%"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Скачивается · %lld %%"
+          }
+        }
+      }
+    },
     "downloads.active %lld" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3307,7 +3341,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Delete"
+            "value" : "Remove"
           }
         },
         "ru" : {
@@ -3324,13 +3358,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld %%"
+            "value" : "%lld %%"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld %%"
+            "value" : "%lld %%"
           }
         }
       }
@@ -6247,6 +6281,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Скачать"
+          }
+        }
+      }
+    },
+    "menu.download.live" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live streams can't be downloaded"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Трансляцию нельзя скачать"
           }
         }
       }
@@ -9783,13 +9834,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Played music stays on the device, so replaying it uses no data. When the cache is full, the tracks you haven't played for the longest go first"
+            "value" : "Caches free themselves: once full, new tracks and artwork take the place of those unused the longest. There is nothing to do. Downloads are not part of the cache and are never removed on their own."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Проигранная музыка остаётся на устройстве — повтор не тратит трафик. Когда кэш заполнен, первыми уходят треки, которые дольше всех не слушали"
+            "value" : "Кэш освобождается сам: когда он заполнится, новые треки и обложки займут место тех, что дольше всех не слушали и не показывали. Делать ничего не нужно. Скачанное в кэш не входит и само не удаляется."
           }
         }
       }
@@ -9845,6 +9896,40 @@
         }
       }
     },
+    "settings.cacheUsed.percent %@ %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ used (%lld %%)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ использовано (%lld %%)"
+          }
+        }
+      }
+    },
+    "settings.cacheUsed.size %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ used"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ использовано"
+          }
+        }
+      }
+    },
     "settings.diagnostics" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -9885,13 +9970,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Downloads play without internet and are never removed on their own. They aren't synced or backed up."
+            "value" : "Downloads wait for Wi‑Fi and don't use mobile data"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Скачанное играет без сети и само не удаляется. Загрузки не синхронизируются и не входят в копии."
+            "value" : "Загрузки ждут Wi‑Fi, мобильная сеть не тратится"
           }
         }
       }
@@ -9902,7 +9987,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Delete all downloads"
+            "value" : "Remove all downloads"
           }
         },
         "ru" : {
@@ -9926,6 +10011,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Удалить %lld треков, %@?"
+          }
+        }
+      }
+    },
+    "settings.downloadsRemoveAll.message %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, %@. The tracks stay in the library but won't play without a network."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, %@. Треки останутся в библиотеке, но без сети играть не будут."
+          }
+        }
+      }
+    },
+    "settings.downloadsRemoveAll.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove all downloads?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Удалить все загрузки?"
           }
         }
       }

@@ -21,6 +21,9 @@ final class LibraryStore {
     private(set) var notInterestedIds: Set<String> = []
     private(set) var counts = LibraryCounts()
     private(set) var downloadStates: [String: DownloadState] = [:]
+    /// Доля скачанного у загрузок в работе: кольцо в строке трека и «Отменить загрузку · 42 %». Читать только у треков в
+    /// состоянии `downloading`, иначе строка перерисовывается при каждом куске чужой загрузки.
+    private(set) var downloadProgress: [String: Double] = [:]
     /// Свои названия треков (задание 0014): строки, плеер и часы показывают трек через `displayed(_:)`.
     private(set) var overrides: [String: TrackOverride] = [:]
     /// Правки изменились (своя, с другого устройства, снятая): плеер обновляет очередь и системную карточку.
@@ -83,6 +86,7 @@ final class LibraryStore {
 
     private func reloadDownloads() {
         downloadStates = downloads?.store.states() ?? [:]
+        downloadProgress = downloads?.store.fractions() ?? [:]
         counts.downloads = downloadStates.values.filter { $0 == .completed }.count
         downloadsRevision &+= 1
     }
