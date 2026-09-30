@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "comment": "Клиенты InnerTube player для потока, по порядку (docs/PROMPT.md §4). Приложение подтягивает этот файл с main: поломку на стороне YouTube можно чинить без релиза и без проверки App Store. Встроенный список в StreamClients.swift остаётся запасным.",
+  "comment": "Клиенты InnerTube player для потока, по порядку (docs/PROMPT.md §4): VISIONOS, запасной ANDROID_VR (проверены 2026-09-30: прямые ссылки на itag 140). Приложение подтягивает этот файл с main: поломку на стороне YouTube можно чинить без релиза и без проверки App Store. Встроенный список в StreamClients.swift остаётся запасным.",
   "clients": [
     {
       "name": "VISIONOS",
@@ -13,6 +13,19 @@
       "deviceModel": "RealityDevice17,1",
       "osName": "visionOS",
       "osVersion": "26.5.23O471"
+    },
+    {
+      "name": "ANDROID_VR",
+      "id": 28,
+      "version": "1.65.10",
+      "host": "www.youtube.com",
+      "userAgent": "com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip",
+      "deviceMake": "Oculus",
+      "deviceModel": "Quest 3",
+      "osName": "Android",
+      "osVersion": "12L",
+      "androidSdkVersion": 32,
+      "mediaUserAgent": "com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip"
     }
   ]
 }
