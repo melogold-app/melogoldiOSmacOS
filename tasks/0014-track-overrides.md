@@ -1,6 +1,6 @@
 # Своё название, исполнитель и альбом трека
 
-Статус: в работе — синк и хранение готовы (2026-09-30: `Library.setTrackOverride`/`displayed`/`setAlbum`, op `track.override.set`, строки `overrides`, живой тест на сервере); осталось применить правку во всех местах показа и окно «Сведения о треке»
+Статус: сделано (слайс S6, 2026-09-30) — кроме пункта «Изменить сведения…» в меню «…» самого плеера (`PlayerMenu.swift`, редизайн «Сейчас играет»)
 
 Общая часть (что нужно пользователю, как должно быть, синк, тексты) — `melogoldWindows/tasks/0011-track-overrides.md`.
 Те же задания: `melogoldAndroid/tasks/0012-track-overrides.md`, `melogoldLinux/tasks/0005-track-overrides.md`.

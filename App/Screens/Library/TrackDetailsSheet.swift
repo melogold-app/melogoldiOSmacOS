@@ -39,11 +39,24 @@ struct TrackDetailsSheet: View {
             .inlineTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("common.cancel") { dismiss() }
+                    #if os(macOS)
+                    Button("common.cancel", role: .cancel) { dismiss() }
+                    #else
+                    Button(role: .cancel) { dismiss() } label: {
+                        Label("common.cancel", systemImage: "xmark").labelStyle(.iconOnly)
+                    }
+                    #endif
                 }
                 ToolbarItem(placement: .confirmationAction) {
+                    #if os(macOS)
                     Button("details.save") { save() }
                         .keyboardShortcut(.defaultAction)
+                    #else
+                    Button(role: .confirm) { save() } label: {
+                        Label("details.save", systemImage: "checkmark").labelStyle(.iconOnly)
+                    }
+                    .keyboardShortcut(.defaultAction)
+                    #endif
                 }
             }
             .onSubmit { advance() }
@@ -60,13 +73,27 @@ struct TrackDetailsSheet: View {
         Section {
             TextField(label, text: text, prompt: youTube.map { Text(verbatim: $0) })
                 .focused($focus, equals: field)
+                .accessibilityIdentifier(identifier(field))
                 .submitLabel(field == .album ? .done : .next)
                 .autocorrectionDisabledForNames()
+        } header: {
+            #if !os(macOS)
+            // На iPhone подпись поля — серая подсказка «как на YouTube», названия поля в строке нет; на Mac оно в самой строке
+            Text(label)
+            #endif
         } footer: {
             if let youTube, !youTube.isEmpty {
                 Text("details.youtube \(youTube)")
                     .lineLimit(2)
             }
+        }
+    }
+
+    private func identifier(_ field: Field) -> String {
+        switch field {
+        case .title: "details.field.title"
+        case .artist: "details.field.artist"
+        case .album: "details.field.album"
         }
     }
 

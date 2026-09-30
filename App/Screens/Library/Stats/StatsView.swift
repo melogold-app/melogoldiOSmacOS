@@ -245,14 +245,14 @@ struct StatsView: View {
         case .week:
             target = String(localized: "stats.vsLastWeek")
         case .year:
-            target = String(localized: "stats.vsYear \(calendar.component(.year, from: first) - 1)")
+            target = String(localized: "stats.vsYear \(String(calendar.component(.year, from: first) - 1))")
         case .month:
             guard let previous = calendar.date(byAdding: .month, value: -1, to: first) else { return nil }
             let month = calendar.component(.month, from: previous)
             let name = monthCompare(month)
             let year = calendar.component(.year, from: previous)
             // Месяц другого года называет год, чтобы «к декабрю 2025» не читалось как этот год
-            target = year == calendar.component(.year, from: Date()) ? name : String(localized: "stats.vsMonthYear \(name) \(year)")
+            target = year == calendar.component(.year, from: Date()) ? name : String(localized: "stats.vsMonthYear \(name) \(String(year))")
         case .allTime:
             return nil
         }
@@ -273,7 +273,8 @@ struct StatsView: View {
     private func trackRow(_ top: TopTrack, index: Int, queue: [Track], key: String) -> some View {
         let subtitle = [top.artist, String(localized: "stats.playsCount \(top.plays)")].compactMap { $0 }.joined(separator: " · ")
         return TrackListRow(track: top.track, subtitle: subtitle, number: index + 1,
-                            trailing: StatsFormat.listeningTime(ms: top.ms, locale: locale), target: .list(queue, index))
+                            trailing: StatsFormat.listeningTime(ms: top.ms, locale: locale), target: .list(queue, index),
+                            showsMenuButton: false)
             .tag(RowID.make(key, top.track.videoId))
     }
 

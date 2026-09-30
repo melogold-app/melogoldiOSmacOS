@@ -17,7 +17,52 @@ import MelogoldData
 ///     -MelogoldSeedLibrary YES                          пример библиотеки для снимков: лайки, плейлист, история, альбом
 ///     -MelogoldMiniPlayer YES                            Mac: открыть и окно мини-плеера
 ///     -MelogoldSeedPlays YES                            два своих прослушивания без сети — История и её фильтр
+///     -MelogoldSeedStats YES                            14 месяцев прослушиваний без сети — «Итоги» и «Итоги года»
+///     -MelogoldOpen stats, -MelogoldOpenWrapped <год>   «Итоги» и «Итоги года» на весь экран
+///     -MelogoldOpenDetails <videoId>, -MelogoldPreselect <n>   «Сведения о треке»; первые n строк выделены
 enum DebugLaunch {
+    /// Прослушивания за 14 месяцев без сети и без плеера: восемь треков с обложками, вечерний пик, разные исполнители и
+    /// альбомы. Повторный запуск ничего не дублирует.
+    @MainActor
+    static func seedStats(_ model: AppModel) {
+        guard let library = model.library?.library, library.playCount() == 0 else { return }
+        let catalog: [(id: String, title: String, artist: String, album: String?, albumId: String?)] = [
+            ("fJ9rUzIMcZQ", "Bohemian Rhapsody", "Queen", "A Night at the Opera", "MPREb_queen1"),
+            ("hTWKbfoikeg", "Smells Like Teen Spirit", "Nirvana", "Nevermind", "MPREb_nirv1"),
+            ("dQw4w9WgXcQ", "Never Gonna Give You Up", "Rick Astley", "Whenever You Need Somebody", "MPREb_rick1"),
+            ("kJQP7kiw5Fk", "Despacito", "Luis Fonsi", nil, nil),
+            ("9bZkp7q19f0", "Gangnam Style", "PSY", nil, nil),
+            ("JGwWNGJdvx8", "Shape of You", "Ed Sheeran", "÷", "MPREb_ed1"),
+            ("RgKAFK5djSk", "See You Again", "Wiz Khalifa", "Furious 7", "MPREb_wiz1"),
+            ("YQHsXMglC9A", "Hello", "Adele", "25", "MPREb_adele1"),
+        ]
+        let tracks = catalog.map { item in
+            Track(videoId: item.id, title: item.title, artists: [ArtistRef(id: "UC_" + item.id, name: item.artist)], artistsText: item.artist,
+                  albumId: item.albumId, albumTitle: item.album, durationMs: 240_000,
+                  thumbnailUrl: "https://i.ytimg.com/vi/\(item.id)/hqdefault.jpg", videoType: item.album == nil ? VideoType.video : VideoType.song)
+        }
+        var seed: UInt64 = 20_260_930
+        func next() -> Int {
+            seed = seed &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
+            return Int(seed >> 33)
+        }
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        // Три прослушивания в день в среднем; любимые треки — те, что в начале списка; пик — вечером
+        for back in 0 ..< 425 {
+            guard let day = calendar.date(byAdding: .day, value: -back, to: today) else { continue }
+            for _ in 0 ..< (next() % 5) {
+                // Два последних трека появились недавно: «Открытия» и карточка новых треков в итогах года
+                let pool = back < 60 ? tracks.count : tracks.count - 2
+                let pick = min(next() % pool, next() % pool)
+                let hour = [8, 9, 13, 18, 20, 21, 21, 22, 23][next() % 9]
+                guard let at = calendar.date(bySettingHour: hour, minute: next() % 60, second: 0, of: day), at < Date() else { continue }
+                let ms = Int64(120_000 + next() % 120_000)
+                library.recordPlay(tracks[pick], playTimeMs: ms, endedAt: Int64(at.timeIntervalSince1970 * 1000))
+            }
+        }
+    }
+
     /// Пример библиотеки из живого альбома «Группа крови»: лайки, плейлист, прослушивания, сохранённые альбом и
     /// исполнитель. Повторный запуск ничего не дублирует.
     @MainActor
@@ -71,6 +116,12 @@ enum DebugLaunch {
             Task { await seedLibrary(model) }
         }
         if defaults.bool(forKey: "MelogoldSeedPlays") { seedPlays(model) }
+        if defaults.bool(forKey: "MelogoldSeedStats") { seedStats(model) }
+        // -MelogoldOpenDetails <videoId> — лист «Сведения о треке» (снимок; трек уже в библиотеке)
+        if let videoId = defaults.string(forKey: "MelogoldOpenDetails"), let track = model.library?.library.track(videoId) {
+            model.trackDetails = track
+        }
+        if defaults.object(forKey: "MelogoldOpenWrapped") != nil { model.wrappedYear = defaults.integer(forKey: "MelogoldOpenWrapped") }
         if defaults.bool(forKey: "MelogoldShowNowPlaying") || defaults.bool(forKey: "MelogoldShowQueue") {
             Task {
                 for _ in 0..<300 where model.services.player.currentTrack == nil {
@@ -100,6 +151,7 @@ enum DebugLaunch {
             case ("releases", _): .newReleases
             case ("favorites", _): .favorites
             case ("history", _): .history
+            case ("stats", _): .stats
             case ("allTracks", _): .allTracks
             case ("downloads", _): .downloads
             case ("albums", _): .savedAlbums

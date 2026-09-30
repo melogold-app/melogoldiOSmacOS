@@ -11174,36 +11174,36 @@
         }
       }
     },
-    "stats.share.text %lld" : {
+    "stats.share.text %@" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "My %lld in Melogold"
+            "value" : "My %@ in Melogold"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Мой %lld год в Melogold"
+            "value" : "Мой %@ год в Melogold"
           }
         }
       }
     },
-    "stats.share.watermark %lld" : {
+    "stats.share.watermark %@" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Melogold · Insights %lld"
+            "value" : "Melogold · Insights %@"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Melogold · Итоги %lld"
+            "value" : "Melogold · Итоги %@"
           }
         }
       }
@@ -11582,36 +11582,36 @@
         }
       }
     },
-    "stats.vsMonthYear %@ %lld" : {
+    "stats.vsMonthYear %@ %@" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ %2$lld"
+            "value" : "%1$@ %2$@"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@ %2$lld"
+            "value" : "%1$@ %2$@"
           }
         }
       }
     },
-    "stats.vsYear %lld" : {
+    "stats.vsYear %@" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld"
+            "value" : "%@"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld году"
+            "value" : "%@ году"
           }
         }
       }
@@ -11939,19 +11939,19 @@
         }
       }
     },
-    "stats.wrapped.ready %lld" : {
+    "stats.wrapped.ready %@" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Insights %lld are ready"
+            "value" : "Insights %@ are ready"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Итоги %lld готовы"
+            "value" : "Итоги %@ готовы"
           }
         }
       }
@@ -11990,19 +11990,19 @@
         }
       }
     },
-    "stats.wrapped.title %lld" : {
+    "stats.wrapped.title %@" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Insights %lld"
+            "value" : "Insights %@"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Итоги %lld"
+            "value" : "Итоги %@"
           }
         }
       }

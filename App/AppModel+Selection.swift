@@ -103,6 +103,7 @@ extension AppModel {
     func createPlaylist(from tracks: [Track], name: String) {
         let title = name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? defaultPlaylistName : name
         guard let id = createPlaylist(name: title, tracks: tracks) else { return }
+        selectionFinished += 1
         toast = Toast(text: String(localized: "selection.playlistCreated \(title) \(tracksText(tracks.count))"),
                       actionTitle: "selection.open") { [weak self] in self?.open(.localPlaylist(id)) }
     }
@@ -115,6 +116,7 @@ extension AppModel {
 
     func setAlbum(_ name: String, for videoIds: [String]) {
         library?.library.setAlbum(name, for: videoIds)
+        selectionFinished += 1
         toast = Toast(text: String(localized: "selection.albumSet \(name.trimmingCharacters(in: .whitespacesAndNewlines))"))
     }
 

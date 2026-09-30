@@ -200,6 +200,8 @@ struct TrackListRow: View {
     let target: RowTarget?
     /// Пункт меню «по месту»: «Убрать из плейлиста», «Убрать из истории».
     var context: TrackMenuContext?
+    /// Кнопка «…» справа; без неё (строки «Итогов») меню — по долгому нажатию, а названию хватает места.
+    var showsMenuButton = true
 
     var body: some View {
         let isCurrent = model.services.player.currentTrack?.videoId == track.videoId
@@ -218,7 +220,7 @@ struct TrackListRow: View {
             #if !os(macOS)
             .contextMenu { if !isSelecting { TrackMenuItems(track: track, context: context) } }
             #endif
-            if !isSelecting { TrackMenuButton(track: track, context: context) }
+            if !isSelecting, showsMenuButton { TrackMenuButton(track: track, context: context) }
         }
     }
 

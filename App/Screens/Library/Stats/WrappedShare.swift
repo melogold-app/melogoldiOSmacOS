@@ -43,7 +43,7 @@ struct WrappedShareCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Text(verbatim: String(localized: "stats.share.watermark \(year)"))
+            Text(verbatim: String(localized: "stats.share.watermark \(String(year))"))
                 .font(.system(size: 44, weight: .semibold, design: .rounded))
                 .opacity(0.85)
                 .padding(.top, 110)

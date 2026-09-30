@@ -162,7 +162,8 @@ struct TrackMenuButton: View {
 
 extension AppModel {
     /// «Другие версии»: поиск по названию и исполнителю.
-    func searchOtherVersions(of track: Track) {
+    func searchOtherVersions(of shown: Track) {
+        let track = displayed(shown)
         let query = [track.title, track.artistsText].compactMap { $0 }.joined(separator: " ")
         section = .search
         routes[.search] = []

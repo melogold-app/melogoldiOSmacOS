@@ -32,7 +32,7 @@ struct LibraryView: View {
                                 .font(.title2)
                                 .foregroundStyle(.yellow)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("stats.wrapped.ready \(year)").font(.headline)
+                                Text("stats.wrapped.ready \(String(year))").font(.headline)
                                 Text("stats.wrapped.readyText").font(.subheadline).foregroundStyle(.secondary)
                             }
                             Spacer(minLength: 0)

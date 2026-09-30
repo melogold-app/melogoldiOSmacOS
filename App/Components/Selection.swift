@@ -217,7 +217,19 @@ struct SelectableList<Content: View>: View {
                              selectAll: { selection = Set(rowIds) }, clear: { selection = [] }, done: stopSelecting)
             }
         }
-        .focusedSceneValue(\.selectionCommands, commands(scope))
+        // «Новый плейлист…» и «Указать альбом…» кончаются в окне поверх списка: выделение снимается, когда они выполнены
+        .onChange(of: model.selectionFinished) { stopSelecting() }
+        #if DEBUG
+        // -MelogoldPreselect <n>: первые n строк выделены (снимки выбора без нажатий; на iPhone включает режим выбора)
+        .task(id: rowIds.count) {
+            let count = UserDefaults.standard.integer(forKey: "MelogoldPreselect")
+            guard count > 0, selection.isEmpty, !rowIds.isEmpty else { return }
+            #if !os(macOS)
+            editMode.wrappedValue = .active
+            #endif
+            selection = Set(rowIds.prefix(count))
+        }
+        #endif
     }
 
     #if !os(macOS)
@@ -240,31 +252,5 @@ struct SelectableList<Content: View>: View {
     private func deleteAction(_ scope: SelectionScope) -> (() -> Void)? {
         guard let removal = scope.removal(selection), !selection.isEmpty else { return nil }
         return { model.removeSelection(scope.tracks(selection), removal); selection = [] }
-    }
-
-    /// Меню «Правка» на Mac: «Выделить всё» и «Убрать…» (`MelogoldCommands`).
-    private func commands(_ scope: SelectionScope) -> SelectionCommands? {
-        guard !rowIds.isEmpty else { return nil }
-        return SelectionCommands(
-            selectAll: { selection = Set(rowIds) },
-            remove: deleteAction(scope)
-        )
-    }
-}
-
-/// Действия выделения, которые список отдаёт меню «Правка» (Mac): у окна с фокусом на списке они есть, у других нет.
-struct SelectionCommands {
-    let selectAll: () -> Void
-    let remove: (() -> Void)?
-}
-
-struct SelectionCommandsKey: FocusedValueKey {
-    typealias Value = SelectionCommands
-}
-
-extension FocusedValues {
-    var selectionCommands: SelectionCommands? {
-        get { self[SelectionCommandsKey.self] }
-        set { self[SelectionCommandsKey.self] = newValue }
     }
 }

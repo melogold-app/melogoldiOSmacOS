@@ -208,6 +208,24 @@ struct TestDevice: Sendable {
         try await playedVideoIds().count
     }
 
+    /// «Поделиться» своим плейлистом (API §4.11): снимок с названием и треками; возвращает код и ссылку.
+    func createShare(name: String, tracks: [(videoId: String, title: String, artist: String, album: String?)]) async throws -> (shareId: String, url: String) {
+        let inputs: [[String: Any]] = tracks.map { track in
+            var input: [String: Any] = ["videoId": track.videoId, "title": track.title, "artistsText": track.artist, "durationMs": 240_000,
+                                        "thumbnailUrl": "https://i.ytimg.com/vi/\(track.videoId)/hqdefault.jpg"]
+            if let album = track.album { input["albumTitle"] = album }
+            return input
+        }
+        let created = try await Self.call(server, "POST", "/shares", token: token, body: ["kind": "playlist", "name": name, "tracks": inputs])
+        return (try XCTUnwrap(created["shareId"] as? String), try XCTUnwrap(created["url"] as? String))
+    }
+
+    /// Свои снимки на сервере: коды.
+    func shareIds() async throws -> [String] {
+        let list = try await Self.call(server, "GET", "/shares", token: token)
+        return (list["shares"] as? [[String: Any]] ?? []).compactMap { $0["shareId"] as? String }
+    }
+
     func deleteAccount(password: String) async throws {
         _ = try await Self.call(server, "POST", "/auth/me/delete", token: token, body: ["password": password])
     }

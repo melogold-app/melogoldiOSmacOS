@@ -118,6 +118,7 @@
 		CCB7BFB2BBB534962FE2ABEE /* MelogoldData in Frameworks */ = {isa = PBXBuildFile; productRef = 76C23F0F53014853D597D1F9 /* MelogoldData */; };
 		D2E17263C8874BAF4ED062B0 /* NewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A854C582291C2EB866A3B85 /* NewView.swift */; };
 		D65EB5358A72B5069219DAEB /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 2425770C2FD4F63413D4E353 /* InfoPlist.xcstrings */; };
+		D693D285DE6ADA4AF5850BEA /* SliceS6UITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED2CB30EFE3051E14BB4B9EB /* SliceS6UITests.swift */; };
 		D98300DB4AA4D8F5B6903D2D /* MacPlayerBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A408396BE12A73C84983051 /* MacPlayerBar.swift */; };
 		DB12CF03C955D9365ABBE1D7 /* DownloadsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 830E0EC31CC904F4E2949834 /* DownloadsView.swift */; };
 		DBE881B9FE4690869C3CB0F6 /* TrackMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 464CEB05A2F06733EC5B6804 /* TrackMenu.swift */; };
@@ -291,6 +292,7 @@
 		E968415E6F0B73C9B137C4A2 /* CarPlaySceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarPlaySceneDelegate.swift; sourceTree = "<group>"; };
 		EA63165E83727DB40E4E2B0A /* LyricsSearchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsSearchSheet.swift; sourceTree = "<group>"; };
 		ECF11684D63D68687931A590 /* HistoryUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryUITests.swift; sourceTree = "<group>"; };
+		ED2CB30EFE3051E14BB4B9EB /* SliceS6UITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SliceS6UITests.swift; sourceTree = "<group>"; };
 		F1B51C8ABF1BCB381E829D6C /* LibraryScreens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryScreens.swift; sourceTree = "<group>"; };
 		F1D156A776E7F72E0757C991 /* AccountOverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountOverviewView.swift; sourceTree = "<group>"; };
 		F35CC0B73BA7B96B4B82E927 /* MelogoldUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MelogoldUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -424,6 +426,7 @@
 				682BBF8C408EDA9E19B8D661 /* PlayerUITests.swift */,
 				10E71927F6789EA72F07161B /* SettingsUITests.swift */,
 				5C2E03261E4E5FEE84A79BE3 /* ShellUITests.swift */,
+				ED2CB30EFE3051E14BB4B9EB /* SliceS6UITests.swift */,
 				4134F65B1F3D3F4517BE4E71 /* UITestSupport.swift */,
 			);
 			path = UITests;
@@ -876,6 +879,7 @@
 				1813387E02F116DA5080EABA /* PlayerUITests.swift in Sources */,
 				36BF6117FE82E0774B7F66DE /* SettingsUITests.swift in Sources */,
 				202AB5FF65B21800A3C42AEC /* ShellUITests.swift in Sources */,
+				D693D285DE6ADA4AF5850BEA /* SliceS6UITests.swift in Sources */,
 				8ACCEDC6EB23CFFA6B08E705 /* UITestSupport.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

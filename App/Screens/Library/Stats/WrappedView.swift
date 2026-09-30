@@ -80,7 +80,7 @@ struct WrappedView: View {
             }
             .accessibilityHidden(true)
             HStack {
-                Text("stats.wrapped.title \(year)")
+                Text("stats.wrapped.title \(String(year))")
                     .font(.headline)
                     .accessibilityAddTraits(.isHeader)
                 Spacer()
@@ -104,8 +104,8 @@ struct WrappedView: View {
             .disabled(page == 0)
             Spacer()
             if let shareImage {
-                ShareLink(item: shareImage, subject: Text("stats.share.text \(year)"), message: Text("stats.share.text \(year)"),
-                          preview: SharePreview(String(localized: "stats.share.text \(year)"))) {
+                ShareLink(item: shareImage, subject: Text("stats.share.text \(String(year))"), message: Text("stats.share.text \(String(year))"),
+                          preview: SharePreview(String(localized: "stats.share.text \(String(year))"))) {
                     Label("stats.share", systemImage: "square.and.arrow.up")
                 }
                 .buttonStyle(.borderedProminent)
@@ -302,6 +302,13 @@ struct WrappedView: View {
         if let cover, let found = ArtworkTint.tint(of: cover) { tint = found }
         if !result.wrappedCards.isEmpty {
             shareImage = WrappedShareImage.make(year: year, stats: result, cover: cover, tint: tint, locale: locale)
+            #if DEBUG
+            // -MelogoldSaveWrappedImage <путь> — готовая картинка «Поделиться» для снимка
+            if let path = UserDefaults.standard.string(forKey: "MelogoldSaveWrappedImage"), let shareImage {
+                try? FileManager.default.removeItem(atPath: path)
+                try? FileManager.default.copyItem(at: shareImage.url, to: URL(fileURLWithPath: path))
+            }
+            #endif
         }
     }
 }
