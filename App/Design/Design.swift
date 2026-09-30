@@ -40,11 +40,14 @@ enum Design {
     enum Size {
         /// Минимальная зона нажатия (HIG «Buttons»).
         static let minTap: CGFloat = 44
-        /// Диаметры стеклянных кнопок транспорта: обычный и компактный вид (текст песни, низкое окно).
-        static let playButton: CGFloat = 76
-        static let skipButton: CGFloat = 60
-        static let compactPlayButton: CGFloat = 60
-        static let compactSkipButton: CGFloat = 48
+        /// Круги нажатия кнопок транспорта «Сейчас играет» (значок — половина круга): обычный и компактный вид (текст
+        /// песни, низкое окно).
+        static let playButton: CGFloat = 80
+        static let skipButton: CGFloat = 64
+        static let compactPlayButton: CGFloat = 64
+        static let compactSkipButton: CGFloat = 52
+        /// Стеклянные круги ♡ и «…» у названия.
+        static let actionCircle: CGFloat = 38
     }
 }
 
@@ -126,10 +129,10 @@ struct ControlGlassGroup<Content: View>: View {
 // MARK: - Значки
 
 extension View {
-    /// Значок управления: одноцветный, акцентом (системным) — только когда включён.
-    func controlSymbol(active: Bool = false) -> some View {
+    /// Значок управления: одноцветный, акцентом (системным) — только когда включён; `muted` — выключенный приглушён.
+    func controlSymbol(active: Bool = false, muted: Bool = false) -> some View {
         symbolRenderingMode(.monochrome)
-            .foregroundStyle(active ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
+            .foregroundStyle(active ? AnyShapeStyle(.tint) : muted ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
     }
 
     /// Значки не растут вместе с крупным шрифтом дальше, чем помещаются в ряд: подписи и время растут без границ.

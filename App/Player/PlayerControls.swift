@@ -33,11 +33,13 @@ struct PlayerStatusLine: View {
     }
 }
 
-/// Как рисовать кнопку транспорта: без оформления (внутри стекла мини-плеера и панели Mac) или круглой стеклянной
-/// кнопкой (`Design`, слой управления «Сейчас играет»). `namespace` включает морфинг внутри `ControlGlassGroup`.
+/// Как рисовать кнопку транспорта крупно: `diameter` — круг нажатия. `glass` — постоянный стеклянный круг (редактор
+/// текста), иначе значок без рамки, как у Apple Music, а круг проступает только под пальцем (`TransportPressStyle`).
+/// `namespace` включает морфинг стекла внутри `ControlGlassGroup`.
 struct GlassSpec {
     var diameter: CGFloat
     var namespace: Namespace.ID?
+    var glass = true
 }
 
 /// Значок транспорта: шрифт `size` без оформления или размер по диаметру стекла.
@@ -48,9 +50,11 @@ private struct TransportSymbol: View {
 
     var body: some View {
         if let glass {
+            // Без стекла значок крупнее: он сам и есть кнопка
             Image(systemName: name)
-                .font(.system(size: glass.diameter * 0.36, weight: .semibold))
+                .font(.system(size: glass.diameter * (glass.glass ? 0.36 : 0.5), weight: .semibold))
                 .frame(width: glass.diameter, height: glass.diameter)
+                .contentShape(Circle())
         } else {
             Image(systemName: name)
                 .font(size)
@@ -61,10 +65,36 @@ private struct TransportSymbol: View {
 }
 
 private extension View {
-    /// Стекло кнопки транспорта, если оно запрошено.
+    /// Оформление кнопки транспорта: стеклянный круг, круг под пальцем или ничего (мини-плеер, панель Mac).
     @ViewBuilder
     func transportGlass(_ glass: GlassSpec?, id: String) -> some View {
-        if let glass { glassCircle(glass.diameter, id: id, in: glass.namespace) } else { self }
+        if let glass, glass.glass {
+            buttonStyle(.plain).glassCircle(glass.diameter, id: id, in: glass.namespace)
+        } else if let glass {
+            buttonStyle(TransportPressStyle(diameter: glass.diameter))
+        } else {
+            buttonStyle(.plain)
+        }
+    }
+}
+
+/// Нажатие крупной кнопки транспорта без рамки: значок чуть сжимается, под ним проступает мягкий круг — как у Apple
+/// Music. Уменьшение движения — без сжатия.
+struct TransportPressStyle: ButtonStyle {
+    var diameter: CGFloat
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(isEnabled ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
+            .background {
+                Circle()
+                    .fill(.primary.opacity(configuration.isPressed ? 0.1 : 0))
+                    .frame(width: diameter, height: diameter)
+            }
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.86 : 1)
+            .animation(.spring(response: 0.28, dampingFraction: 0.62), value: configuration.isPressed)
     }
 }
 
@@ -93,7 +123,6 @@ struct PlayPauseButton: View {
             }
             .animation(.snappy(duration: 0.25), value: symbol)
         }
-        .buttonStyle(.plain)
         .transportGlass(glass, id: "playPause")
         .sensoryFeedback(.impact(weight: .medium), trigger: taps)
         .accessibilityLabel(Text(player.phase == .failed ? "common.retry" : (player.isPlaying ? "player.pause" : "player.play")))
@@ -113,7 +142,6 @@ struct NextButton: View {
         } label: {
             TransportSymbol(name: "forward.fill", size: size, glass: glass)
         }
-        .buttonStyle(.plain)
         .transportGlass(glass, id: "next")
         .disabled(!model.services.player.hasNext)
         .sensoryFeedback(.impact(weight: .light), trigger: taps)
@@ -134,7 +162,6 @@ struct PreviousButton: View {
         } label: {
             TransportSymbol(name: "backward.fill", size: size, glass: glass)
         }
-        .buttonStyle(.plain)
         .transportGlass(glass, id: "previous")
         .sensoryFeedback(.impact(weight: .light), trigger: taps)
         .accessibilityLabel(Text("player.previous"))
@@ -290,6 +317,8 @@ extension PlaybackFailure {
 struct LikeButton: View {
     @Environment(AppModel.self) private var model
     var size: Font = .title3
+    /// В стеклянном круге (`TrackActionCircles`), а не просто значком.
+    var circle = false
     @State private var taps = 0
 
     var body: some View {
@@ -300,11 +329,13 @@ struct LikeButton: View {
                 model.toggleLike(track)
             } label: {
                 Image(systemName: liked ? "heart.fill" : "heart")
-                    .font(size)
-                    .foregroundStyle(liked ? AnyShapeStyle(.pink) : AnyShapeStyle(.secondary))
-                    .frame(minWidth: Design.Size.minTap, minHeight: Design.Size.minTap)
-                    .contentShape(Rectangle())
+                    .font(size.weight(.semibold))
+                    .foregroundStyle(liked ? AnyShapeStyle(.pink) : AnyShapeStyle(circle ? .primary : .secondary))
+                    .frame(minWidth: circle ? Design.Size.actionCircle : Design.Size.minTap,
+                           minHeight: circle ? Design.Size.actionCircle : Design.Size.minTap)
+                    .contentShape(circle ? AnyShape(Circle()) : AnyShape(Rectangle()))
                     .contentTransition(.symbolEffect(.replace))
+                    .modifier(ActionCircleGlass(enabled: circle))
             }
             .buttonStyle(.plain)
             .sensoryFeedback(.impact(weight: .medium), trigger: taps)
@@ -317,13 +348,15 @@ struct LikeButton: View {
 struct ShuffleToggle: View {
     @Environment(AppModel.self) private var model
     var size: Font = .body
+    /// Выключенный — приглушённым (ряд транспорта «Сейчас играет»).
+    var muted = false
 
     var body: some View {
         let player = model.services.player
         Button { player.setShuffled(!player.shuffled) } label: {
             Image(systemName: "shuffle")
-                .font(size)
-                .controlSymbol(active: player.shuffled)
+                .font(size.weight(.semibold))
+                .controlSymbol(active: player.shuffled, muted: muted)
                 .frame(minWidth: Design.Size.minTap, minHeight: Design.Size.minTap)
                 .contentShape(Rectangle())
         }
@@ -338,6 +371,8 @@ struct ShuffleToggle: View {
 struct RepeatToggle: View {
     @Environment(AppModel.self) private var model
     var size: Font = .body
+    /// Выключенный — приглушённым (ряд транспорта «Сейчас играет»).
+    var muted = false
 
     var body: some View {
         let player = model.services.player
@@ -349,8 +384,8 @@ struct RepeatToggle: View {
             }
         } label: {
             Image(systemName: player.repeatMode == .one ? "repeat.1" : "repeat")
-                .font(size)
-                .controlSymbol(active: player.repeatMode != .off)
+                .font(size.weight(.semibold))
+                .controlSymbol(active: player.repeatMode != .off, muted: muted)
                 .frame(minWidth: Design.Size.minTap, minHeight: Design.Size.minTap)
                 .contentShape(Rectangle())
         }
@@ -403,5 +438,14 @@ struct VolumeBar: View {
         .accessibilityAdjustableAction { direction in
             player.volume = min(1, max(0, player.volume + (direction == .increment ? 0.1 : -0.1)))
         }
+    }
+}
+
+/// Стеклянный круг кнопки у названия (♡, «…»): интерактивное стекло поверх оттенка обложки.
+struct ActionCircleGlass: ViewModifier {
+    var enabled: Bool
+
+    func body(content: Content) -> some View {
+        if enabled { content.controlGlass(Circle(), interactive: true) } else { content }
     }
 }

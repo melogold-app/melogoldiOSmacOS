@@ -178,9 +178,8 @@ struct SyncedLyricsView: View {
     @State private var manualUntil: Date?
     @State private var followTick = 0
     @State private var frames: [Int: CGRect] = [:]
-    /// Первая прокрутка к текущей строке сделана: `onAppear` срабатывает раньше раскладки строк и прокрутка теряется,
-    /// поэтому первый раз строка ставится, когда строки впервые появились.
-    @State private var placed = false
+    /// Где текущая строка стоит сейчас: первая постановка — без анимации, смена строки — плавно.
+    @State private var lastPlaced: Placement?
 
     var body: some View {
         let lyrics = model.services.lyrics
@@ -225,41 +224,26 @@ struct SyncedLyricsView: View {
                 .onScrollPhaseChange { _, phase in
                     if phase == .interacting { manualUntil = Date().addingTimeInterval(3) }
                 }
-                .onChange(of: active) { _, index in
-                    guard manualUntil.map({ $0 < Date() }) ?? true, index >= 0 else { return }
-                    withAnimation(reduceMotion ? nil : .smooth(duration: 0.45)) {
-                        reader.scrollTo(index, anchor: anchorPoint(index, height: height, mid: mid))
+                // Одна задача ставит текущую строку на место после любой перемены, от которой оно зависит: строка, точка у
+                // обложки, высота области, высота строки (известна, когда её показали), первая раскладка. Отдельные
+                // `onChange` срабатывали раньше раскладки и терялись (Mac: строка оставалась внизу, 2026-09-30); `yield` —
+                // прокрутка на следующем такте, по новой раскладке, с отступом над первой строкой
+                .task(id: Placement(active: active, mid: mid, height: height, row: frames[active]?.height,
+                                    laidOut: !frames.isEmpty, following: following)) {
+                    guard following, active >= 0, !frames.isEmpty else { return }
+                    await Task.yield()
+                    let animation: Animation? = if reduceMotion || lastPlaced == nil {
+                        nil
+                    } else if lastPlaced?.active != active {
+                        .smooth(duration: 0.45)
+                    } else {
+                        .smooth(duration: 0.25)
                     }
-                }
-                // Смена размера — строка встаёт на место сразу; обложка сдвинулась (кадр видео 16:9, текст ошибки под ней) —
-                // строка плавно едет за ней
-                .onChange(of: proxy.size) {
-                    guard following, active >= 0 else { return }
-                    reader.scrollTo(active, anchor: anchorPoint(active, height: height, mid: mid))
-                }
-                .onChange(of: mid) { old, new in
-                    guard following, active >= 0, old != new else { return }
-                    // Отступ над первой строкой появляется в этом же обновлении: прокрутка — на следующем такте, по новой раскладке
-                    let index = active
-                    Task { @MainActor in
-                        await Task.yield()
-                        withAnimation(reduceMotion || old == nil ? nil : .smooth(duration: 0.3)) {
-                            reader.scrollTo(index, anchor: anchorPoint(index, height: height, mid: new))
-                        }
-                    }
-                }
-                .onAppear { if active >= 0 { reader.scrollTo(active, anchor: anchorPoint(active, height: height, mid: mid)) } }
-                .onChange(of: frames.isEmpty) { _, empty in
-                    guard !empty, !placed, active >= 0 else { return }
-                    placed = true
-                    reader.scrollTo(active, anchor: anchorPoint(active, height: height, mid: mid))
-                }
-                // Высота строки стала известна, когда её показали (до этого — запас): встать на точку по настоящей высоте
-                .onChange(of: frames[active]?.height) { old, new in
-                    guard mid != nil, following, active >= 0, new != nil, old != new else { return }
-                    withAnimation(reduceMotion ? nil : .smooth(duration: 0.25)) {
+                    withAnimation(animation) {
                         reader.scrollTo(active, anchor: anchorPoint(active, height: height, mid: mid))
                     }
+                    lastPlaced = Placement(active: active, mid: mid, height: height, row: frames[active]?.height,
+                                           laidOut: true, following: true)
                 }
                 .overlay(alignment: .bottom) {
                     if !following, active >= 0 {
@@ -307,8 +291,10 @@ struct SyncedLyricsView: View {
     private func fadeMask(height: CGFloat) -> some View {
         let top = min(0.4, LyricsStyle.anchor / max(1, height))
         let bottom = min(0.4, LyricsStyle.bottomFade / max(1, height))
+        // Сверху затухание круче: прошедшая строка под шапкой едва видна, а не висит огрызком над текущей
         return LinearGradient(stops: [
             .init(color: .clear, location: 0),
+            .init(color: .black.opacity(0.08), location: top * 0.6),
             .init(color: .black, location: top),
             .init(color: .black, location: 1 - bottom),
             .init(color: .clear, location: 1),
@@ -539,4 +525,14 @@ private struct InterludeDots: View {
         }
         .padding(.vertical, 8 * scale)
     }
+}
+
+/// От чего зависит место текущей строки (`SyncedLyricsView`): задача постановки перезапускается при любой перемене.
+private struct Placement: Equatable {
+    var active: Int
+    var mid: CGFloat?
+    var height: CGFloat
+    var row: CGFloat?
+    var laidOut: Bool
+    var following: Bool
 }

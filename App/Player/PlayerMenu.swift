@@ -8,6 +8,8 @@ import MelogoldPlayback
 struct PlayerMoreMenu: View {
     @Environment(AppModel.self) private var model
     var size: Font = .title3
+    /// В стеклянном круге (`TrackActionCircles`), а не просто значком.
+    var circle = false
 
     var body: some View {
         Menu {
@@ -16,10 +18,12 @@ struct PlayerMoreMenu: View {
             }
         } label: {
             Image(systemName: "ellipsis")
-                .font(size)
+                .font(circle ? size.weight(.semibold) : size)
                 .controlSymbol()
-                .frame(minWidth: Design.Size.minTap, minHeight: Design.Size.minTap)
-                .contentShape(Rectangle())
+                .frame(minWidth: circle ? Design.Size.actionCircle : Design.Size.minTap,
+                       minHeight: circle ? Design.Size.actionCircle : Design.Size.minTap)
+                .contentShape(circle ? AnyShape(Circle()) : AnyShape(Rectangle()))
+                .modifier(ActionCircleGlass(enabled: circle))
         }
         .menuStyle(.button)
         .buttonStyle(.plain)

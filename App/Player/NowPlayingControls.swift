@@ -2,17 +2,18 @@ import SwiftUI
 import MelogoldCore
 import MelogoldPlayback
 
-/// Блоки управления «Сейчас играет» (docs/PROMPT.md §5.7), общие для iPhone, iPad, Mac и Vision: название и ♡,
-/// стеклянный транспорт, панель режимов и действий. Каждый блок знает два вида — обычный и компактный (под текстом
-/// песни и в низком окне): тот же состав, размеры меньше, чтобы текст занимал больше места.
+/// Блоки управления «Сейчас играет» (docs/PROMPT.md §5.7), общие для iPhone, iPad, Mac и Vision. Раскладка — как у Apple
+/// Music: под обложкой название с ♡ и «…», полоса перемотки, ряд ⇄ ⏮ ⏯ ⏭ ⟲ значками без рамок, громкость (iPhone и
+/// iPad), внизу «Текст», AirPlay и «Очередь» поровну по ширине. Каждый блок знает обычный и компактный вид (под текстом
+/// песни и в низком окне): тот же состав, размеры меньше, режимы ⇄ ⟲ убраны.
 
-/// Название и исполнитель (без многоточия до двух строк), справа ♡.
+/// Название и исполнитель (без многоточия до двух строк), справа ♡ и «…» — действия с треком рядом с ним.
 struct NowPlayingTitle: View {
     let track: Track
     var large = false
 
     var body: some View {
-        HStack(alignment: .center, spacing: Design.Space.s) {
+        HStack(alignment: .center, spacing: Design.Space.xs) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(track.title)
                     .font(large ? Font.title.weight(.bold) : .playerTitle)
@@ -21,32 +22,82 @@ struct NowPlayingTitle: View {
                 PlayerStatusLine(font: large ? .title3 : .playerArtist)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            LikeButton(size: large ? .title : .title2)
+            TrackActionCircles(size: large ? .title3 : .body)
         }
     }
 }
 
-/// ⏮ ⏯ ⏭ на стекле: три круглые кнопки в одной группе (`GlassEffectContainer`) — появление индикатора и «Повторить»
-/// система морфит из соседних капель, а не заменяет рывком.
-struct TransportRow: View {
-    var compact = false
-    @Namespace private var namespace
+/// ♡ и «…» в стеклянных кругах одного размера: у названия в «Сейчас играет» и в шапке над текстом.
+struct TrackActionCircles: View {
+    var size: Font = .body
 
     var body: some View {
-        let skip = compact ? Design.Size.compactSkipButton : Design.Size.skipButton
-        let play = compact ? Design.Size.compactPlayButton : Design.Size.playButton
-        ControlGlassGroup(spacing: Design.Space.m) {
-            HStack(spacing: compact ? Design.Space.m : Design.Space.l) {
-                PreviousButton(glass: GlassSpec(diameter: skip, namespace: namespace))
-                PlayPauseButton(glass: GlassSpec(diameter: play, namespace: namespace))
-                NextButton(glass: GlassSpec(diameter: skip, namespace: namespace))
+        ControlGlassGroup(spacing: Design.Space.xs) {
+            HStack(spacing: Design.Space.xs) {
+                LikeButton(size: size, circle: true)
+                PlayerMoreMenu(size: size, circle: true)
             }
         }
         .iconTypeSize()
     }
 }
 
-/// Кнопка «Текст»: включает и выключает показ текста песни; включённая — акцентом.
+/// ⇄ ⏮ ⏯ ⏭ ⟲ одним рядом во всю ширину: значки без рамок, под пальцем проступает круг (`TransportPressStyle`). Режимы
+/// по краям мельче и приглушены, включённый — акцентом; в компактном виде их нет, три кнопки стоят плотнее по центру.
+struct TransportRow: View {
+    var compact = false
+
+    var body: some View {
+        let skip = compact ? Design.Size.compactSkipButton : Design.Size.skipButton
+        let play = compact ? Design.Size.compactPlayButton : Design.Size.playButton
+        HStack(spacing: 0) {
+            if compact {
+                Spacer(minLength: 0)
+                PreviousButton(glass: GlassSpec(diameter: skip, glass: false))
+                Spacer(minLength: 0).frame(maxWidth: Design.Space.xl)
+                PlayPauseButton(glass: GlassSpec(diameter: play, glass: false))
+                Spacer(minLength: 0).frame(maxWidth: Design.Space.xl)
+                NextButton(glass: GlassSpec(diameter: skip, glass: false))
+                Spacer(minLength: 0)
+            } else {
+                ShuffleToggle(size: .title3, muted: true)
+                Spacer(minLength: 0)
+                PreviousButton(glass: GlassSpec(diameter: skip, glass: false))
+                Spacer(minLength: 0)
+                PlayPauseButton(glass: GlassSpec(diameter: play, glass: false))
+                Spacer(minLength: 0)
+                NextButton(glass: GlassSpec(diameter: skip, glass: false))
+                Spacer(minLength: 0)
+                RepeatToggle(size: .title3, muted: true)
+            }
+        }
+        .iconTypeSize()
+    }
+}
+
+/// Кнопка нижнего ряда: значок приглушён, включённый — ярче, заливкой и на мягкой подложке (как «Текст» у Apple Music).
+private struct ActionSymbol: View {
+    let name: String
+    var activeName: String?
+    let active: Bool
+    let size: Font
+
+    var body: some View {
+        Image(systemName: active ? (activeName ?? name) : name)
+            .font(size)
+            .symbolRenderingMode(.monochrome)
+            .foregroundStyle(active ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+            .frame(width: Design.Size.minTap, height: Design.Size.minTap)
+            .background {
+                RoundedRectangle(cornerRadius: Design.Radius.medium, style: .continuous)
+                    .fill(.primary.opacity(active ? 0.12 : 0))
+            }
+            .contentShape(Rectangle())
+            .contentTransition(.symbolEffect(.replace))
+    }
+}
+
+/// Кнопка «Текст»: включает и выключает показ текста песни.
 struct LyricsToggleButton: View {
     @Environment(AppModel.self) private var model
     var size: Font = .title3
@@ -55,11 +106,7 @@ struct LyricsToggleButton: View {
         Button {
             withAnimation(.snappy) { model.lyricsVisible.toggle() }
         } label: {
-            Image(systemName: model.lyricsVisible ? "quote.bubble.fill" : "quote.bubble")
-                .font(size)
-                .controlSymbol(active: model.lyricsVisible)
-                .frame(minWidth: Design.Size.minTap, minHeight: Design.Size.minTap)
-                .contentShape(Rectangle())
+            ActionSymbol(name: "quote.bubble", activeName: "quote.bubble.fill", active: model.lyricsVisible, size: size)
         }
         .buttonStyle(.plain)
         .sensoryFeedback(.selection, trigger: model.lyricsVisible)
@@ -77,11 +124,7 @@ struct QueueToggleButton: View {
         Button {
             model.queueVisible.toggle()
         } label: {
-            Image(systemName: "list.bullet")
-                .font(size)
-                .controlSymbol(active: model.queueVisible)
-                .frame(minWidth: Design.Size.minTap, minHeight: Design.Size.minTap)
-                .contentShape(Rectangle())
+            ActionSymbol(name: "list.bullet", active: model.queueVisible, size: size)
         }
         .buttonStyle(.plain)
         .sensoryFeedback(.selection, trigger: model.queueVisible)
@@ -90,32 +133,39 @@ struct QueueToggleButton: View {
     }
 }
 
-/// Панель режимов и действий одной стеклянной капсулой (HIG «Toolbars»: значки без рамок, сгруппированы): ⇄ ⟲ — режимы
-/// (в компактном виде их нет, они в очереди и на обычном экране), затем «Текст», «Очередь», AirPlay, «…». Шире одного ряда
-/// не бывает: значки не растут с Dynamic Type дальше `xxxLarge`.
+/// Нижний ряд: «Текст», AirPlay, «Очередь» поровну по ширине, одного цвета (AirPlay — акцентом, только пока звук идёт на
+/// другое устройство). «…» — у названия, режимы — в ряду транспорта.
 struct PlayerActionBar: View {
-    var includesModes = true
-
     var body: some View {
-        ControlGlassGroup {
-            HStack(spacing: 2) {
-                if includesModes {
-                    ShuffleToggle(size: .title3)
-                    RepeatToggle(size: .title3)
-                    Divider().frame(height: 22).padding(.horizontal, 2)
-                }
-                LyricsToggleButton()
-                QueueToggleButton()
-                #if !os(visionOS)
-                RoutePickerButton()
-                    .frame(width: Design.Size.minTap, height: Design.Size.minTap)
-                    .accessibilityLabel(Text("player.airplay"))
-                #endif
-                PlayerMoreMenu()
-            }
-            .padding(.horizontal, Design.Space.xs)
-            .iconTypeSize()
-            .controlGlass(Capsule())
+        HStack(spacing: 0) {
+            LyricsToggleButton()
+            Spacer(minLength: 0)
+            #if !os(visionOS)
+            RoutePickerButton()
+                .frame(width: Design.Size.minTap, height: Design.Size.minTap)
+                .accessibilityLabel(Text("player.airplay"))
+            Spacer(minLength: 0)
+            #endif
+            QueueToggleButton()
         }
+        .padding(.horizontal, Design.Space.l)
+        .iconTypeSize()
     }
 }
+
+#if os(iOS)
+/// Громкость устройства: системный `MPVolumeView` между значками динамика (HIG «Playing audio»).
+struct VolumeRow: View {
+    var body: some View {
+        HStack(spacing: Design.Space.s) {
+            Image(systemName: "speaker.fill")
+            SystemVolumeView()
+                .frame(height: 34)
+            Image(systemName: "speaker.wave.3.fill")
+        }
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+        .accessibilityElement(children: .contain)
+    }
+}
+#endif

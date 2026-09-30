@@ -26,7 +26,8 @@ struct RoutePickerButton: UIViewRepresentable {
     func makeUIView(context: Context) -> AVRoutePickerView {
         let view = AVRoutePickerView()
         view.prioritizesVideoDevices = false
-        view.tintColor = .label
+        // Как «Текст» и «Очередь» в нижнем ряду: приглушённый, акцентом — пока звук идёт на другое устройство
+        view.tintColor = .secondaryLabel
         view.activeTintColor = .tintColor
         return view
     }

@@ -59,8 +59,9 @@ struct ArtworkView: View {
     }
 }
 
-/// Загрузка и разбор обложек вне главного потока; готовые картинки — в памяти. У кадра видео (`i.ytimg.com/vi/`)
-/// чёрные поля срезаются до того, как картинка попадёт в память (задание 0008, `FrameBars`).
+/// Загрузка и разбор обложек вне главного потока; готовые картинки — в памяти. До того как картинка попадёт в память,
+/// у кадра видео (`i.ytimg.com/vi/`) срезаются поля любого ровного цвета, у любой картинки — обводка одного цвета со
+/// всех четырёх сторон (задание 0008, `FrameBars`).
 actor ArtworkLoader {
     static let shared = ArtworkLoader()
     private let memory = NSCache<NSString, CGImageBox>()
@@ -79,7 +80,8 @@ actor ArtworkLoader {
             guard let (data, _) = try? await ArtworkSession.shared.data(from: address),
                   let source = CGImageSourceCreateWithData(data as CFData, nil),
                   let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
-            return isFrame ? FrameCrop.withoutBars(image) : image
+            // У обложки — только обводка скана со всех сторон, у кадра видео — ещё и поля
+            return FrameCrop.withoutBars(image, bars: isFrame)
         }
         running[url] = task
         let result = await task.value

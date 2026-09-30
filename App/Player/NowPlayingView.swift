@@ -76,16 +76,44 @@ struct NowPlayingView: View {
         .animation(reduceMotion ? nil : .snappy(duration: 0.35), value: model.lyricsVisible)
     }
 
-    /// Портрет: обложка занимает то, что осталось от управления, — на любом Dynamic Type и в любом окне.
+    /// Портрет, как у Apple Music: обложка у верха во всю ширину (пока влезает управление), под ней название с ♡ и «…»,
+    /// полоса, ряд транспорта, громкость и нижний ряд — ровным шагом; лишняя высота уходит в зазор под обложкой.
     private func stackedCover(_ track: Track, size: CGSize, margin: CGFloat) -> some View {
-        VStack(spacing: Design.Space.l) {
+        let wide = size.width >= 700
+        #if os(iOS)
+        let volume = size.height >= 760
+        #else
+        let volume = false
+        #endif
+        return VStack(spacing: 0) {
+            // Обложка берёт место первой (приоритет); что осталось — треть над ней, две трети под ней
+            Spacer(minLength: 0)
             artworkArea(track)
-                .padding(.horizontal, margin)
-            controls(track, compact: false, wide: size.width >= 700)
-                .padding(.horizontal, margin)
+                .frame(maxHeight: size.width - 2 * margin)
+                .layoutPriority(1)
+            Spacer(minLength: Design.Space.l)
+            Spacer(minLength: 0)
+            VStack(spacing: 0) {
+                NowPlayingTitle(track: track, large: wide)
+                SeekBar()
+                    .padding(.top, Design.Space.m)
+                PlayerChips()
+                TransportRow()
+                    .padding(.top, Design.Space.xs)
+                #if os(iOS)
+                if volume {
+                    VolumeRow()
+                        .padding(.top, Design.Space.s)
+                }
+                #endif
+                PlayerActionBar()
+                    .padding(.top, volume ? Design.Space.m : Design.Space.l)
+            }
+            .frame(maxWidth: 560)
         }
-        .padding(.top, Metrics.topInset)
-        .padding(.bottom, Design.Space.l)
+        .padding(.horizontal, margin)
+        .padding(.top, Metrics.topInset + Design.Space.xs)
+        .padding(.bottom, Design.Space.xs)
     }
 
     /// Крупный Dynamic Type без текста: всё в прокрутке, обложка не сжимается до точки.
@@ -102,18 +130,26 @@ struct NowPlayingView: View {
         .scrollIndicators(.hidden)
     }
 
-    /// Портрет с текстом: шапка — маленькая обложка и название, текст, под ним компактный транспорт.
+    /// Портрет с текстом: шапка — маленькая обложка, название, ♡ и «…»; текст; под ним полоса, компактный транспорт и
+    /// нижний ряд.
     private func stackedLyrics(_ track: Track, size: CGSize, margin: CGFloat) -> some View {
-        VStack(spacing: Design.Space.s) {
+        VStack(spacing: 0) {
             lyricsHeader(track)
                 .padding(.horizontal, margin)
             LyricsPanel()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            controls(track, compact: true, wide: size.width >= 700, showsTitle: false)
-                .padding(.horizontal, margin)
+            VStack(spacing: 0) {
+                SeekBar()
+                PlayerChips()
+                TransportRow(compact: true)
+                PlayerActionBar()
+                    .padding(.top, Design.Space.xs)
+            }
+            .frame(maxWidth: 560)
+            .padding(.horizontal, margin)
         }
-        .padding(.top, Metrics.topInset)
-        .padding(.bottom, Design.Space.m)
+        .padding(.top, Metrics.topInset + Design.Space.xs)
+        .padding(.bottom, Design.Space.xs)
     }
 
     /// Боком и в широком окне — две равные половины, граница ровно по середине окна (решение пользователя, 2026-09-30):
@@ -201,24 +237,31 @@ struct NowPlayingView: View {
         .frame(minHeight: 0, maxHeight: .infinity)
     }
 
+    /// Обложка — кнопка «Текст». В паузе она отступает (как у Apple Music): чуть меньше и с короткой тенью, при игре
+    /// пружиной возвращается; место в раскладке не меняется, середина та же.
     private func artworkButton(_ track: Track, side: CGFloat) -> some View {
-        Button {
+        let player = model.services.player
+        let resting = !player.isPlaying && player.phase != .loading
+        return Button {
             withAnimation(.snappy) { model.lyricsVisible = true }
         } label: {
             NowPlayingArtwork(url: track.artworkURL, side: max(96, side))
-                .shadow(color: .black.opacity(0.22), radius: 18, y: 10)
+                .shadow(color: .black.opacity(resting ? 0.12 : 0.24), radius: resting ? 8 : 22, y: resting ? 4 : 12)
+                .scaleEffect(resting && !reduceMotion ? 0.84 : 1)
+                .animation(reduceMotion ? nil : .spring(response: 0.5, dampingFraction: 0.72), value: resting)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(Text("player.lyrics"))
     }
 
-    /// Шапка над текстом: маленькая обложка возвращает к обложке, справа ♡.
+    /// Шапка над текстом: маленькая обложка возвращает к обложке, справа ♡ и «…» (в нём и пункты текста).
     private func lyricsHeader(_ track: Track) -> some View {
         HStack(spacing: Design.Space.s) {
             Button {
                 withAnimation(.snappy) { model.lyricsVisible = false }
             } label: {
-                ArtworkView(url: track.artworkURL, size: 56, cornerRadius: Design.Radius.small)
+                ArtworkView(url: track.artworkURL, size: 52, cornerRadius: Design.Radius.small)
+                    .shadow(color: .black.opacity(0.15), radius: 6, y: 3)
             }
             .buttonStyle(.plain)
             .accessibilityLabel(Text("lyrics.artwork"))
@@ -227,24 +270,28 @@ struct NowPlayingView: View {
                 PlayerStatusLine(font: .subheadline)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            LikeButton(size: .title3)
+            TrackActionCircles()
         }
     }
 
-    /// Название, полоса перемотки, транспорт, панель действий. Компактный вид — под текстом и в низком окне.
+    /// Название, полоса перемотки, транспорт, громкость, нижний ряд — широкая раскладка. Компактный вид — рядом с
+    /// текстом и в низком окне.
     @ViewBuilder
     private func controls(_ track: Track, compact: Bool, wide: Bool, showsTitle: Bool = true) -> some View {
-        VStack(spacing: compact ? Design.Space.s : Design.Space.l) {
+        VStack(spacing: 0) {
             if showsTitle { NowPlayingTitle(track: track, large: wide && !compact) }
             SeekBar()
+                .padding(.top, showsTitle ? (compact ? Design.Space.s : Design.Space.m) : 0)
             PlayerChips()
             TransportRow(compact: compact)
+                .padding(.top, compact ? 0 : Design.Space.xs)
             #if os(macOS)
-            if wide { VolumeBar().frame(height: 24) }
+            if wide { VolumeBar().frame(height: 24).padding(.top, Design.Space.s) }
             #elseif os(iOS)
-            if wide { SystemVolumeView().frame(height: Design.Size.minTap) }
+            if wide { VolumeRow().padding(.top, Design.Space.s) }
             #endif
-            PlayerActionBar(includesModes: !compact)
+            PlayerActionBar()
+                .padding(.top, compact ? Design.Space.xs : Design.Space.l)
         }
         .frame(maxWidth: 520)
     }
