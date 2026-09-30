@@ -7,7 +7,11 @@ import MelogoldInnerTube
 ///
 /// - формат — itag 140 (AAC в m4a), запасной 139; Opus AVFoundation не играет;
 /// - адреса кэшируются (LRU на 64) до `expire − 5 мин`; сброс — на 403 и при смене сети;
-/// - одновременно не больше двух извлечений, у каждого сторож 20 с; один трек не резолвится дважды параллельно.
+/// - одновременно не больше двух извлечений, у каждого сторож 20 с; один трек не резолвится дважды параллельно;
+/// - к YouTube на трек уходит один запрос, пока он отвечает по делу: следующий клиент из списка пробуется, только если
+///   причина в клиенте (сеть, таймаут, пустой ответ). Проверка на бота (`StreamError.stopsQueue`, в том числе 429) —
+///   это адрес, а не клиент и не трек: ошибка уходит сразу, без следующего клиента и без диагноза, потому что каждый
+///   лишний запрос углубляет блок.
 public actor StreamResolver {
     public static let cacheSize = 64
     public static let watchdogSeconds: Double = 20
@@ -91,6 +95,9 @@ public actor StreamResolver {
             } catch let error as StreamError where error.isFinal {
                 Log.warning("stream", "\(videoId): \(error)")
                 throw await diagnose(videoId, error)
+            } catch let error as StreamError where error.stopsQueue {
+                Log.warning("stream", "\(videoId): \(profile.name) — \(error); YouTube не пускает адрес: без других клиентов, диагноза и повторов")
+                throw error
             } catch let error as StreamError {
                 Log.warning("stream", "\(videoId): \(profile.name) — \(error)")
                 last = error

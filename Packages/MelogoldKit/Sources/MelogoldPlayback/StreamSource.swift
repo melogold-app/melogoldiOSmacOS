@@ -164,6 +164,12 @@ public actor StreamSource {
                     info = nil
                 }
                 continue
+            } catch let status as HTTPStatusError where status.code == 429 {
+                // Лимит по адресу, как у `player`: проверка на бота, повторы только углубляют блок.
+                let error = StreamError(.botCheck, "googlevideo 429")
+                Log.warning("stream", "\(videoId): \(error)")
+                lastError = error
+                throw error
             } catch let status as HTTPStatusError where status.code == 416 {
                 return Data()
             } catch is CancellationError {

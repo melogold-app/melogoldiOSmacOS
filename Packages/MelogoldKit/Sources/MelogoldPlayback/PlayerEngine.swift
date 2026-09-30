@@ -914,6 +914,13 @@ public final class PlayerEngine {
             segments.removeAll { $0.item.id == element.id }
             return
         }
+        if error.stopsQueue {
+            // Проверка на бота: YouTube закрыл адрес, а не трек. Ни повтора, ни пропуска, ни плашки «Пропущен…» — карточка
+            // с причиной сразу; «Повторить» — одно новое обращение, когда пользователь сменил сервер VPN или подождал.
+            wantsToPlay = false
+            fail(PlaybackFailure(error, videoId: element.track.videoId))
+            return
+        }
         let tries = attempts[element.id, default: 0]
         if !error.isFinal, tries < error.retries {
             attempts[element.id] = tries + 1

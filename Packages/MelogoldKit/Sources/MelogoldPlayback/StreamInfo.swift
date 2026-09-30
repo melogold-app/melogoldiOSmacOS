@@ -92,18 +92,24 @@ public struct StreamError: Error, Sendable, CustomStringConvertible {
         return nil
     }
 
-    /// Сколько раз повторить, прежде чем пропустить трек: сеть — 2, таймаут, бот и прочее — 1, гео, возраст,
-    /// «недоступно» — 0.
+    /// Сколько раз повторить, прежде чем пропустить трек: сеть — 2, таймаут и прочее — 1, гео, возраст, «недоступно»
+    /// и проверка на бота — 0 (повтор только глубже закрывает адрес).
     public var retries: Int {
         switch kind {
         case .network: 2
-        case .timeout, .botCheck, .extractor: 1
-        case .geo, .unavailable, .age: 0
+        case .timeout, .extractor: 1
+        case .geo, .unavailable, .age, .botCheck: 0
         }
     }
 
     /// Пропуск без повторов: причина в самом видео.
     public var isFinal: Bool { kind == .geo || kind == .unavailable || kind == .age }
+
+    /// Остановить очередь, а не пропускать трек. «Подтвердите, что вы не бот» — это не про видео, а про адрес, с которого
+    /// идут запросы: YouTube отвечает так на все клиенты и все треки сразу и считает запросы гостей по адресу, так что
+    /// каждый следующий запрос (другой клиент, повтор, диагноз, соседний трек) углубляет блок. Помогает только другой
+    /// адрес (другой сервер VPN) или время; поэтому после такого ответа — ни повтора, ни пропуска, ни «Пропущен…».
+    public var stopsQueue: Bool { kind == .botCheck }
 
     public var description: String { "\(kind.rawValue): \(message)" }
 
