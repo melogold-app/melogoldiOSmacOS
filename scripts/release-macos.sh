@@ -227,15 +227,35 @@ fi
 step "DMG"
 DMG="$BUILD_DIR/Melogold-$VERSION.dmg"
 STAGE="$BUILD_DIR/dmg"
+rm -rf "$STAGE"
 mkdir -p "$STAGE"
 ditto "$APP" "$STAGE/Melogold.app"
-ln -s /Applications "$STAGE/Applications"
-# hdiutil на раннерах изредка отвечает «Resource busy» — до трёх попыток
-for attempt in 1 2 3; do
-  if hdiutil create -volname "Melogold" -srcfolder "$STAGE" -fs HFS+ -format UDZO -ov "$DMG" >/dev/null; then break; fi
-  [ "$attempt" -lt 3 ] || fail "hdiutil create не собрал DMG"
-  sleep 5
-done
+rm -f "$DMG"
+# Окно с фоном, стрелкой и значками на местах (scripts/dmg/settings.py): dmgbuild пишет .DS_Store сам, без Finder и
+# AppleScript — на раннере без окна входа они не работают. Версия закреплена: оформление не должно меняться от выхода
+# новой.
+DMGBUILD_VERSION="1.6.7"
+STYLED=0
+if python3 -m venv "$BUILD_DIR/dmgvenv" >/dev/null 2>&1 \
+  && "$BUILD_DIR/dmgvenv/bin/pip" install -q "dmgbuild==$DMGBUILD_VERSION" >/dev/null 2>&1; then
+  # hdiutil на раннерах изредка отвечает «Resource busy» — до трёх попыток
+  for attempt in 1 2 3; do
+    if "$BUILD_DIR/dmgvenv/bin/dmgbuild" -s scripts/dmg/settings.py -D root="$ROOT" -D app="$STAGE/Melogold.app" \
+      "Melogold" "$DMG" >/dev/null 2>&1; then STYLED=1; break; fi
+    rm -f "$DMG"
+    sleep 5
+  done
+fi
+if [ "$STYLED" -eq 0 ]; then
+  # Оформление — не повод срывать выпуск: DMG без фона рабочий, об этом сказано в итоге
+  echo "  ПРЕДУПРЕЖДЕНИЕ: dmgbuild не собрал DMG — выпуск идёт с простым окном (hdiutil)"
+  ln -s /Applications "$STAGE/Applications"
+  for attempt in 1 2 3; do
+    if hdiutil create -volname "Melogold" -srcfolder "$STAGE" -fs HFS+ -format UDZO -ov "$DMG" >/dev/null; then break; fi
+    [ "$attempt" -lt 3 ] || fail "hdiutil create не собрал DMG"
+    sleep 5
+  done
+fi
 if [ "$SIGNED" -eq 1 ]; then
   # Gatekeeper проверяет то, что скачали: DMG подписывается и нотаризуется сам
   codesign --force --sign "$IDENTITY" --keychain "$KEYCHAIN" --timestamp "$DMG"
@@ -343,7 +363,7 @@ summary "## Melogold $VERSION ($BUILD) для Mac"
 summary ""
 summary "| | |"
 summary "|---|---|"
-summary "| DMG | Melogold-$VERSION.dmg, $DMG_SIZE байт |"
+summary "| DMG | Melogold-$VERSION.dmg, $DMG_SIZE байт, окно: $([ "$STYLED" -eq 1 ] && echo "с фоном и стрелкой" || echo "простое (dmgbuild не собрал)") |"
 summary "| Подписан Developer ID | $(yes_no "$SIGNED") |"
 summary "| Самоподписанный сертификат Melogold | $(yes_no "$SELF_SIGNED") |"
 summary "| Нотаризован | $(yes_no "$SIGNED") |"
