@@ -167,8 +167,8 @@ public struct SyncStore: Sendable {
     }
 
     /// Устройства, чьи прослушивания лежат здесь (`play_events.device_id`); своих событий (`NULL`) среди них нет, пустая
-    /// строка — события с сервера без устройства («Другое устройство»). Фильтр Истории виден, только когда список не пуст
-    /// (задание 0002 §3.5).
+    /// строка — события с сервера без устройства. В фильтр Истории попадают только те, что есть в аккаунте
+    /// (`LibrarySync.historyDevices`); фильтр виден, только когда таких не ноль (задание 0002 §3.5).
     public func historyDeviceIds() async throws -> Set<String> {
         try await read { tx in
             Set(try String.fetchAll(tx.db, sql: "SELECT DISTINCT device_id FROM play_events WHERE device_id IS NOT NULL"))

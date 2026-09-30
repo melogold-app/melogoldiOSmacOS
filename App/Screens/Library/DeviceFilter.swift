@@ -40,7 +40,7 @@ final class DeviceFilterState {
     }
 
     func name(_ device: HistoryDevice) -> String {
-        device.name ?? String(localized: "history.device.other")
+        device.name ?? ""
     }
 
     /// Выбранное устройство словами; «Все устройства» — пусто.

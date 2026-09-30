@@ -4274,24 +4274,6 @@
       },
       "comment" : "Меню фильтра Истории по устройствам (задание 0002)"
     },
-    "history.device.other" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Another device"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Другое устройство"
-          }
-        }
-      },
-      "comment" : "Устройства уже нет в аккаунте"
-    },
     "history.device.this" : {
       "extractionState" : "manual",
       "localizations" : {
