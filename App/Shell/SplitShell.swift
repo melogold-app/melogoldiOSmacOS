@@ -30,7 +30,9 @@ struct SplitShell: View {
             .id(model.section)
             #if !os(visionOS)
             // Очередь — колонка справа (docs/PROMPT.md §5.4, iPad — §5.3).
-            .inspector(isPresented: $model.queueVisible) {
+            // Пока открыт «Сейчас играет», колонка очереди — его собственная: окно под ним не перестраивается (иначе SwiftUI
+            // возвращает в панель окна скрытые название и кнопки)
+            .inspector(isPresented: Binding(get: { model.queueVisible && !model.showNowPlaying }, set: { model.queueVisible = $0 })) {
                 QueueView()
                     .inspectorColumnWidth(min: 300, ideal: 340, max: 460)
             }

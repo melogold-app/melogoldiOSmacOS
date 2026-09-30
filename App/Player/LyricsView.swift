@@ -239,8 +239,13 @@ struct SyncedLyricsView: View {
                 }
                 .onChange(of: mid) { old, new in
                     guard following, active >= 0, old != new else { return }
-                    withAnimation(reduceMotion || old == nil ? nil : .smooth(duration: 0.3)) {
-                        reader.scrollTo(active, anchor: anchorPoint(active, height: height, mid: new))
+                    // Отступ над первой строкой появляется в этом же обновлении: прокрутка — на следующем такте, по новой раскладке
+                    let index = active
+                    Task { @MainActor in
+                        await Task.yield()
+                        withAnimation(reduceMotion || old == nil ? nil : .smooth(duration: 0.3)) {
+                            reader.scrollTo(index, anchor: anchorPoint(index, height: height, mid: new))
+                        }
                     }
                 }
                 .onAppear { if active >= 0 { reader.scrollTo(active, anchor: anchorPoint(active, height: height, mid: mid)) } }
