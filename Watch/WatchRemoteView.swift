@@ -163,3 +163,66 @@ private struct WatchRemotePlayer: View {
         }
     }
 }
+
+/// «Где слушать?» после нажатия на трек: сверху устройства аккаунта (на них трек включится пультом), снизу — эти часы с
+/// AirPods и другими наушниками. Список сразу из прошлого ответа сервера, свежий подтягивается в фоне.
+struct WatchPlayTargetView: View {
+    @Environment(WatchModel.self) private var model
+    let pending: WatchModel.PendingPlay
+
+    var body: some View {
+        let remote = model.remote
+        List {
+            Section {
+                if remote.devices.isEmpty {
+                    if remote.loading {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        Text("remote.noDevices")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                ForEach(remote.devices) { device in
+                    Button {
+                        model.play(pending, on: device)
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: DeviceSymbol.name(for: device.platform))
+                                .foregroundStyle(device.online ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
+                                .accessibilityHidden(true)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(verbatim: device.name)
+                                    .lineLimit(1)
+                                Text(device.online ? (device.controllable ? "remote.online" : "remote.controlOff") : "remote.offline.short")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .disabled(!device.online || !device.controllable)
+                }
+            } header: {
+                Text("remote.otherDevices")
+            }
+            Section {
+                Button {
+                    model.playHere(pending)
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "airpods")
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("play.thisWatch")
+                            Text("play.thisWatch.detail")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle(Text("play.where"))
+    }
+}

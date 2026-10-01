@@ -79,6 +79,10 @@ struct MelogoldWatchApp: App {
                         case ("settings", _): model.path = [.section(.settings)]
                         case ("nowPlaying", _): model.path = [.nowPlaying]
                         case ("more", _): model.path = [.nowPlaying, .playerMore]
+                        case ("playTarget", _):
+                            model.pendingPlay = WatchModel.PendingPlay(
+                                tracks: [Track(videoId: "dQw4w9WgXcQ", title: "Never Gonna Give You Up", artistsText: "Rick Astley")],
+                                index: 0, single: true)
                         case ("lyrics", _): model.path = [.nowPlaying, .lyrics]
                         case ("queue", _): model.path = [.nowPlaying, .queue]
                         case ("sleep", _): model.path = [.nowPlaying, .sleepTimer]
@@ -159,17 +163,62 @@ final class WatchModel {
         ]
     }
 
-    /// Нажатие по треку: играет по правилу очереди и открывает «Сейчас играет» — мини-плеера на часах нет (§5.6).
+    /// Что выбрали послушать, пока человек отвечает «Где слушать?»: на часах (AirPods, наушники) или на другом устройстве
+    /// аккаунта (пульт). Пользователь (2026-10-02): «кнопка нажать, чтобы играть, — это ещё не всё, нужно выбрать, на чём
+    /// играть»: сверху устройства аккаунта, снизу — эти часы с AirPods.
+    var pendingPlay: PendingPlay?
+
+    struct PendingPlay: Identifiable {
+        let id = UUID()
+        let tracks: [Track]
+        let index: Int
+        /// Одиночный трек из выдачи: на часах — трек и радио (REWRITE §2.3).
+        let single: Bool
+    }
+
+    /// Нажатие по треку (из выдачи — трек и радио): сначала «Где слушать?».
     func play(single track: Track) {
-        services.player.playSingle(track)
+        requestPlay(PendingPlay(tracks: [track], index: 0, single: true))
+    }
+
+    /// Трек из списка: очередь — весь список с этого трека; сначала «Где слушать?».
+    func play(_ tracks: [Track], startAt index: Int) {
+        guard tracks.indices.contains(index) else { return }
+        requestPlay(PendingPlay(tracks: tracks, index: index, single: false))
+    }
+
+    private func requestPlay(_ pending: PendingPlay) {
+        // Без аккаунта или на сервере без пульта выбирать не из чего — играет на часах
+        guard account.isSignedIn, account.supportsRemote else {
+            playHere(pending)
+            return
+        }
+        pendingPlay = pending
+        // Список — сразу из прошлого ответа, свежий подтягивается в фоне
+        Task { await remote.refresh() }
+    }
+
+    /// «На часах»: звук идёт в AirPods или другие наушники; нет подключённых — система сама предложит выбрать.
+    /// Открывает «Сейчас играет» — мини-плеера на часах нет (§5.6).
+    func playHere(_ pending: PendingPlay) {
+        pendingPlay = nil
+        remote.disconnect()
+        if pending.single, let track = pending.tracks.first {
+            services.player.playSingle(track)
+        } else {
+            services.player.play(tracks: pending.tracks, startAt: pending.index)
+        }
         path.append(.nowPlaying)
     }
 
-    /// Трек из списка: очередь — весь список с этого трека.
-    func play(_ tracks: [Track], startAt index: Int) {
-        guard tracks.indices.contains(index) else { return }
-        services.player.play(tracks: tracks, startAt: index)
-        path.append(.nowPlaying)
+    /// Другое устройство аккаунта: часы становятся его пультом, очередь уходит туда (`play_queue`), открывается пульт.
+    func play(_ pending: PendingPlay, on device: RemoteDevice) {
+        pendingPlay = nil
+        if services.player.isPlaying { services.player.pause() }
+        remote.connect(device)
+        let queue = pending.tracks.map { TrackInput($0) }
+        Task { await remote.playQueue(queue, index: pending.index) }
+        path.append(.remote)
     }
 
     func download(_ track: Track) {

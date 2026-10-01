@@ -41,6 +41,9 @@ struct WatchRootView: View {
                 }
             }
             .navigationTitle(Text(verbatim: "Melogold"))
+            .sheet(item: $model.pendingPlay) { pending in
+                WatchPlayTargetView(pending: pending)
+            }
             .navigationDestination(for: WatchRoute.self) { route in
                 switch route {
                 case .section(let section): WatchSectionView(section: section)
