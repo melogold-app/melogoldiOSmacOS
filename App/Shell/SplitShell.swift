@@ -54,10 +54,17 @@ struct SplitShell: View {
         // Панель воспроизведения — плавающее стекло внизу окна во всю ширину; боковая панель и колонка детали
         // заканчиваются над ней, содержимое уходит под неё с мягким затуханием. Поле прокрутки снизу — во всех списках
         // окна (боковая панель, колонка детали): `safeAreaBar` само его не даёт, и последние строки оставались под панелью
-        .contentMargins(.bottom, model.services.player.currentTrack == nil ? 0 : MacPlayerBar.reservedHeight, for: .scrollContent)
-        .safeAreaPadding(.bottom, model.services.player.currentTrack == nil ? 0 : MacPlayerBar.reservedHeight)
+        .contentMargins(.bottom, bottomReserve, for: .scrollContent)
+        .safeAreaPadding(.bottom, bottomReserve)
         .safeAreaBar(edge: .bottom, spacing: 0) {
-            MacPlayerBar()
+            VStack(spacing: Design.Space.xs) {
+                // Скачанное обновление — над плеером, видно сразу (`AppUpdater`)
+                if let version = AppUpdater.shared.readyVersion {
+                    UpdateReadyBanner(version: version)
+                        .padding(.bottom, model.services.player.currentTrack == nil ? Design.Space.m : 0)
+                }
+                MacPlayerBar()
+            }
         }
         // «Сейчас играет» — слой поверх окна; пока он открыт, панель инструментов окна (поле поиска, заголовок раздела)
         // скрыта (`NowPlayingChrome`), чтобы не спорить с ним, а кнопки окна остаются
@@ -89,6 +96,16 @@ private struct DetailID: Hashable {
     let section: AppSection
     let epoch: Int
 }
+
+#if os(macOS)
+extension SplitShell {
+    /// Нижнее поле списков окна: под капсулу плеера и полосу готового обновления.
+    var bottomReserve: CGFloat {
+        (model.services.player.currentTrack == nil ? 0 : MacPlayerBar.reservedHeight)
+            + (AppUpdater.shared.readyVersion == nil ? 0 : UpdateReadyBanner.reservedHeight)
+    }
+}
+#endif
 
 /// Полоса мини-плеера на системном стекле внизу экрана (iPad с боковой панелью). Ставится на каждый экран стека:
 /// полоса, повешенная на сам `NavigationStack`, у открытых экранов пропадает.

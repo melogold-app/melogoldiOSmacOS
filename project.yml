@@ -94,7 +94,9 @@ targets:
         SUFeedURL: https://github.com/melogold-app/melogoldiOSmacOS/releases/latest/download/appcast.xml
         SUPublicEDKey: $(SPARKLE_PUBLIC_ED_KEY)
         SUEnableAutomaticChecks: true
-        SUScheduledCheckInterval: 21600
+        SUAutomaticallyUpdate: true
+        SUAllowsAutomaticUpdates: true
+        SUScheduledCheckInterval: 3600
         INIntentsSupported: [INPlayMediaIntent]
         INSupportedMediaCategories: [INMediaCategoryMusic]
         UISupportedInterfaceOrientations:

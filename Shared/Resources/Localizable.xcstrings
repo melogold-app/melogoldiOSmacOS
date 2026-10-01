@@ -14065,6 +14065,57 @@
         }
       }
     },
+    "updates.ready %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version %@ is ready"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вышла версия %@"
+          }
+        }
+      }
+    },
+    "updates.relaunch" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relaunch"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перезапустить"
+          }
+        }
+      }
+    },
+    "updates.relaunchTo %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relaunch to Update to %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перезапустить и обновить до %@"
+          }
+        }
+      }
+    },
     "window.miniPlayer" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -195,6 +195,14 @@ enum DebugScript {
                 let toolbar = window(nil)?.toolbar
                 let items = (toolbar?.items ?? []).map { "\($0.itemIdentifier.rawValue)[\($0.label)]" }.joined(separator: ", ")
                 log("toolbar: заголовок=«\(window(nil)?.title ?? "")» подзаголовок=«\(window(nil)?.subtitle ?? "")» видима=\(toolbar?.isVisible ?? false) элементы=\(items)")
+            case "updateready":
+                AppUpdater.shared.debugShowReady(arg.isEmpty ? "0.2.5" : arg)
+                log("обновление готово \(arg)")
+            case "scrollbench":
+                // scrollbench <шагов> <точек за шаг>: листает самый большой список колонки детали и меряет каждый шаг
+                // (прокрутка + раскладка + отрисовка окна), между шагами — кадр 16 мс
+                let n = arg.split(separator: " ").compactMap { Double($0) }
+                await scrollBench(steps: Int(n.first ?? 120), dy: n.count > 1 ? n[1] : 40)
             case "scroll":
                 // scroll top | bottom | <точки вниз>: прокрутка самого широкого списка в колонке детали — края и то, что под панелью
                 scrollDetail(arg)
@@ -479,6 +487,36 @@ enum DebugScript {
             event.location = CGPoint(x: onScreen.x, y: screenHeight - onScreen.y)
             event.postToPid(ProcessInfo.processInfo.processIdentifier)
             log("wheel \(Int(dy)) в \(Int(local.x)),\(Int(local.y))")
+        }
+
+        private func scrollBench(steps: Int, dy: Double) async {
+            guard let window = window(nil), let root = window.contentView else { log("scrollbench: нет окна"); return }
+            var found: [NSScrollView] = []
+            func walk(_ view: NSView) {
+                if let scroll = view as? NSScrollView, scroll.documentView != nil, scroll.convert(scroll.bounds, to: nil).width > 300 { found.append(scroll) }
+                view.subviews.forEach(walk)
+            }
+            walk(root)
+            guard let scroll = found.max(by: { $0.bounds.width * $0.bounds.height < $1.bounds.width * $1.bounds.height }) else { log("scrollbench: нет списка"); return }
+            let clip = scroll.contentView
+            var times: [Double] = []
+            var direction = 1.0
+            for _ in 0 ..< steps {
+                let start = CACurrentMediaTime()
+                let maxY = (scroll.documentView?.frame.height ?? 0) - clip.bounds.height + scroll.contentInsets.bottom
+                var y = clip.bounds.origin.y + dy * direction
+                if y > maxY || y < -scroll.contentInsets.top { direction = -direction; y = clip.bounds.origin.y + dy * direction }
+                clip.scroll(to: NSPoint(x: clip.bounds.origin.x, y: y))
+                scroll.reflectScrolledClipView(clip)
+                window.layoutIfNeeded()
+                window.displayIfNeeded()
+                times.append((CACurrentMediaTime() - start) * 1000)
+                try? await Task.sleep(for: .milliseconds(16))
+            }
+            let sorted = times.sorted()
+            let avg = times.reduce(0, +) / Double(max(1, times.count))
+            let p95 = sorted[min(sorted.count - 1, Int(Double(sorted.count) * 0.95))]
+            log("scrollbench \(type(of: scroll)) шагов=\(steps) среднее=\(String(format: "%.1f", avg)) мс p95=\(String(format: "%.1f", p95)) мс макс=\(String(format: "%.1f", sorted.last ?? 0)) мс, список \(Int(scroll.documentView?.frame.height ?? 0)) pt")
         }
 
         private func scrollDetail(_ how: String) {
