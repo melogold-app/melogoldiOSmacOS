@@ -38,33 +38,32 @@ struct QueueView: View {
                 }
                 .onMove { source, destination in move(source, destination, within: userItems, base: current + 1) }
             } header: {
-                VStack(alignment: .leading, spacing: 8) {
+                // Действия очереди — меню «…» у заголовка (HIG «Toolbars», «Menus»: второстепенное — в меню «Ещё»): ряд кнопок
+                // в заголовке не помещался и уезжал за край — «Сохранить как плейлист» обрезалось, «Очистить» было не видно
+                HStack(spacing: 8) {
                     Text("queue.upNext \(LibraryText.summary(userItems.map(\.track)))")
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            Button { player.setShuffled(!player.shuffled) } label: {
-                                Label("collection.shuffle", systemImage: "shuffle")
-                            }
-                            .tint(player.shuffled ? .accentColor : .secondary)
-                            Button { saveAsPlaylist = true } label: { Label("queue.saveAsPlaylist", systemImage: "text.badge.plus") }
-                                .disabled(player.items.isEmpty)
-                            Button { clear() } label: { Label("queue.clear", systemImage: "xmark.circle") }
-                                .disabled(upcoming.isEmpty)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Menu {
+                        Toggle(isOn: Binding(get: { player.shuffled }, set: { player.setShuffled($0) })) {
+                            Label("collection.shuffle", systemImage: "shuffle")
                         }
-                        .buttonStyle(.bordered)
-                        .buttonBorderShape(.capsule)
-                        #if os(macOS)
-                        .controlSize(.small)
-                        #else
-                        // Зона нажатия не ниже 44 pt (HIG «Buttons»); у `.small` кнопки были 28 pt
-                        .controlSize(.large)
-                        #endif
-                        .labelStyle(.titleAndIcon)
-                        .lineLimit(1)
-                        .fixedSize()
+                        Button { saveAsPlaylist = true } label: { Label("queue.saveAsPlaylist", systemImage: "text.badge.plus") }
+                            .disabled(player.items.isEmpty)
+                        Divider()
+                        Button(role: .destructive) { clear() } label: { Label("queue.clear", systemImage: "xmark.circle") }
+                            .disabled(upcoming.isEmpty)
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.title3)
+                            .frame(minWidth: Design.Size.minTap, minHeight: Design.Size.minTap)
+                            .contentShape(Rectangle())
                     }
-                    .textCase(nil)
+                    .menuStyle(.button)
+                    .buttonStyle(.plain)
+                    .fixedSize()
+                    .accessibilityLabel(Text("menu.more"))
                 }
+                .textCase(nil)
             }
             Section {
                 ForEach(autoplayItems) { item in
