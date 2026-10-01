@@ -3,113 +3,104 @@ import SwiftUI
 import MelogoldCore
 import MelogoldPlayback
 
-/// Панель воспроизведения Mac (docs/PROMPT.md §5.4, решение остаётся: внизу окна во всю ширину) — плавающая панель на
-/// стекле Liquid Glass с отступами от краёв окна, а не прибитая полоса: список и боковая панель заканчиваются над ней
-/// (`safeAreaBar` в `SplitShell`), содержимое уходит под неё с мягким затуханием. Углы панели — концентричные углам окна.
+/// Панель воспроизведения Mac — плавающая капсула на стекле Liquid Glass внизу окна, по центру, в одну строку, как в
+/// «Музыке» macOS 26+ (снимок пользователя 2026-10-02). HIG вообще просит не ставить управление внизу окна, но системный
+/// музыкальный плеер Apple держит его здесь — запись в `docs/design/EXCEPTIONS.md`. Списки окна заканчиваются над
+/// капсулой (`safeAreaBar` и поле прокрутки в `SplitShell`).
 ///
-/// Слева обложка (нажатие открывает «Сейчас играет»), название (нажатие — альбом), исполнитель (нажатие — исполнитель) и
-/// ♡; в центре ⇄ ⏮ ⏯ ⏭ ⟲ и полоса перемотки со временем; справа «Текст», «Очередь», AirPlay, «Мини-плеер», громкость и «…».
-/// Кнопки — те же компоненты, что в «Сейчас играет» (`PlayerControls`), под указателем подсвечиваются; у каждой есть
-/// подсказка, название для VoiceOver и путь с клавиатуры (Tab). Раскладка считается от ширины окна: в окне 720 pt
-/// сначала исчезает громкость (она есть в «Сейчас играет» и в системе), затем ⇄ и ⟲ — центр не сжимается меньше 240 pt.
+/// Слева ⇄ ⏮ ⏯ ⏭ ⟲; в центре обложка (нажатие открывает «Сейчас играет»), название (нажатие — альбом), исполнитель и
+/// альбом (нажатие — исполнитель), под ними тонкая полоса перемотки; справа «…», «Текст», «Очередь», AirPlay, «Мини-плеер» и
+/// громкость. Кнопки — те же компоненты, что в «Сейчас играет» (`PlayerControls`); у каждой подсказка, название для
+/// VoiceOver и путь с клавиатуры; все команды есть и в меню «Управление». В узком окне сначала уходит громкость, затем
+/// ⇄ и ⟲.
 struct MacPlayerBar: View {
     @Environment(AppModel.self) private var model
 
-    /// Размеры панели: высота содержимого 52 pt (обложка 48, ряд транспорта 40 и полоса 12), отступы 8 и 10 pt.
     private enum Metrics {
-        static let content: CGFloat = 52
-        static let cover: CGFloat = 48
-        static let button: CGFloat = 30
-        static let inset: CGFloat = 10
+        static let content: CGFloat = 40
+        static let cover: CGFloat = 30
+        static let button: CGFloat = 28
+        static let inset: CGFloat = 12
+        static let maxWidth: CGFloat = 860
     }
 
-    /// Сколько от низа окна занимает панель вместе с отступами и небольшим зазором: на столько списки окна получают нижнее
-    /// поле прокрутки (`SplitShell`), иначе последние строки (в Настройках — «Лицензии», в Библиотеке — «Импорт») остаются
-    /// под панелью и до них не долистать (0.2.0, 30.09.2026).
-    static let reservedHeight: CGFloat = Metrics.content + Design.Space.xs * 2 + Metrics.inset + Design.Space.xs
+    /// Сколько от низа окна занимает капсула с отступом и зазором: на столько списки окна получают нижнее поле прокрутки
+    /// (`SplitShell`), иначе последние строки остаются под капсулой.
+    static let reservedHeight: CGFloat = Metrics.content + Design.Space.xxs * 2 + Metrics.inset + Design.Space.xs
 
     var body: some View {
         if let track = model.services.player.currentTrack {
             GeometryReader { proxy in
-                let width = proxy.size.width
-                let volume = width >= 1000
-                let modes = width >= 760
-                let side: CGFloat = min(300, max(215, width * 0.3))
-                HStack(spacing: Design.Space.m) {
-                    left(track)
-                        .frame(width: side, alignment: .leading)
-                    center(modes: modes)
+                let width = min(Metrics.maxWidth, proxy.size.width - Metrics.inset * 2)
+                let volume = width >= 820
+                let modes = width >= 640
+                HStack(spacing: Design.Space.s) {
+                    transport(modes: modes)
+                    screen(track)
                         .frame(maxWidth: .infinity)
-                    right(volume: volume)
-                        .frame(width: volume ? 280 : 158, alignment: .trailing)
+                    trailing(volume: volume)
                 }
-                .frame(maxHeight: .infinity)
+                .padding(.horizontal, Design.Space.s)
+                .padding(.vertical, Design.Space.xxs)
+                .frame(width: width, height: Metrics.content + Design.Space.xxs * 2)
+                .background { Backing() }
+                .glassEffect(.regular, in: Capsule())
+                .frame(maxWidth: .infinity)
             }
-            .frame(height: Metrics.content)
-            .padding(.horizontal, Design.Space.m)
-            .padding(.vertical, Design.Space.xs)
-            .background { Backing() }
-            .glassEffect(.regular, in: ConcentricRectangle(corners: .concentric(minimum: .fixed(Design.Radius.small)), isUniform: true))
-            .padding(.horizontal, Metrics.inset)
+            .frame(height: Metrics.content + Design.Space.xxs * 2)
             .padding(.bottom, Metrics.inset)
             .accessibilityElement(children: .contain)
             .accessibilityLabel(Text("player.bar"))
         }
     }
 
-    // MARK: - Слева: обложка, название, исполнитель, ♡
+    // MARK: - Слева: ⇄ ⏮ ⏯ ⏭ ⟲
 
-    private func left(_ track: Track) -> some View {
-        HStack(spacing: Design.Space.s) {
+    private func transport(modes: Bool) -> some View {
+        HStack(spacing: 2) {
+            if modes {
+                ShuffleToggle(size: .callout, tap: Metrics.button)
+                    .help(Text("player.shuffle"))
+            }
+            PreviousButton(glass: GlassSpec(diameter: Metrics.button, glass: false))
+                .help(Text("player.previous"))
+            PlayPauseButton(glass: GlassSpec(diameter: 34, glass: false))
+                .help(Text(model.services.player.isPlaying ? "player.pause" : "player.play"))
+            NextButton(glass: GlassSpec(diameter: Metrics.button, glass: false))
+                .help(Text("player.next"))
+            if modes {
+                RepeatToggle(size: .callout, tap: Metrics.button)
+                    .help(Text("player.repeat"))
+            }
+        }
+    }
+
+    // MARK: - В центре: обложка, название, исполнитель, тонкая полоса перемотки
+
+    private func screen(_ track: Track) -> some View {
+        HStack(spacing: Design.Space.xs) {
             CoverButton(url: track.artworkURL, size: Metrics.cover) { model.showNowPlaying = true }
             VStack(alignment: .leading, spacing: 1) {
                 if track.albumId != nil {
                     LinkText(text: track.title, prominent: true, hint: "menu.goToAlbum") { model.openAlbum(of: track) }
-                        .font(.headline)
+                        .font(.callout.weight(.semibold))
                         .lineLimit(1)
                 } else {
-                    Text(verbatim: track.title).font(.headline).lineLimit(1)
+                    Text(verbatim: track.title).font(.callout.weight(.semibold)).lineLimit(1)
                 }
-                PlayerStatusLine(font: .subheadline) { model.openArtist(of: track) }
+                PlayerStatusLine(font: .caption) { model.openArtist(of: track) }
+                SeekBar(style: .hairline)
             }
-            .layoutPriority(1)
-            LikeButton(size: .callout, tap: Metrics.button)
-                .help(Text(model.isLiked(track) ? "menu.unlike" : "menu.like"))
-            Spacer(minLength: 0)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
-    // MARK: - В центре: транспорт и полоса перемотки
+    // MARK: - Справа: «…», текст, очередь, AirPlay, мини-плеер, громкость
 
-    private func center(modes: Bool) -> some View {
-        VStack(spacing: 0) {
-            HStack(spacing: Design.Space.s) {
-                if modes {
-                    ShuffleToggle(size: .callout, tap: Metrics.button)
-                        .help(Text("player.shuffle"))
-                }
-                PreviousButton(glass: GlassSpec(diameter: 34, glass: false))
-                    .help(Text("player.previous"))
-                PlayPauseButton(glass: GlassSpec(diameter: 40, glass: false))
-                    .help(Text(model.services.player.isPlaying ? "player.pause" : "player.play"))
-                NextButton(glass: GlassSpec(diameter: 34, glass: false))
-                    .help(Text("player.next"))
-                if modes {
-                    RepeatToggle(size: .callout, tap: Metrics.button)
-                        .help(Text("player.repeat"))
-                }
-            }
-            .frame(height: 40)
-            SeekBar(style: .compact)
-                .frame(maxWidth: 520)
-                .frame(height: 12)
-        }
-    }
-
-    // MARK: - Справа: текст, очередь, AirPlay, мини-плеер, громкость, «…»
-
-    private func right(volume: Bool) -> some View {
+    private func trailing(volume: Bool) -> some View {
         HStack(spacing: 2) {
+            PlayerMoreMenu(size: .callout, tap: Metrics.button)
+                .help(Text("menu.more"))
             BarIconButton(symbol: "quote.bubble", activeSymbol: "quote.bubble.fill", active: model.lyricsShown, label: "player.lyrics") {
                 withMotion(.snappy) { model.toggleLyrics() }
             }
@@ -125,11 +116,9 @@ struct MacPlayerBar: View {
             }
             if volume {
                 VolumeBar()
-                    .frame(width: 110)
-                    .padding(.horizontal, Design.Space.xs)
+                    .frame(width: 90)
+                    .padding(.leading, Design.Space.xxs)
             }
-            PlayerMoreMenu(size: .callout, tap: Metrics.button)
-                .help(Text("menu.more"))
         }
     }
 }
@@ -138,8 +127,7 @@ struct MacPlayerBar: View {
 /// панель, просвечивали резко и спорили со значками), поэтому под ним — тонкий материал, он размывает то, что под панелью.
 private struct Backing: View {
     var body: some View {
-        ConcentricRectangle(corners: .concentric(minimum: .fixed(Design.Radius.small)), isUniform: true)
-            .fill(.thinMaterial)
+        Capsule().fill(.thinMaterial)
     }
 }
 

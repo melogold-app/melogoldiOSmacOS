@@ -237,8 +237,11 @@ struct SeekBar: View {
     enum Style {
         /// «Сейчас играет»: тонкая капсула 6 pt, при перетаскивании 14 pt; зона нажатия — 44 pt.
         case large
-        /// Панель воспроизведения Mac: капсула 4 pt, при наведении и перетаскивании 8 pt.
+        /// Капсула 4 pt, при наведении и перетаскивании 8 pt, время по краям в одну строку.
         case compact
+        /// Панель воспроизведения Mac: линия 3 pt под названием, при наведении и перетаскивании 6 pt, без времени (оно —
+        /// в подсказке и в «Сейчас играет»), как в «Музыке».
+        case hairline
     }
 
     @Environment(AppModel.self) private var model
@@ -261,6 +264,7 @@ struct SeekBar: View {
         let thickness: CGFloat = switch style {
         case .large: dragging ? 14 : 6
         case .compact: dragging || hovering ? 8 : 4
+        case .hairline: dragging || hovering ? 6 : 3
         }
         let times = style == .large
         let bar = GeometryReader { proxy in
@@ -294,7 +298,7 @@ struct SeekBar: View {
                     }
             )
         }
-        .frame(height: times ? Design.Size.minTap - 8 : 16)
+        .frame(height: times ? Design.Size.minTap - 8 : (style == .hairline ? 8 : 16))
         .animation(reduceMotion ? nil : .snappy(duration: 0.2), value: thickness)
         let left = Text(verbatim: Durations.format(seconds: value))
         let right = Text(verbatim: "−" + Durations.format(seconds: max(0, duration - value)))
@@ -312,8 +316,11 @@ struct SeekBar: View {
                     .secondaryOnTint()
                     .accessibilityHidden(true)
                 }
+            } else if style == .hairline {
+                bar
+                    .help(Text(verbatim: Durations.format(seconds: value) + " / " + Durations.format(seconds: duration)))
             } else {
-                // Панель Mac: время по краям полосы в одну строку
+                // Время по краям полосы в одну строку
                 HStack(spacing: Design.Space.xs) {
                     left.frame(width: 42, alignment: .trailing)
                     bar

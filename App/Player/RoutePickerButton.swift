@@ -12,7 +12,13 @@ struct RoutePickerButton: NSViewRepresentable {
         let view = AVRoutePickerView()
         view.isRoutePickerButtonBordered = false
         // Как соседние значки панели: приглушённый, акцентом — пока звук идёт на другое устройство
-        view.setRoutePickerButtonColor(.labelColor.withAlphaComponent(0.75), for: .normal)
+        // Цвет — динамический: `labelColor.withAlphaComponent` считается один раз для оформления при запуске, и после смены
+        // темы на светлую белый значок пропадал на светлой капсуле
+        view.setRoutePickerButtonColor(NSColor(name: nil) { appearance in
+            var label = NSColor.labelColor
+            appearance.performAsCurrentDrawingAppearance { label = NSColor.labelColor.usingColorSpace(.sRGB) ?? .labelColor }
+            return label.withAlphaComponent(0.75)
+        }, for: .normal)
         view.setRoutePickerButtonColor(.labelColor, for: .normalHighlighted)
         view.setRoutePickerButtonColor(.controlAccentColor, for: .active)
         view.setRoutePickerButtonColor(.controlAccentColor, for: .activeHighlighted)
