@@ -223,14 +223,37 @@ final class AppModel {
 
     /// Одиночный трек из выдачи: трек и радио (REWRITE §2.3). Без сети трек не из кэша не играет — «Нет сети».
     func play(single track: Track) {
+        if playOnRemote([track], startAt: 0) { return }
         guard canPlay(track) else { return }
         replaceQueue { services.player.playSingle(track) }
     }
 
     /// Трек из списка: очередь — весь список с этого трека.
     func play(_ tracks: [Track], startAt index: Int) {
+        if playOnRemote(tracks, startAt: index) { return }
         guard tracks.indices.contains(index), canPlay(tracks[index]) else { return }
         replaceQueue { services.player.play(tracks: tracks, startAt: index) }
+    }
+
+    /// Пока это устройство — пульт другого (задание 0020 §2), нажатие по треку играет там: `play_queue` с очередью списка и
+    /// индексом трека. Без этого трек играл у самого iPhone, хотя выбрано другое устройство. `true` — нажатие обработано
+    /// (команда ушла или играть нечего), `false` — пульт выключен и трек играет здесь. Своё воспроизведение при этом
+    /// ставится на паузу: играть должно одно устройство.
+    private func playOnRemote(_ tracks: [Track], startAt index: Int) -> Bool {
+        guard let remote = remoteBridge?.remote, remote.isActive else { return false }
+        guard tracks.indices.contains(index) else { return true }
+        guard services.network.isOnline else {
+            notice = Notice(title: "notice.offline", message: nil)
+            return true
+        }
+        guard PlaybackReporter.isYouTube(tracks[index].videoId) else {
+            toast = Toast(text: String(localized: "remote.localTrack"))
+            return true
+        }
+        if services.player.isPlaying { services.player.pause() }
+        let queue = tracks.map { TrackInput($0) }
+        Task { await remote.playQueue(queue, index: index) }
+        return true
     }
 
     func canPlay(_ track: Track) -> Bool {

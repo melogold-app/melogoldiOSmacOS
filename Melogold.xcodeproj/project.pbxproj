@@ -38,7 +38,9 @@
 		36BF6117FE82E0774B7F66DE /* SettingsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10E71927F6789EA72F07161B /* SettingsUITests.swift */; };
 		37386CC75DEE3EBD4A5BBEA7 /* Shelves.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05CB98AC0A4C230383AE4920 /* Shelves.swift */; };
 		373ABF28FB0AE1BC2575DFF3 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05609036F2EA8B7D37C79D06 /* RootView.swift */; };
+		38B7162627129BC8898564C9 /* Shortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A6A67D34351F9F6B428048A /* Shortcuts.swift */; };
 		393CF23087EB4F9EFFD2E499 /* LinkCodeUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C256D850ACC18CCD8BC9C284 /* LinkCodeUITests.swift */; };
+		3B7F67069D5DB57FBD258ED9 /* AppShortcuts.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = CF85654E0F6E85E6519BDFC9 /* AppShortcuts.xcstrings */; };
 		3BB36E4150B2B2AEBBE9160E /* DetailPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0EB2E2FB27D4F819EF2650A /* DetailPage.swift */; };
 		3C22FA3123C7D699E86A37BD /* PlaylistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B07519490EFF013E29A5996 /* PlaylistView.swift */; };
 		3CD9CCF31D2BC6F259802C5D /* SharedPlaylistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAD0FA4DA65561711F6D1EA4 /* SharedPlaylistView.swift */; };
@@ -247,6 +249,7 @@
 		464CEB05A2F06733EC5B6804 /* TrackMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackMenu.swift; sourceTree = "<group>"; };
 		48FFA8DDC645CBE276094E8B /* MacMiniPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacMiniPlayer.swift; sourceTree = "<group>"; };
 		4A557709BB203BB81812E446 /* PlaylistShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistShareSheet.swift; sourceTree = "<group>"; };
+		4A6A67D34351F9F6B428048A /* Shortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shortcuts.swift; sourceTree = "<group>"; };
 		4A6EB7CA2C9AC85995734B19 /* DebugLaunch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugLaunch.swift; sourceTree = "<group>"; };
 		4B26DBB7F74F4C7BCAD6DB44 /* FilterField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterField.swift; sourceTree = "<group>"; };
 		571D3D5AAD367DD65A477BF3 /* CatalogUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CatalogUITests.swift; sourceTree = "<group>"; };
@@ -316,6 +319,7 @@
 		C07E03A5F90625CD97E3575E /* Selection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Selection.swift; sourceTree = "<group>"; };
 		C256D850ACC18CCD8BC9C284 /* LinkCodeUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkCodeUITests.swift; sourceTree = "<group>"; };
 		C305A7FFD78AB75764C9F3D0 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		CF85654E0F6E85E6519BDFC9 /* AppShortcuts.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = AppShortcuts.xcstrings; sourceTree = "<group>"; };
 		CFA350B01580D05B8B5A7E0C /* Project.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Project.xcconfig; sourceTree = "<group>"; };
 		D0606F8F802EDA814564C80E /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		D119024F0DC89E9F8B88D4DC /* DownloadMenuItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadMenuItem.swift; sourceTree = "<group>"; };
@@ -500,6 +504,7 @@
 				21242EDE140411495940D1F8 /* AppModel+Links.swift */,
 				D973D05A9FF5C0DB6B2438D4 /* AppModel+Selection.swift */,
 				87027DFCEC2249247A9BE008 /* AppModel+Shell.swift */,
+				CF85654E0F6E85E6519BDFC9 /* AppShortcuts.xcstrings */,
 				09C67B6DB37BD9B39F0015A5 /* Info.plist */,
 				A071D3B7B2103C906F45A4F9 /* MelogoldApp.swift */,
 				87B089AC25B6613CFBF2E0FF /* Routes.swift */,
@@ -654,6 +659,7 @@
 				0E3D46A2D0984F35D3968E45 /* MacWindowSupport.swift */,
 				93441BF35DA128B8AAFCDF1C /* MelogoldCommands.swift */,
 				05609036F2EA8B7D37C79D06 /* RootView.swift */,
+				4A6A67D34351F9F6B428048A /* Shortcuts.swift */,
 				009A6AFD2565F7A7ECA489BE /* Sidebar.swift */,
 				68CE44484027E235BABE4E9B /* SplitShell.swift */,
 				2FFA6E1800667B694083CA84 /* SystemIntegration.swift */,
@@ -925,6 +931,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3B7F67069D5DB57FBD258ED9 /* AppShortcuts.xcstrings in Resources */,
 				61BF2F42F34A5F6DBCBDCDAE /* Assets.xcassets in Resources */,
 				766B5002AF165A002F7E30E0 /* GRDB.txt in Resources */,
 				73FD23AEAC59899797069BFB /* InfoPlist.xcstrings in Resources */,
@@ -1056,6 +1063,7 @@
 				F42A7A749C360FA3E6E10534 /* SettingsView.swift in Sources */,
 				3CD9CCF31D2BC6F259802C5D /* SharedPlaylistView.swift in Sources */,
 				37386CC75DEE3EBD4A5BBEA7 /* Shelves.swift in Sources */,
+				38B7162627129BC8898564C9 /* Shortcuts.swift in Sources */,
 				B03AC62AFB95558EA9C81D3C /* Sidebar.swift in Sources */,
 				1A83A03BA63362F319089F9E /* SignInView.swift in Sources */,
 				7A48C339E90DDEB9F20D3B7C /* SleepFormat.swift in Sources */,

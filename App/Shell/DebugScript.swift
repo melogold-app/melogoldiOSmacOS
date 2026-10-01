@@ -3,6 +3,7 @@ import AppKit
 import SwiftUI
 import MelogoldCore
 import MelogoldData
+import MelogoldServer
 
 /// Только отладочная сборка Mac: сценарий проверки окна без доступа к вводу системы (у терминала нет права «Универсальный
 /// доступ»). События — настоящие `NSEvent`, отправленные в `NSApp.sendEvent`, то есть тем же путём, что и нажатия
@@ -170,6 +171,28 @@ enum DebugScript {
                 // Строка боковой панели тем же путём, что щелчок (`selectSidebar`), но без событий мыши и без фокуса:
                 // trends new library search settings | favorites downloads history allTracks albums artists | playlist
                 selectSidebar(arg)
+            case "dock":
+                // dock: пункты меню в Dock; dock <часть названия>: нажать пункт (тот же путь, что щелчок по нему)
+                guard let delegate = NSApp.delegate as? NSApplicationDelegate, let menu = delegate.applicationDockMenu?(NSApp) else { log("dock: нет меню"); break }
+                if arg.isEmpty {
+                    log("dock: " + menu.items.map { $0.isSeparatorItem ? "—" : $0.title }.joined(separator: " | "))
+                } else if let item = menu.items.first(where: { $0.title.localizedCaseInsensitiveContains(arg) }) {
+                    log("dock: нажат «\(item.title)»")
+                    _ = NSApp.sendAction(item.action!, to: item.target, from: item)
+                } else {
+                    log("dock: нет пункта «\(arg)»")
+                }
+            case "remote":
+                // remote connect | disconnect: пульт управляет выдуманным «Test Mac» (сервера нет — команды не уйдут, но видно,
+                // что нажатие по треку не играет здесь)
+                guard let remote = model.remoteBridge?.remote else { log("remote: нет пульта"); break }
+                if arg == "connect" {
+                    let json = #"{"deviceId":"00000000-0000-4000-8000-000000000001","name":"Test Mac","platform":"macos","online":true,"controllable":true,"playing":null,"volume":null}"#
+                    if let device = try? JSONDecoder().decode(RemoteDevice.self, from: Data(json.utf8)) { remote.connect(device); log("remote: подключено к «\(device.name)»") }
+                } else {
+                    remote.disconnect()
+                    log("remote: отключено")
+                }
             case "state":
                 state()
             case "mark":

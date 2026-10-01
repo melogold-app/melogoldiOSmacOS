@@ -257,7 +257,7 @@ public final class PlaybackReporter {
         return (Array(tracks[start ..< end]), newIndex - start)
     }
 
-    static func isYouTube(_ videoId: String) -> Bool {
+    public static func isYouTube(_ videoId: String) -> Bool {
         videoId.count == 11 && videoId.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-" || $0 == "_") }
     }
 }

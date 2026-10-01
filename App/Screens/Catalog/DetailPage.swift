@@ -33,6 +33,8 @@ struct DetailPage<Header: View, Rows: View>: View {
                             .padding(.vertical, Design.Space.m)
                     }
                     .frame(width: min(400, proxy.size.width * 0.36))
+                    // Сплошной фон: прозрачная шапка пропускала то, что осталось под страницей в стеке
+                    .background(.background)
                     Divider()
                     list(includeHeader: false, bleeds: false)
                 }
