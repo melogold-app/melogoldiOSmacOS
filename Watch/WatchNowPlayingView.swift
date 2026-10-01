@@ -4,7 +4,7 @@ import MelogoldCore
 import MelogoldPlayback
 
 /// «Сейчас играет» на часах (docs/PROMPT.md §5.6): системный `NowPlayingView` — название, обложка, управление,
-/// громкость колесиком Digital Crown и выбор наушников — и нижняя панель: ♡, «Текст» и «Очередь».
+/// громкость колесиком Digital Crown и выбор наушников — и кнопка «Ещё» в панели окна.
 /// Длинное аудио watchOS выводит только в Bluetooth: без наушников — понятная причина и «Повторить».
 struct WatchNowPlayingView: View {
     @Environment(WatchModel.self) private var model
@@ -22,32 +22,16 @@ struct WatchNowPlayingView: View {
             }
             .padding()
         } else {
+            // Системный «Сейчас играет» целиком (название, обложка, ⏮ ⏯ ⏭, громкость колесиком, наушники): у него своя нижняя
+            // строка, и панель с ♡, «Текстом» и «Очередью» закрывала кнопки управления. В панели окна — одна кнопка «Ещё»:
+            // ♡, текст, очередь, таймер сна и устройство — на своём экране (`WatchPlayerMoreView`)
             NowPlayingView()
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
-                        NavigationLink(value: WatchRoute.sleepTimer) {
-                            Image(systemName: player.sleepTimerEnd != nil || player.sleepAtTrackEnd ? "moon.fill" : "moon.zzz")
+                        NavigationLink(value: WatchRoute.playerMore) {
+                            Image(systemName: "ellipsis")
                         }
-                        .accessibilityLabel(Text("sleep.title"))
-                    }
-                    ToolbarItemGroup(placement: .bottomBar) {
-                        if let track = player.currentTrack, let library = model.services.library {
-                            let liked = library.isLiked(track.videoId)
-                            Button { library.library.setLiked(track, !liked) } label: {
-                                Image(systemName: liked ? "heart.fill" : "heart")
-                            }
-                            .accessibilityLabel(Text(liked ? "menu.unlike" : "menu.like"))
-                        }
-                        Spacer()
-                        NavigationLink(value: WatchRoute.lyrics) {
-                            Image(systemName: "quote.bubble")
-                        }
-                        .accessibilityLabel(Text("player.lyrics"))
-                        Spacer()
-                        NavigationLink(value: WatchRoute.queue) {
-                            Image(systemName: "list.bullet")
-                        }
-                        .accessibilityLabel(Text("player.queue"))
+                        .accessibilityLabel(Text("menu.more"))
                     }
                 }
         }

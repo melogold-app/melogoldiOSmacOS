@@ -77,6 +77,8 @@ struct MelogoldWatchApp: App {
                         case ("library", _): model.path = [.section(.library)]
                         case ("allTracks", _): model.path = [.section(.library), .library(.allTracks)]
                         case ("settings", _): model.path = [.section(.settings)]
+                        case ("nowPlaying", _): model.path = [.nowPlaying]
+                        case ("more", _): model.path = [.nowPlaying, .playerMore]
                         case ("lyrics", _): model.path = [.nowPlaying, .lyrics]
                         case ("queue", _): model.path = [.nowPlaying, .queue]
                         case ("sleep", _): model.path = [.nowPlaying, .sleepTimer]
@@ -107,6 +109,8 @@ enum WatchRoute: Hashable {
     case queue
     case lyrics
     case sleepTimer
+    /// «Ещё» в «Сейчас играет»: ♡, текст, очередь, таймер сна, устройство.
+    case playerMore
     /// «Итоги»: минуты и трек месяца (задание 0018).
     case stats
     /// Пульт другого устройства аккаунта (задание 0020): список устройств и управление выбранным.

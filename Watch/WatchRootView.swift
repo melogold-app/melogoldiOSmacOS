@@ -55,6 +55,7 @@ struct WatchRootView: View {
                 case .queue: WatchQueueView()
                 case .lyrics: WatchLyricsView()
                 case .sleepTimer: WatchSleepTimerView()
+                case .playerMore: WatchPlayerMoreView()
                 case .stats: WatchStatsView()
                 case .remote: WatchRemoteView()
                 }

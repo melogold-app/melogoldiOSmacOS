@@ -205,24 +205,54 @@ struct WatchQueueView: View {
 
     var body: some View {
         let player = model.services.player
-        List {
-            ForEach(Array(player.items.enumerated()), id: \.element.id) { index, item in
-                Button { player.jump(to: item.id) } label: {
-                    HStack(spacing: 8) {
-                        ArtworkView(url: item.track.artworkURL, size: 28)
-                        VStack(alignment: .leading, spacing: 0) {
-                            Text(item.track.title).font(.footnote).lineLimit(2)
-                                .foregroundStyle(index == player.index ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
-                            Text(item.track.artistsText ?? "").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+        ScrollViewReader { proxy in
+            List {
+                ForEach(Array(player.items.enumerated()), id: \.element.id) { index, item in
+                    let current = index == player.index
+                    Button { player.jump(to: item.id) } label: {
+                        HStack(spacing: 8) {
+                            ArtworkView(url: item.track.artworkURL, size: 34, cornerRadius: 8)
+                                .overlay {
+                                    // Текущий трек: поверх обложки столбики звука, бегут, пока играет
+                                    if current {
+                                        ZStack {
+                                            RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.black.opacity(0.45))
+                                            Image(systemName: "waveform")
+                                                .font(.footnote.weight(.bold))
+                                                .foregroundStyle(.white)
+                                                .symbolEffect(.variableColor.iterative, isActive: player.isPlaying)
+                                        }
+                                    }
+                                }
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text(item.track.title)
+                                    .font(.footnote.weight(.semibold))
+                                    .lineLimit(2)
+                                    .foregroundStyle(.white)
+                                Text(item.track.artistsText ?? "")
+                                    .font(.caption2)
+                                    .foregroundStyle(.white.opacity(0.65))
+                                    .lineLimit(1)
+                            }
                         }
                     }
+                    .id(item.id)
+                    .listRowBackground(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(.white.opacity(current ? 0.26 : 0.1))
+                            .animation(.smooth(duration: 0.4), value: current)
+                    )
+                    .swipeActions {
+                        Button(role: .destructive) { player.remove(item.id) } label: { Label("menu.removeFromQueue", systemImage: "trash") }
+                    }
                 }
-                .swipeActions {
-                    Button(role: .destructive) { player.remove(item.id) } label: { Label("menu.removeFromQueue", systemImage: "trash") }
-                }
+            }
+            .onAppear {
+                if let index = player.index, player.items.indices.contains(index) { proxy.scrollTo(player.items[index].id, anchor: .top) }
             }
         }
         .navigationTitle(Text("player.queue"))
+        .playerBackground()
     }
 }
 
