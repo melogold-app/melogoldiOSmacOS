@@ -28,6 +28,27 @@ extension AppModel {
     }
 
     /// Перемотка на `seconds` (отрицательное — назад); не выходит за границы трека.
+    /// «Без звука» (⌥⌘↓): громкость в ноль и обратно — к той, что была.
+    func toggleMute() {
+        let player = services.player
+        if player.volume > 0 {
+            volumeBeforeMute = player.volume
+            player.volume = 0
+        } else {
+            player.volume = volumeBeforeMute
+        }
+    }
+
+    /// «Переключить повтор» (⌥⌘R): выключен → очередь → трек → выключен, как кнопка в панели.
+    func cycleRepeat() {
+        let player = services.player
+        switch player.repeatMode {
+        case .off: player.repeatMode = .all
+        case .all: player.repeatMode = .one
+        case .one: player.repeatMode = .off
+        }
+    }
+
     func seek(by seconds: Double) {
         let player = services.player
         guard player.currentTrack != nil, player.duration > 0 else { return }

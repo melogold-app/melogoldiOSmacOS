@@ -171,6 +171,17 @@ enum DebugScript {
                 // Строка боковой панели тем же путём, что щелчок (`selectSidebar`), но без событий мыши и без фокуса:
                 // trends new library search settings | favorites downloads history allTracks albums artists | playlist
                 selectSidebar(arg)
+            case "splits":
+                // Все NSSplitView окна: делегат, число вкладок, рамки — как устроена боковая панель
+                guard let root = window(nil)?.contentView else { log("splits: нет окна"); break }
+                func walk(_ view: NSView, _ depth: Int) {
+                    if let split = view as? NSSplitView {
+                        let frames = split.subviews.map { "\(Int($0.frame.minX)),\(Int($0.frame.width))" }.joined(separator: " | ")
+                        log("split \(String(repeating: " ", count: depth))\(type(of: split)) делегат=\(split.delegate.map { String(describing: type(of: $0)) } ?? "нет") вертикальный=\(split.isVertical) \(frames)")
+                    }
+                    for sub in view.subviews { walk(sub, depth + 1) }
+                }
+                walk(root, 0)
             case "dock":
                 // dock: пункты меню в Dock; dock <часть названия>: нажать пункт (тот же путь, что щелчок по нему)
                 guard let delegate = NSApp.delegate as? NSApplicationDelegate, let menu = delegate.applicationDockMenu?(NSApp) else { log("dock: нет меню"); break }
@@ -236,6 +247,12 @@ enum DebugScript {
             default:
                 log("неизвестная команда: \(line)")
             }
+        }
+
+        /// Боковая панель: свёрнута ли (`?` — контроллера нет).
+        private static func sidebarWidth(_ window: NSWindow?) -> String {
+            guard let item = MainSplit.controller()?.splitViewItems.first else { return "?" }
+            return item.isCollapsed ? "свёрнута" : "видна"
         }
 
         // MARK: - Клавиши
@@ -475,7 +492,9 @@ enum DebugScript {
                 + "сейчасИграет=\(model.showNowPlaying) очередь=\(model.queueVisible) текст=\(model.lyricsVisible) "
                 + "трек=\(player.currentTrack?.title ?? "нет") позиция=\(Int(player.position)) играет=\(player.isPlaying) "
                 + "громкость=\(player.volume) сведения=\(model.trackDetails?.title ?? "нет") новыйПлейлист=\(model.newPlaylistPrompt) "
-                + "поиск=\"\(model.searchQuery)\" ввод=\(model.textInputActive)")
+                + "поиск=\"\(model.searchQuery)\" ввод=\(model.textInputActive) повтор=\(player.repeatMode) перемешано=\(player.shuffled) "
+                + "устройство=\(model.remoteSheet) ответчик=\(window(nil)?.firstResponder.map { String(describing: type(of: $0)) } ?? "нет") "
+                + "боковая=\(Self.sidebarWidth(window(nil)))")
         }
     }
 }

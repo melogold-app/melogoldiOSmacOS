@@ -139,6 +139,12 @@ final class AppModel {
     /// Курсор в поле ввода: пробел вводит пробел, а не ставит паузу (Mac, docs/PROMPT.md §5.4).
     var textInputActive = false
 
+    /// Громкость до «Без звука» (⌥⌘↓).
+    @ObservationIgnored var volumeBeforeMute: Float = 1
+
+    /// Растёт, когда нужно поставить курсор в фильтр списка (⌥⌘F); экран без фильтра его не слушает.
+    var filterFocusRequest = 0
+
     /// ⌘N и «Новый плейлист» в боковой панели Mac: окно с названием; созданный плейлист открывается в Библиотеке.
     var newPlaylistPrompt = false
 

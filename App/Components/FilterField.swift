@@ -23,8 +23,29 @@ extension View {
 #if os(macOS)
 /// Поле фильтра в панели инструментов Mac: лупа, текст, крестик, пока что-то набрано.
 struct FilterField: View {
+    @Environment(AppModel.self) private var model
+    @FocusState private var focused: Bool
     @Binding var text: String
     let prompt: Text
+
+    /// Курсор в поле фильтра окна. Поле — элемент панели инструментов (AppKit), идентификатор SwiftUI до `NSTextField` не
+    /// доходит, поэтому оно ищется в виде панели: единственное редактируемое поле, кроме заголовка окна.
+    @MainActor
+    private static func focusInToolbar() {
+        guard let window = NSApp.keyWindow ?? NSApp.mainWindow ?? NSApp.windows.first(where: { $0.canBecomeMain && $0.isVisible }),
+              let root = window.contentView?.superview else { return }
+        func toolbar(_ view: NSView) -> NSView? {
+            if String(describing: type(of: view)) == "NSToolbarView" { return view }
+            for sub in view.subviews { if let found = toolbar(sub) { return found } }
+            return nil
+        }
+        func field(_ view: NSView) -> NSTextField? {
+            if let text = view as? NSTextField, text.isEditable, !String(describing: type(of: text)).contains("Title") { return text }
+            for sub in view.subviews { if let found = field(sub) { return found } }
+            return nil
+        }
+        if let bar = toolbar(root), let text = field(bar) { window.makeFirstResponder(text) }
+    }
 
     var body: some View {
         HStack(spacing: 6) {
@@ -33,6 +54,12 @@ struct FilterField: View {
                 .accessibilityHidden(true)
             TextField("", text: $text, prompt: prompt)
                 .textFieldStyle(.plain)
+                .focused($focused)
+                .onChange(of: model.filterFocusRequest) {
+                    focused = true
+                    // Поле — элемент панели окна (AppKit): `FocusState` до него не всегда доходит, курсор ставим и напрямую
+                    DispatchQueue.main.async { Self.focusInToolbar() }
+                }
                 .accessibilityLabel(prompt)
             if !text.isEmpty {
                 Button {

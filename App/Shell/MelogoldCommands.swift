@@ -8,9 +8,13 @@ import MelogoldPlayback
 /// - **Melogold:** «О программе», «Проверить обновления…», «Настройки…» (⌘,).
 /// - **Файл:** «Новый плейлист…» (⌘N), импорт и «Сохранить копию библиотеки…».
 /// - **Правка:** системные пункты (⌘A «Выбрать все» у списков), «Поиск» (⌘F) — Поиск с курсором в поле.
-/// - **Вид:** разделы ⌘1…⌘5, «Назад» (⌘[), «Сейчас играет» (⌥⌘N), текст (⌥⌘L) и очередь (⌥⌘U).
-/// - **Трек:** «Сведения о треке…» (⌘I), «К текущему треку» (⌘L), ♡, плейлист, альбом и исполнитель.
-/// - **Управление:** воспроизведение (пробел), ⌘→ и ⌘←, ±10 секунд (⌥⌘→ и ⌥⌘←), громкость, режимы, таймер сна.
+/// - **Вид:** разделы ⌘1…⌘5, части Библиотеки ⌥⌘1…⌥⌘6, «Назад» (⌘[), боковая панель (⌃⌘S), фильтр списка (⌥⌘F),
+///   «Сейчас играет» (⌥⌘N), текст (⌥⌘L) и очередь (⌥⌘U).
+/// - **Трек:** «Сведения о треке…» (⌘I), «К текущему треку» (⌘L), ♡ (⇧⌘L), плейлист (⇧⌘P), альбом (⌥⌘A), исполнитель (⇧⌘A).
+/// - **Управление:** воспроизведение (пробел), ⌘→ и ⌘←, ±10 секунд (⌥⌘→ и ⌥⌘←), громкость (⌘↑, ⌘↓, без звука ⌥⌘↓), перемешать
+///   (⌥⌘S), повтор (⌥⌘R), «Перемешать Избранное» (⇧⌘F), устройство (⇧⌘D), таймер сна.
+///
+/// У каждой кнопки окна есть пункт меню, а у пункта — сочетание: мышь для действия не нужна.
 /// - **Окно:** «Мини-плеер» (⌥⌘M).
 /// - **Справка:** страница проекта, «Сообщить о проблеме…», «Что нового», «Лицензии».
 ///
@@ -20,7 +24,7 @@ struct MelogoldCommands: Commands {
     let model: AppModel
     @Environment(\.openWindow) private var openWindow
 
-    private static let keys: [KeyEquivalent] = ["1", "2", "3", "4", "5"]
+    private static let keys: [KeyEquivalent] = ["1", "2", "3", "4", "5", "6"]
 
     var body: some Commands {
         CommandGroup(replacing: .appInfo) {
@@ -41,12 +45,16 @@ struct MelogoldCommands: Commands {
         }
         CommandGroup(replacing: .importExport) {
             Button("menu.importViTune") { model.chooseBackupToImport() }
+                .keyboardShortcut("i", modifiers: [.command, .shift])
             Button("menu.saveBackup") { model.saveBackup() }
+                .keyboardShortcut("s", modifiers: [.command, .shift])
         }
 
         CommandGroup(after: .textEditing) {
             Button("menu.find") { showMain { model.focusSearch() } }
                 .keyboardShortcut("f", modifiers: .command)
+            Button("menu.filter") { model.filterFocusRequest += 1 }
+                .keyboardShortcut("f", modifiers: [.command, .option])
         }
 
         // «Вид»: разделы, «Назад», «Сейчас играет», текст и очередь
@@ -56,8 +64,15 @@ struct MelogoldCommands: Commands {
                     .keyboardShortcut(Self.keys[index], modifiers: .command)
             }
             Divider()
+            ForEach(Array(LibraryShortcut.allCases.enumerated()), id: \.element) { index, shortcut in
+                Button(shortcut.title) { showMain { model.selectSidebar(.shortcut(shortcut)) } }
+                    .keyboardShortcut(Self.keys[index], modifiers: [.command, .option])
+            }
+            Divider()
             Button("menu.back") { model.goBack() }
                 .keyboardShortcut("[", modifiers: .command)
+            Button("menu.toggleSidebar") { MainSplit.toggleSidebar() }
+            .keyboardShortcut("s", modifiers: [.command, .control])
             Divider()
             let hasTrack = model.services.player.currentTrack != nil
             Button(model.showNowPlaying ? "menu.hideNowPlaying" : "menu.showNowPlaying") { showMain { model.toggleNowPlaying() } }
@@ -83,15 +98,19 @@ struct MelogoldCommands: Commands {
             if let track {
                 let liked = model.isLiked(track)
                 Button(liked ? "menu.unlike" : "menu.like") { model.toggleLike(track) }
+                    .keyboardShortcut("l", modifiers: [.command, .shift])
                     .disabled(model.library == nil)
                 Button("menu.addToPlaylist") { showMain { model.playlistPicker = PlaylistPickerRequest(tracks: [track]) } }
+                    .keyboardShortcut("p", modifiers: [.command, .shift])
                     .disabled(model.library == nil)
                 Divider()
                 Button("menu.goToAlbum") { showMain { model.showNowPlaying = false; model.openAlbum(of: track) } }
+                    .keyboardShortcut("a", modifiers: [.command, .option])
                     .disabled(track.albumId == nil)
                 Button(track.isVideo && track.videoType != VideoType.video ? "menu.goToChannel" : "menu.goToArtist") {
                     showMain { model.showNowPlaying = false; model.openArtist(of: track) }
                 }
+                .keyboardShortcut("a", modifiers: [.command, .shift])
                 .disabled(track.primaryArtistId == nil)
             } else {
                 Button("menu.like") {}.disabled(true)
@@ -126,9 +145,13 @@ struct MelogoldCommands: Commands {
                 .keyboardShortcut(.upArrow, modifiers: .command)
             Button("menu.volumeDown") { player.volume = max(0, player.volume - 0.1) }
                 .keyboardShortcut(.downArrow, modifiers: .command)
+            Button(player.volume == 0 ? "menu.unmute" : "menu.mute") { model.toggleMute() }
+                .keyboardShortcut(.downArrow, modifiers: [.command, .option])
             Divider()
             Toggle("player.shuffle", isOn: Binding(get: { player.shuffled }, set: { player.setShuffled($0) }))
-                .keyboardShortcut("s", modifiers: [.command, .control])
+                .keyboardShortcut("s", modifiers: [.command, .option])
+            Button("menu.repeatCycle") { model.cycleRepeat() }
+                .keyboardShortcut("r", modifiers: [.command, .option])
             Picker(selection: Binding(get: { player.repeatMode }, set: { player.repeatMode = $0 })) {
                 Text("player.repeat.off").tag(RepeatMode.off)
                 Text("player.repeat.all").tag(RepeatMode.all)
@@ -138,7 +161,11 @@ struct MelogoldCommands: Commands {
             }
             SleepTimerMenu().environment(model)
             Divider()
+            Button("shortcut.shuffleFavorites") { model.perform(.shuffleFavorites) }
+                .keyboardShortcut("f", modifiers: [.command, .shift])
+                .disabled(model.library == nil)
             Button("remote.device.menu") { model.remoteSheet = true }
+                .keyboardShortcut("d", modifiers: [.command, .shift])
         }
 
         // «Окно»: главное окно (⌘0) и мини-плеер (⌥⌘M) — вместо пунктов, которые система добавляет сама без сочетаний
@@ -163,6 +190,27 @@ struct MelogoldCommands: Commands {
     private func showMain(_ action: () -> Void) {
         openWindow(id: "main")
         action()
+    }
+}
+
+/// Боковая панель главного окна. Системное `toggleSidebar:` по цепочке ответчиков сюда не доходит (первым отвечает
+/// список панели, а контроллер разделённого вида SwiftUI в цепочку не входит), поэтому контроллер берётся у `NSSplitView`
+/// окна — его делегат.
+@MainActor
+enum MainSplit {
+    static func controller() -> NSSplitViewController? {
+        guard let window = NSApp.keyWindow ?? NSApp.mainWindow ?? NSApp.windows.first(where: { $0.canBecomeMain && $0.isVisible }),
+              let root = window.contentView else { return nil }
+        func find(_ view: NSView) -> NSSplitViewController? {
+            if let split = view as? NSSplitView, let controller = split.delegate as? NSSplitViewController { return controller }
+            for sub in view.subviews { if let found = find(sub) { return found } }
+            return nil
+        }
+        return find(root)
+    }
+
+    static func toggleSidebar() {
+        controller()?.toggleSidebar(nil)
     }
 }
 

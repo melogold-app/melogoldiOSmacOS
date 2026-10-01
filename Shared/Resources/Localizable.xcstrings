@@ -6438,6 +6438,23 @@
         }
       }
     },
+    "menu.filter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter List"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Фильтр списка"
+          }
+        }
+      }
+    },
     "menu.find" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6710,6 +6727,23 @@
         }
       }
     },
+    "menu.mute" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mute"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выключить звук"
+          }
+        }
+      }
+    },
     "menu.newPlaylist" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6825,6 +6859,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Убрать из очереди"
+          }
+        }
+      }
+    },
+    "menu.repeatCycle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cycle Repeat Mode"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Переключить повтор"
           }
         }
       }
@@ -6999,6 +7050,23 @@
         }
       }
     },
+    "menu.toggleSidebar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show or Hide Sidebar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показать или скрыть боковую панель"
+          }
+        }
+      }
+    },
     "menu.track" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7046,6 +7114,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Убрать из Избранного"
+          }
+        }
+      }
+    },
+    "menu.unmute" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unmute"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Включить звук"
           }
         }
       }
