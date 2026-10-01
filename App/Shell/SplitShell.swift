@@ -32,15 +32,6 @@ struct SplitShell: View {
             // Смена раздела — подмена колонки целиком, без наплыва: застывший наплыв оставлял под страницей альбома призрак
             // Библиотеки
             .transition(.identity)
-            #if !os(visionOS)
-            // Очередь — колонка справа (docs/PROMPT.md §5.4, iPad — §5.3).
-            // Пока открыт «Сейчас играет», колонка очереди — его собственная: окно под ним не перестраивается (иначе SwiftUI
-            // возвращает в панель окна скрытые название и кнопки)
-            .inspector(isPresented: Binding(get: { model.queueVisible && !model.showNowPlaying }, set: { model.queueVisible = $0 })) {
-                QueueView()
-                    .inspectorColumnWidth(min: 300, ideal: 340, max: 460)
-            }
-            #endif
             #if os(macOS)
             // Esc: сначала «Сейчас играет», потом шаг назад в стеке раздела (docs/PROMPT.md §5.4)
             .onExitCommand {
@@ -48,6 +39,17 @@ struct SplitShell: View {
             }
             #endif
         }
+        #if !os(visionOS)
+        // Очередь — колонка справа (docs/PROMPT.md §5.4, iPad — §5.3). Висит на всём `NavigationSplitView`, а не на стеке колонки
+        // детали: на стеке она ломала переходы глубже второго — модель уже знала о третьем экране, а на экране оставался второй
+        // («альбом не открывается»).
+        // Пока открыт «Сейчас играет», колонка очереди — его собственная: окно под ним не перестраивается (иначе SwiftUI
+        // возвращает в панель окна скрытые название и кнопки)
+        .inspector(isPresented: Binding(get: { model.queueVisible && !model.showNowPlaying }, set: { model.queueVisible = $0 })) {
+            QueueView()
+                .inspectorColumnWidth(min: 300, ideal: 340, max: 460)
+        }
+        #endif
         #if os(macOS)
         // Панель воспроизведения — плавающее стекло внизу окна во всю ширину; боковая панель и колонка детали
         // заканчиваются над ней, содержимое уходит под неё с мягким затуханием. Поле прокрутки снизу — во всех списках

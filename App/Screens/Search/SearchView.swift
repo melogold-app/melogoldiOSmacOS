@@ -162,7 +162,7 @@ private struct SearchRootView: View {
                     RecentlyPlayedSection(entries: recentPlays)
                 }
                 .playerBarClearance()
-                .listStyle(.plain)
+                .contentListStyle()
             }
         }
         .task(id: model.library?.revision) {
@@ -238,7 +238,7 @@ private struct AllResultsList: View {
                     }
                 }
             }
-            .listStyle(.plain)
+            .contentListStyle()
         }
     }
 
@@ -341,7 +341,7 @@ private struct PagedResultsList<Chips: View>: View {
                 chips()
             }
         }
-        .listStyle(.plain)
+        .contentListStyle()
     }
 }
 

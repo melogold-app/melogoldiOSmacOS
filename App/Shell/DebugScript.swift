@@ -156,9 +156,40 @@ enum DebugScript {
                 let parts = arg.split(separator: " ").map(String.init)
                 let target = parts.count > 1 ? (AppSection(rawValue: parts[0]) ?? .library) : .library
                 let name = parts.last ?? ""
-                let routes: [String: Route] = ["favorites": .favorites, "allTracks": .allTracks, "downloads": .downloads, "history": .history,
-                                               "album": .album("MPREb_queen1"), "moods": .moods]
+                let library = model.library?.library
+                let artistId = library?.favorites().compactMap(\.primaryArtistId).first
+                let playlistId = library?.playlists().first?.id
+                var routes: [String: Route] = ["favorites": .favorites, "allTracks": .allTracks, "downloads": .downloads, "history": .history,
+                                               "album": .album("MPREb_OLmD8O5IYNS"), "moods": .moods, "newReleases": .newReleases,
+                                               "playlists": .playlists, "savedAlbums": .savedAlbums, "savedArtists": .savedArtists,
+                                               "hidden": .hiddenTracks, "stats": .stats, "streamInfo": .streamInfo, "diagnostics": .diagnostics,
+                                               "licenses": .licenses, "server": .server(prefill: nil, serverId: nil),
+                                               "signIn": .account(.signIn(login: nil)), "register": .account(.register)]
+                if let artistId { routes["artist"] = .artist(artistId) }
+                if let playlistId { routes["localPlaylist"] = .localPlaylist(playlistId) }
                 if let route = routes[name] { model.open(route, in: target); log("push \(target.rawValue) \(name)") } else { log("push: нет экрана «\(name)»") }
+            case "theme":
+                // theme light | dark | system — тема приложения, как в Настройках
+                if let mode = ThemeMode(rawValue: arg) { model.settings.theme = mode; log("тема \(arg)") }
+            case "nowplaying":
+                // nowplaying [lyrics|queue|off]: «Сейчас играет», с текстом или очередью
+                switch arg {
+                case "off": model.showNowPlaying = false
+                case "lyrics": model.showNowPlaying = true; model.lyricsVisible = true
+                case "queue": model.showNowPlaying = true; model.lyricsVisible = false; model.queueVisible = true
+                default: model.showNowPlaying = true; model.lyricsVisible = false
+                }
+                log("сейчас играет \(arg)")
+            case "queuepanel":
+                model.queueVisible.toggle()
+                log("очередь \(model.queueVisible)")
+            case "details":
+                if let track = model.services.player.currentTrack { model.trackDetails = track; log("сведения о треке") }
+            case "dismiss":
+                model.trackDetails = nil
+                model.remoteSheet = false
+                model.playlistPicker = nil
+                log("листы закрыты")
             case "toolbar":
                 // Элементы панели окна (AppKit): идентификаторы, названия, видимость — и заголовок окна
                 let toolbar = window(nil)?.toolbar
@@ -171,6 +202,21 @@ enum DebugScript {
                 // Строка боковой панели тем же путём, что щелчок (`selectSidebar`), но без событий мыши и без фокуса:
                 // trends new library search settings | favorites downloads history allTracks albums artists | playlist
                 selectSidebar(arg)
+            case "closewindow":
+                // красная кнопка: окно закрывается, музыка и модель остаются
+                window(nil)?.close()
+                log("окно закрыто")
+            case "reopen":
+                // как щелчок по значку в Dock после закрытия окна
+                model.openMainWindow?()
+                log("окно открыто заново")
+            case "minimize":
+                // minimize: свернуть окно в Dock, restore: развернуть (как жёлтая кнопка и щелчок по значку)
+                window(nil)?.miniaturize(nil)
+                log("окно свёрнуто")
+            case "restore":
+                (NSApp.windows.first { $0.isMiniaturized })?.deminiaturize(nil)
+                log("окно развёрнуто")
             case "splits":
                 // Все NSSplitView окна: делегат, число вкладок, рамки — как устроена боковая панель
                 guard let root = window(nil)?.contentView else { log("splits: нет окна"); break }
@@ -240,6 +286,10 @@ enum DebugScript {
                 NSApp.orderFrontStandardAboutPanel(nil)
             case "frame":
                 for w in NSApp.windows where w.isVisible { log("окно «\(w.title)» \(w.frame) level=\(w.level.rawValue) key=\(w.isKeyWindow) style=\(w.styleMask.rawValue)") }
+            case "resize":
+                // resize <ширина> <высота>: размер содержимого окна в точках
+                let n = arg.split(separator: " ").compactMap { Double($0) }
+                if n.count == 2, let w = window(nil) { w.setContentSize(NSSize(width: n[0], height: n[1])); log("окно \(Int(n[0]))×\(Int(n[1]))") }
             case "fullscreen":
                 window(nil)?.toggleFullScreen(nil)
             case "quit":

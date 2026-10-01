@@ -58,13 +58,20 @@ public final class RemoteControl {
 
     public var isActive: Bool { target != nil }
 
+    /// Можно ли включить музыку на устройстве пультом. Часы — нет: на них звук играет приложение, открытое руками на самих
+    /// часах (watchOS не запускает его по команде), и только в наушники рядом; пульт часов к ним — бессмыслица.
+    /// Пользователь (2026-10-01): «бред включать музыку на часах удалённо».
+    public static func canPlay(_ device: RemoteDevice) -> Bool {
+        device.platform != "watchos"
+    }
+
     /// Перечитать список устройств (лист «Устройство»).
     public func refresh() async {
         loading = true
         defer { loading = false }
         do {
             let list = try await port.playbackDevices()
-            devices = list.devices
+            devices = list.devices.filter(Self.canPlay)
             loadError = nil
             learnServerTime(list.serverTime)
             if let target, let fresh = list.devices.first(where: { $0.deviceId == target.deviceId }) {

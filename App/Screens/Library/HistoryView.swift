@@ -104,7 +104,7 @@ struct HistoryView: View {
                 }
             }
         }
-        .listStyle(.plain)
+        .contentListStyle()
         .navigationTitle(Text("library.history"))
         #if !os(visionOS)
         .navigationSubtitle(subtitle)

@@ -10,6 +10,16 @@ import Intents
 /// загружено, ⏮ ⏯ ⏭ (docs/PROMPT.md §4 «Система»). Ярлык открывает окно, если его закрыли: музыка от закрытия окна не
 /// останавливается, а Dock открывает его снова.
 final class MacAppDelegate: NSObject, NSApplicationDelegate {
+    /// Закрытие окна не завершает приложение: музыка играет дальше, а Dock открывает окно снова. У приложения с одним
+    /// `Window` система без этого завершает его вместе с последним окном.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+
+    /// Щелчок по значку в Dock, когда окна нет: открыть главное окно.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag { AppModel.current?.openMainWindow?() }
+        return true
+    }
+
     func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
         let menu = NSMenu()
         menu.addItem(shortcut("shortcut.search", "magnifyingglass", .search))

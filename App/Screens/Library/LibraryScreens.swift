@@ -30,7 +30,7 @@ struct FavoritesView: View {
                 EmptyRow(title: "library.favorites.empty", systemImage: "heart", filter: filter)
             }
         }
-        .listStyle(.plain)
+        .contentListStyle()
         .navigationTitle(Text("library.favorites"))
         .inlineTitle()
         .filterable(text: $filter, prompt: Text("library.filter"))
@@ -93,7 +93,7 @@ struct AllTracksView: View {
                 EmptyRow(title: "library.allTracks", systemImage: "music.note", description: "library.allTracks.empty", filter: filter)
             }
         }
-        .listStyle(.plain)
+        .contentListStyle()
         .navigationTitle(Text("library.allTracks"))
         .inlineTitle()
         .filterable(text: $filter, prompt: Text("library.filter"))
@@ -306,7 +306,7 @@ struct SavedArtistsView: View {
             }
         }
         .playerBarClearance()
-        .listStyle(.plain)
+        .contentListStyle()
         .navigationTitle(Text("library.artists"))
         .inlineTitle()
         .filterable(text: $filter, prompt: Text("library.filter"))

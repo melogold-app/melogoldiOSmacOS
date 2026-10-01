@@ -10,7 +10,7 @@ import MelogoldPlayback
 /// - **Правка:** системные пункты (⌘A «Выбрать все» у списков), «Поиск» (⌘F) — Поиск с курсором в поле.
 /// - **Вид:** разделы ⌘1…⌘5, части Библиотеки ⌥⌘1…⌥⌘6, «Назад» (⌘[), боковая панель (⌃⌘S), фильтр списка (⌥⌘F),
 ///   «Сейчас играет» (⌥⌘N), текст (⌥⌘L) и очередь (⌥⌘U).
-/// - **Трек:** «Сведения о треке…» (⌘I), «К текущему треку» (⌘L), ♡ (⇧⌘L), плейлист (⇧⌘P), альбом (⌥⌘A), исполнитель (⇧⌘A).
+/// - **Трек:** «Сведения о треке…» (⌘I), «К текущему треку» (⌘L), ♡ (⇧⌘L), плейлист (⇧⌘P), альбом (⌥⌘A), исполнитель (⇧⌘R).
 /// - **Управление:** воспроизведение (пробел), ⌘→ и ⌘←, ±10 секунд (⌥⌘→ и ⌥⌘←), громкость (⌘↑, ⌘↓, без звука ⌥⌘↓), перемешать
 ///   (⌥⌘S), повтор (⌥⌘R), «Перемешать Избранное» (⇧⌘F), устройство (⇧⌘D), таймер сна.
 ///
@@ -110,7 +110,8 @@ struct MelogoldCommands: Commands {
                 Button(track.isVideo && track.videoType != VideoType.video ? "menu.goToChannel" : "menu.goToArtist") {
                     showMain { model.showNowPlaying = false; model.openArtist(of: track) }
                 }
-                .keyboardShortcut("a", modifiers: [.command, .shift])
+                // ⇧⌘A — стандартное «Снять выбор» (HIG «Keyboards»), поэтому исполнитель — ⇧⌘R
+                .keyboardShortcut("r", modifiers: [.command, .shift])
                 .disabled(track.primaryArtistId == nil)
             } else {
                 Button("menu.like") {}.disabled(true)

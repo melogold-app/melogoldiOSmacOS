@@ -262,6 +262,17 @@ struct PlaybackRemoteTests {
         RemoteDevice(deviceId: "mac", name: "MacBook Air", platform: "macos", online: online, controllable: controllable, playing: playing, volume: playing?.volume)
     }
 
+    @Test func watchIsNotOfferedAsTarget() async {
+        let port = FakeRemotePort()
+        port.devices = [
+            Self.device(),
+            RemoteDevice(deviceId: "watch", name: "Apple Watch", platform: "watchos", online: false, controllable: false, playing: nil, volume: nil),
+        ]
+        let remote = RemoteControl(port: port)
+        await remote.refresh()
+        #expect(remote.devices.map(\.deviceId) == ["mac"])
+    }
+
     @Test func commandsGoToTheTargetAndErrorsDisconnect() async throws {
         let port = FakeRemotePort()
         let clock = Clock()

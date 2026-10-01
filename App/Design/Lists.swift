@@ -52,6 +52,18 @@ extension View {
         #endif
     }
 
+    /// Стиль списков контента. iPhone, iPad и Vision — `.plain` во всю ширину; Mac — системный `.inset`: поля строк, скругление
+    /// выделения и отступ от краёв колонки даёт система (HIG «Lists and tables», выжимка `docs/design/PLATFORM.md`). На Mac с
+    /// `.plain` строки прилипали к краю окна, когда боковая панель скрыта, и поля разных экранов не совпадали.
+    @ViewBuilder
+    func contentListStyle() -> some View {
+        #if os(macOS)
+        listStyle(.inset)
+        #else
+        listStyle(.plain)
+        #endif
+    }
+
     /// Разделитель строки начинается у текста, а не у края обложки — как в «Музыке» и «Подкастах».
     func rowSeparatorAtText() -> some View {
         alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }

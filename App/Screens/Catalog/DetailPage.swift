@@ -65,7 +65,7 @@ struct DetailPage<Header: View, Rows: View>: View {
             }
             rows()
         }
-        .listStyle(.plain)
+        .contentListStyle()
         .onAppear { if !includeHeader { headerVisible = true } }
     }
 }

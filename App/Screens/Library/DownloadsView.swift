@@ -110,7 +110,7 @@ struct DownloadsView: View {
             }
             #endif
         }
-        .listStyle(.plain)
+        .contentListStyle()
         .navigationTitle(Text("library.downloads"))
         .inlineTitle()
         .filterable(text: $filter, prompt: Text("library.filter"))

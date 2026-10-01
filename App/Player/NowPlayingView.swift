@@ -405,7 +405,9 @@ private struct NowPlayingChrome: ViewModifier {
             // Панель инструментов окна скрыта, пока открыт «Сейчас играет»: в ней поле поиска и заголовок раздела из
             // экрана под ним. Скрывает её AppKit, а не `toolbar(.hidden, for: .windowToolbar)` — тот гасит и кнопки окна.
             .background { MacToolbarHidden() }
-            .overlay(alignment: .topTrailing) {
+            // «Свернуть» — слева, сразу за кнопками окна: на Mac закрывающее окно и слой стоит в левом верхнем углу (HIG
+            // «Windows»), там его и ищут; справа он был не на месте
+            .overlay(alignment: .topLeading) {
                 Button {
                     model.showNowPlaying = false
                 } label: {
@@ -417,7 +419,9 @@ private struct NowPlayingChrome: ViewModifier {
                 }
                 .buttonStyle(.plain)
                 .keyboardShortcut(.cancelAction)
-                .padding(Design.Space.m)
+                .padding(.top, Design.Space.xs)
+                // Кнопки окна занимают ~70 pt слева
+                .padding(.leading, 84)
                 .help(Text("common.collapse"))
                 .accessibilityLabel(Text("common.collapse"))
             }
