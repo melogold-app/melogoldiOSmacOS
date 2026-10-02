@@ -211,6 +211,18 @@ schemes:
         - MelogoldUITests
     archive:
       config: Release
+  # Запуск на своём iPhone из Xcode (▶) без отладочных замедлений: Release-сборка с той же подписью (Config/Local.xcconfig).
+  # Отладочная сборка без оптимизаций на телефоне в разы медленнее — «Сейчас играет» в ней тормозит (2026-10-02).
+  Melogold Release:
+    build:
+      targets:
+        Melogold: all
+    run:
+      config: Release
+    profile:
+      config: Release
+    archive:
+      config: Release
   Melogold Watch:
     build:
       targets:

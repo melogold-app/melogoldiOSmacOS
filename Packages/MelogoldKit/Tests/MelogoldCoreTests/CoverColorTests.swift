@@ -71,4 +71,25 @@ struct CoverColorTests {
     @Test func emptyImageHasNoColor() {
         #expect(CoverColor.dominant(rgba: []) == nil)
     }
+
+    @Test func paletteStartsWithDominantAndAddsDistinctHues() {
+        // Половина красного, четверть синего, четверть жёлтого
+        let pixels = image(repeated((220, 30, 30), 200) + repeated((30, 60, 220), 100) + repeated((230, 210, 40), 100))
+        let palette = CoverColor.palette(rgba: pixels)
+        #expect(palette.count >= 3)
+        #expect(palette.first == CoverColor.dominant(rgba: pixels))
+        // Синий и жёлтый попали в палитру как отдельные цвета
+        #expect(palette.contains { $0.blue > $0.red && $0.blue > $0.green })
+        #expect(palette.contains { $0.red > 0.4 && $0.green > 0.4 && $0.blue < $0.green })
+    }
+
+    @Test func singleHueCoverStillGetsVariants() {
+        let palette = CoverColor.palette(rgba: image(repeated((40, 160, 70), 400)))
+        #expect(palette.count >= 3)
+        #expect(Set(palette).count == palette.count)
+    }
+
+    @Test func blackAndWhiteCoverHasNoPalette() {
+        #expect(CoverColor.palette(rgba: image(repeated((0, 0, 0), 200) + repeated((255, 255, 255), 200))).isEmpty)
+    }
 }

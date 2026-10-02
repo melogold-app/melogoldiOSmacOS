@@ -223,7 +223,9 @@ struct SyncedLyricsView: View {
                             Color.clear.frame(height: max(0, mid - (frames[0]?.height ?? 40) / 2 - LyricsStyle.anchor - 4 * scale))
                         }
                         ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
-                            LyricRowView(row: row, index: index, active: active, fontSize: fontSize)
+                            LyricRowView(row: row, index: index, isActive: index == active, isPast: index < active,
+                                         reportsFrame: index == active || index == 0, fontSize: fontSize)
+                                .equatable()
                                 .id(index)
                         }
                         // Последняя строка тоже может встать на своё место
@@ -375,14 +377,25 @@ private struct ActiveLinePill: View {
 }
 
 /// Строка текста: спетая — по словам, если есть время слов; проигрыш — три точки, пока он идёт.
-private struct LyricRowView: View {
+/// Строка знает только своё состояние (прошла, звучит, впереди), а не номер текущей строки: при смене строки
+/// перестраиваются две строки, а не весь текст (`equatable()`). Рамку сообщают только текущая и первая строки — по ним
+/// встают подложка и прокрутка; остальные не гоняют перерасчёт всего текста при каждом изменении раскладки.
+private struct LyricRowView: View, Equatable {
     @Environment(AppModel.self) private var model
     @Environment(\.colorSchemeContrast) private var contrast
     let row: LyricRow
     let index: Int
-    let active: Int
+    let isActive: Bool
+    let isPast: Bool
+    /// Сообщать свою рамку (`RowFramesKey`).
+    let reportsFrame: Bool
     /// Размер основной строки; поля подложки, подпевка, перевод и точки — от него (`LyricsStyle.baseSize` = 28).
     let fontSize: CGFloat
+
+    static func == (lhs: LyricRowView, rhs: LyricRowView) -> Bool {
+        lhs.index == rhs.index && lhs.isActive == rhs.isActive && lhs.isPast == rhs.isPast
+            && lhs.reportsFrame == rhs.reportsFrame && lhs.fontSize == rhs.fontSize && lhs.row == rhs.row
+    }
 
     private var scale: CGFloat { fontSize / LyricsStyle.baseSize }
 
@@ -391,14 +404,14 @@ private struct LyricRowView: View {
         case .sung(let line):
             sung(line)
         case .interlude(let start, let end, let side):
-            if index == active {
+            if isActive {
                 TimelineView(.animation(minimumInterval: 1.0 / 30)) { _ in
                     InterludeDots(progress: progress(start, end), scale: scale)
                 }
                 .padding(.horizontal, 16 * scale)
                 .background {
                     GeometryReader { proxy in
-                        Color.clear.preference(key: RowFramesKey.self, value: [index: proxy.frame(in: .named(lyricsSpace))])
+                        Color.clear.preference(key: RowFramesKey.self, value: reportsFrame ? [index: proxy.frame(in: .named(lyricsSpace))] : [:])
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: side == .end ? .trailing : .leading)
@@ -413,8 +426,6 @@ private struct LyricRowView: View {
     }
 
     private func sung(_ line: SyncedLine) -> some View {
-        let isActive = index == active
-        let isPast = index < active
         let alignment: HorizontalAlignment = line.side == .end ? .trailing : .leading
         return Button {
             let target = Double(line.startMs - model.services.lyrics.offsetMs) / 1000
@@ -456,7 +467,7 @@ private struct LyricRowView: View {
             .padding(.vertical, 10 * scale)
             .background {
                 GeometryReader { proxy in
-                    Color.clear.preference(key: RowFramesKey.self, value: [index: proxy.frame(in: .named(lyricsSpace))])
+                    Color.clear.preference(key: RowFramesKey.self, value: reportsFrame ? [index: proxy.frame(in: .named(lyricsSpace))] : [:])
                 }
             }
             .frame(maxWidth: .infinity, alignment: line.side == .end ? .trailing : .leading)

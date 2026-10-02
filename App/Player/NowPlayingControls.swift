@@ -43,7 +43,9 @@ struct TrackActionCircles: View {
 }
 
 /// ⇄ ⏮ ⏯ ⏭ ⟲ одним рядом во всю ширину: значки без рамок, под пальцем проступает круг (`TransportPressStyle`). Режимы
-/// по краям мельче и приглушены, включённый — акцентом; в компактном виде их нет, три кнопки стоят плотнее по центру.
+/// по краям мельче и приглушены, включённый — акцентом. В компактном виде (рядом с текстом) режимы гаснут, а ⏮ ⏯ ⏭
+/// становятся меньше — это тот же ряд с теми же кнопками, поэтому при переключении текста он плавно меняет размер, а не
+/// растворяется одним рядом и появляется другим (пользователь, 2026-10-02: «анимации отстой»).
 struct TransportRow: View {
     var compact = false
 
@@ -51,27 +53,28 @@ struct TransportRow: View {
         let skip = compact ? Design.Size.compactSkipButton : Design.Size.skipButton
         let play = compact ? Design.Size.compactPlayButton : Design.Size.playButton
         HStack(spacing: 0) {
-            if compact {
-                Spacer(minLength: 0)
-                PreviousButton(glass: GlassSpec(diameter: skip, glass: false))
-                Spacer(minLength: 0).frame(maxWidth: Design.Space.xl)
-                PlayPauseButton(glass: GlassSpec(diameter: play, glass: false))
-                Spacer(minLength: 0).frame(maxWidth: Design.Space.xl)
-                NextButton(glass: GlassSpec(diameter: skip, glass: false))
-                Spacer(minLength: 0)
-            } else {
-                ShuffleToggle(size: .title3, muted: true)
-                Spacer(minLength: 0)
-                PreviousButton(glass: GlassSpec(diameter: skip, glass: false))
-                Spacer(minLength: 0)
-                PlayPauseButton(glass: GlassSpec(diameter: play, glass: false))
-                Spacer(minLength: 0)
-                NextButton(glass: GlassSpec(diameter: skip, glass: false))
-                Spacer(minLength: 0)
-                RepeatToggle(size: .title3, muted: true)
-            }
+            ShuffleToggle(size: .title3, muted: true)
+                .modeHidden(compact)
+            Spacer(minLength: 0)
+            PreviousButton(glass: GlassSpec(diameter: skip, glass: false))
+            Spacer(minLength: 0)
+            PlayPauseButton(glass: GlassSpec(diameter: play, glass: false))
+            Spacer(minLength: 0)
+            NextButton(glass: GlassSpec(diameter: skip, glass: false))
+            Spacer(minLength: 0)
+            RepeatToggle(size: .title3, muted: true)
+                .modeHidden(compact)
         }
         .iconTypeSize()
+    }
+}
+
+private extension View {
+    /// Перемешивание и повтор в компактном ряду: место остаётся, кнопки гаснут и не нажимаются.
+    func modeHidden(_ hidden: Bool) -> some View {
+        opacity(hidden ? 0 : 1)
+            .allowsHitTesting(!hidden)
+            .accessibilityHidden(hidden)
     }
 }
 
