@@ -219,7 +219,7 @@ private struct AllResultsList: View {
                     }
                 } else {
                     Section {
-                        if let top = all.top { ItemRow(item: top).tag(RowID.make("top", top.id)) }
+                        if let top = all.top { TopResultCard(item: top).tag(RowID.make("top", top.id)) }
                         switch all.music {
                         case .loaded(let items):
                             ForEach(items) { ItemRow(item: $0).tag(RowID.make("m", $0.id)) }
@@ -389,6 +389,92 @@ struct ItemRow: View {
             TapTarget(target: RowTarget.of(item)) {
                 CollectionRow(item: item)
             }
+        }
+    }
+}
+
+/// Лучший результат поиска — крупно, первым (задание 0023, как «Лучший результат» в «Музыке»): исполнитель — круглое фото,
+/// имя, «Исполнитель», «Слушать»; альбом и плейлист — обложка, название, подпись, «Слушать»; трек — обложка, название,
+/// исполнитель, нажатие играет. Нажатие по карточке исполнителя или альбома открывает страницу — без лишнего шага.
+struct TopResultCard: View {
+    @Environment(AppModel.self) private var model
+    let item: MusicItem
+
+    var body: some View {
+        TapTarget(target: RowTarget.of(item)) {
+            HStack(spacing: Design.Space.m) {
+                ArtworkView(url: artwork, size: 88, shape: isArtist ? .circle : .rounded, cornerRadius: isArtist ? nil : Design.Radius.medium)
+                VStack(alignment: .leading, spacing: Design.Space.xxs) {
+                    Text(verbatim: title)
+                        .font(.title2.weight(.bold))
+                        .lineLimit(2)
+                        .foregroundStyle(.primary)
+                    if !subtitle.isEmpty {
+                        Text(verbatim: subtitle)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    if canPlay {
+                        Button { model.playTopResult(item) } label: {
+                            Label("collection.play", systemImage: "play.fill")
+                                .font(.subheadline.weight(.semibold))
+                        }
+                        .prominentGlassButton()
+                        .controlSize(.small)
+                        .padding(.top, Design.Space.xxs)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.vertical, Design.Space.xs)
+            .contentShape(Rectangle())
+        }
+        .listRowSeparator(.hidden)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text(verbatim: [title, subtitle].filter { !$0.isEmpty }.joined(separator: ", ")))
+        .accessibilityAddTraits(.isHeader)
+    }
+
+    private var isArtist: Bool { if case .artist = item { true } else { false } }
+
+    /// У трека «Слушать» не нужна: нажатие по карточке и так играет.
+    private var canPlay: Bool {
+        switch item {
+        case .artist, .album, .playlist: true
+        case .track, .mood: false
+        }
+    }
+
+    private var artwork: String? {
+        switch item {
+        case .track(let track): track.artworkURL
+        case .album(let album): album.thumbnailUrl
+        case .artist(let artist): artist.thumbnailUrl
+        case .playlist(let playlist): playlist.thumbnailUrl
+        case .mood: nil
+        }
+    }
+
+    private var title: String {
+        switch item {
+        case .track(let track): track.title
+        case .album(let album): album.title
+        case .artist(let artist): artist.name
+        case .playlist(let playlist): playlist.title
+        case .mood(let mood): mood.title
+        }
+    }
+
+    private var subtitle: String {
+        switch item {
+        case .track(let track): track.artistsText ?? ""
+        case .album(let album): album.subtitle
+        // «Исполнитель · 175 тыс. слушателей в месяц»: что это, видно сразу, как в «Музыке»
+        case .artist(let artist): ([String(localized: "search.kind.artist")] + [artist.subtitle].compactMap { $0 }.filter { !$0.isEmpty })
+            .joined(separator: " · ")
+        case .playlist(let playlist): playlist.subtitle ?? ""
+        case .mood: ""
         }
     }
 }

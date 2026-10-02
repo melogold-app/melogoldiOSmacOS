@@ -1,6 +1,6 @@
 # Поиск: лучший результат первым, крупной карточкой
 
-Статус: открыто
+Статус: сделано (2026-10-02): `SearchSummary.withTopResult(for:)` + `TopResultCard` в «Всё»
 
 Те же задания: `melogoldAndroid/tasks/0021-search-top-result.md`, `melogoldWindows/tasks/0023-search-top-result.md`, `melogoldLinux/tasks/0018-search-top-result.md`.
 

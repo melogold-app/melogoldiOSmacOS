@@ -304,6 +304,27 @@ public struct SearchSummary: Hashable, Sendable {
         self.topResult = topResult
         self.items = items
     }
+
+    /// Лучший результат для экрана (задание 0023): карточка YouTube Music, а если её нет — исполнитель, чьё имя совпадает с
+    /// запросом без учёта регистра, ё/е и знаков («кино» → «Кино»). Пользователь: «пишешь в поиск автора — он сразу сам
+    /// подсвечивается, не нужно лишний клик делать».
+    public func withTopResult(for query: String) -> SearchSummary {
+        guard topResult == nil else { return self }
+        let wanted = Self.normalized(query)
+        guard !wanted.isEmpty else { return self }
+        let artist = items.first { item in
+            if case .artist(let artist) = item { return Self.normalized(artist.name) == wanted }
+            return false
+        }
+        return SearchSummary(topResult: artist, items: items)
+    }
+
+    /// Для сравнения имён: строчные, ё → е, без знаков и лишних пробелов.
+    static func normalized(_ text: String) -> String {
+        let lowered = text.lowercased().replacingOccurrences(of: "ё", with: "е")
+        let words = lowered.unicodeScalars.map { CharacterSet.alphanumerics.contains($0) ? Character($0) : " " }
+        return String(words).split(separator: " ").joined(separator: " ")
+    }
 }
 
 /// Страница выдачи с продолжением.

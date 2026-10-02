@@ -9911,6 +9911,23 @@
         }
       }
     },
+    "search.kind.artist" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Artist"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Исполнитель"
+          }
+        }
+      }
+    },
     "search.nothingFound" : {
       "extractionState" : "manual",
       "localizations" : {

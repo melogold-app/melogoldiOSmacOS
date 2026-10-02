@@ -67,6 +67,52 @@ extension AppModel {
         toast = Toast(text: String(localized: "queue.added \(tracks.count == 1 ? first.title : String(localized: "queue.tracks \(tracks.count)"))"))
     }
 
+    /// «Слушать» у лучшего результата поиска (задание 0023): исполнитель — популярные песни по порядку (как ▶ на его
+    /// странице), без них — радио по первой песне; альбом и плейлист — целиком; трек — трек и похожие.
+    func playTopResult(_ item: MusicItem) {
+        switch item {
+        case .track(let track):
+            play(single: track)
+        case .artist(let artist):
+            Task {
+                guard let details = try? await services.catalog.artist(artist.browseId) else {
+                    notice = Notice(title: "error.offline", message: nil)
+                    return
+                }
+                let songs = details.shelves.first { shelf in
+                    !shelf.items.isEmpty && shelf.items.allSatisfy { $0.track.map { !$0.isVideo } ?? false }
+                }?.tracks ?? []
+                if !songs.isEmpty {
+                    playAll(songs, shuffled: false)
+                } else if let seed = details.shelves.flatMap(\.tracks).first {
+                    startRadio(seed)
+                }
+            }
+        case .album(let album):
+            Task {
+                guard let details = try? await services.catalog.album(album.browseId) else {
+                    notice = Notice(title: "error.offline", message: nil)
+                    return
+                }
+                playAll(details.tracks, shuffled: false)
+            }
+        case .playlist(let playlist):
+            if playlist.isMix {
+                playMix(playlist.playlistId)
+            } else {
+                Task {
+                    guard let details = try? await services.catalog.playlist(playlist.playlistId) else {
+                        notice = Notice(title: "error.offline", message: nil)
+                        return
+                    }
+                    playAll(details.tracks, shuffled: false)
+                }
+            }
+        case .mood:
+            break
+        }
+    }
+
     /// «Включить радио» — трек и похожие.
     func startRadio(_ track: Track) {
         play(single: track)

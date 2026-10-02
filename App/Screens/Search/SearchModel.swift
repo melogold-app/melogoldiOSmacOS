@@ -145,7 +145,7 @@ final class SearchModel {
         all = AllResults()
         loadTasks.append(Task { [catalog] in
             do {
-                let summary = try await catalog.searchSummary(query)
+                let summary = try await catalog.searchSummary(query).withTopResult(for: query)
                 guard submitted == query else { return }
                 all.top = summary.topResult
                 let rest = summary.items.filter { $0.id != summary.topResult?.id }
