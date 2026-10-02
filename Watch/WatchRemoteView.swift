@@ -2,30 +2,15 @@ import SwiftUI
 import MelogoldCore
 import MelogoldServer
 
-/// Пульт на часах (задание 0020, docs/PROMPT.md §5.6): другие устройства аккаунта со статусом; выбранное — что на нём
-/// играет, ⏮ ⏯ ⏭ и громкость колёсиком Digital Crown (команда через 150 мс после последнего поворота). «Отключиться» —
-/// обратно к списку. Своё воспроизведение часы другим не отдают: звук часов — наушники рядом с ними.
+/// «Устройство» на часах (задание 0020, docs/PROMPT.md §5.6): только выбор, где играет музыка — другие устройства
+/// аккаунта со статусом и «На часах» внизу. Выбор возвращает назад; управление выбранным устройством — в «Сейчас играет»
+/// (`WatchRemotePlayer`). Своё воспроизведение часы другим не отдают: звук часов — наушники рядом с ними.
 struct WatchRemoteView: View {
     @Environment(WatchModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         let remote = model.remote
-        Group {
-            if remote.isActive {
-                WatchRemotePlayer(remote: remote)
-            } else {
-                WatchDeviceList(remote: remote)
-            }
-        }
-        .navigationTitle(Text("remote.device"))
-    }
-}
-
-/// Другие устройства аккаунта: в сети и с управлением — нажимаются.
-private struct WatchDeviceList: View {
-    let remote: RemoteControl
-
-    var body: some View {
         List {
             if remote.loading && remote.devices.isEmpty {
                 ProgressView()
@@ -37,7 +22,8 @@ private struct WatchDeviceList: View {
             }
             ForEach(remote.devices) { device in
                 Button {
-                    remote.connect(device)
+                    model.connect(device)
+                    dismiss()
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: DeviceSymbol.name(for: device.platform))
@@ -51,11 +37,36 @@ private struct WatchDeviceList: View {
                                 .foregroundStyle(.secondary)
                                 .lineLimit(2)
                         }
+                        Spacer(minLength: 0)
+                        if remote.target?.deviceId == device.deviceId {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(.tint)
+                                .accessibilityLabel(Text("remote.selected"))
+                        }
                     }
                 }
                 .disabled(!device.online || !device.controllable)
             }
+            Section {
+                Button {
+                    remote.disconnect()
+                    dismiss()
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "airpods")
+                            .accessibilityHidden(true)
+                        Text("play.thisWatch")
+                        Spacer(minLength: 0)
+                        if !remote.isActive {
+                            Image(systemName: "checkmark")
+                                .foregroundStyle(.tint)
+                                .accessibilityLabel(Text("remote.selected"))
+                        }
+                    }
+                }
+            }
         }
+        .navigationTitle(Text("remote.device"))
         .task { await remote.refresh() }
     }
 
@@ -69,8 +80,8 @@ private struct WatchDeviceList: View {
     }
 }
 
-/// Управление выбранным устройством.
-private struct WatchRemotePlayer: View {
+/// Управление выбранным устройством — «Сейчас играет», пока музыка играет не на часах.
+struct WatchRemotePlayer: View {
     @Bindable var remote: RemoteControl
     /// Громкость под колёсиком: пока крутят — своя, команда уходит пультом с задержкой.
     @State private var crown: Double = 0
@@ -82,14 +93,18 @@ private struct WatchRemotePlayer: View {
         let playing = remote.state?.playing ?? false
         ScrollView {
             VStack(spacing: 8) {
-                Label {
-                    Text("remote.playingOn \(remote.target?.name ?? "")")
-                        .lineLimit(1)
-                } icon: {
-                    Image(systemName: DeviceSymbol.name(for: remote.target?.platform ?? ""))
+                // Где играет; нажатие — выбрать другое устройство или часы
+                NavigationLink(value: WatchRoute.remote) {
+                    Label {
+                        Text("remote.playingOn \(remote.target?.name ?? "")")
+                            .lineLimit(1)
+                    } icon: {
+                        Image(systemName: DeviceSymbol.name(for: remote.target?.platform ?? ""))
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.tint)
                 }
-                .font(.caption2)
-                .foregroundStyle(.tint)
+                .buttonStyle(.plain)
 
                 if let track = remote.state?.track {
                     Text(verbatim: track.title)
@@ -135,8 +150,6 @@ private struct WatchRemotePlayer: View {
                     .accessibilityValue(Text(verbatim: "\(Int(crown)) %"))
                 }
 
-                Button("remote.disconnect") { remote.disconnect() }
-                    .font(.footnote)
             }
             .padding(.horizontal, 4)
         }

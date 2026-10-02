@@ -6,12 +6,17 @@ import MelogoldPlayback
 /// «Сейчас играет» на часах (docs/PROMPT.md §5.6): системный `NowPlayingView` — название, обложка, управление,
 /// громкость колесиком Digital Crown и выбор наушников — и кнопка «Ещё» в панели окна.
 /// Длинное аудио watchOS выводит только в Bluetooth: без наушников — понятная причина и «Повторить».
+/// Пока выбрано другое устройство аккаунта, здесь же — управление им (`WatchRemotePlayer`): один плеер, а выбор
+/// устройства — только выбор (пользователь, 2026-10-02).
 struct WatchNowPlayingView: View {
     @Environment(WatchModel.self) private var model
 
     var body: some View {
         let player = model.services.player
-        if player.phase == .failed, let failure = player.failure {
+        if model.remote.isActive {
+            WatchRemotePlayer(remote: model.remote)
+                .navigationTitle(Text("player.openNowPlaying"))
+        } else if player.phase == .failed, let failure = player.failure {
             VStack(spacing: 8) {
                 Image(systemName: failure.kind == .noAudioRoute ? "headphones" : "exclamationmark.triangle")
                     .font(.title2)

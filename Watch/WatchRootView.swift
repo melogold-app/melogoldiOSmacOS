@@ -10,7 +10,23 @@ struct WatchRootView: View {
         @Bindable var model = model
         NavigationStack(path: $model.path) {
             List {
-                if let track = model.services.player.currentTrack {
+                // «Сейчас играет» — там, где играет музыка: на часах или на выбранном другом устройстве
+                if model.remote.isActive, let target = model.remote.target {
+                    NavigationLink(value: WatchRoute.nowPlaying) {
+                        HStack(spacing: 8) {
+                            if let track = model.remote.state?.track {
+                                ArtworkView(url: track.thumbnailUrl, size: 32)
+                            } else {
+                                Image(systemName: DeviceSymbol.name(for: target.platform)).frame(width: 32)
+                            }
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text("remote.playingOn \(target.name)").font(.caption2).foregroundStyle(.tint).lineLimit(1)
+                                Text(verbatim: model.remote.state?.track?.title ?? String(localized: "remote.nothingPlaying"))
+                                    .font(.footnote).lineLimit(1)
+                            }
+                        }
+                    }
+                } else if let track = model.services.player.currentTrack {
                     NavigationLink(value: WatchRoute.nowPlaying) {
                         HStack(spacing: 8) {
                             ArtworkView(url: track.artworkURL, size: 32)
@@ -26,17 +42,10 @@ struct WatchRootView: View {
                         Label(section.title, systemImage: section.systemImage)
                     }
                 }
-                // Пульт другого устройства (задание 0020): с аккаунтом на сервере с пультом
+                // Выбор устройства (задание 0020): с аккаунтом на сервере с пультом; управление — в «Сейчас играет»
                 if model.account.isSignedIn, model.account.supportsRemote {
                     NavigationLink(value: WatchRoute.remote) {
-                        if model.remote.isActive, let target = model.remote.target {
-                            Label { Text("remote.playingOn \(target.name)") } icon: {
-                                Image(systemName: DeviceSymbol.name(for: target.platform))
-                            }
-                            .foregroundStyle(.tint)
-                        } else {
-                            Label("remote.otherDevices", systemImage: "airplay.audio")
-                        }
+                        Label("remote.device", systemImage: "airplay.audio")
                     }
                 }
             }

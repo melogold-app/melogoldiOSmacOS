@@ -64,6 +64,13 @@ struct MelogoldWatchApp: App {
                     // -MelogoldSleep <мин> — таймер сна.
                     let sleepMinutes = defaults.integer(forKey: "MelogoldSleep")
                     if sleepMinutes > 0 { model.services.player.setSleepTimer(minutes: sleepMinutes) }
+                    // -MelogoldFakeRemote YES — выбрано выдуманное «Test Mac», на нём играет «Группа крови» (сервера нет, команды
+                    // не уйдут): корень и «Сейчас играет» должны показать его
+                    if defaults.bool(forKey: "MelogoldFakeRemote") {
+                        let now = ISO8601DateFormatter().string(from: Date())
+                        let json = #"{"deviceId":"00000000-0000-4000-8000-000000000001","name":"Test Mac","platform":"macos","online":true,"controllable":true,"volume":40,"playing":{"rev":5,"deviceId":"00000000-0000-4000-8000-000000000001","deviceName":"Test Mac","sessionId":"s","queueVersion":1,"index":0,"queueLength":3,"track":{"videoId":"xtxjm7ciwmc","title":"Группа крови","artistsText":"Кино","artists":[],"thumbnailUrl":"https://i.ytimg.com/vi/xtxjm7ciwmc/hqdefault.jpg","explicit":false,"metadataStub":false},"positionMs":60000,"durationMs":285000,"playing":true,"at":"\#(now)","updatedAt":"\#(now)","handoffFrom":null,"volume":40}}"#
+                        if let device = try? JSONDecoder().decode(RemoteDevice.self, from: Data(json.utf8)) { model.remote.connect(device) }
+                    }
                     // -MelogoldOpen trends|new|album:<id>|artist:<id>|playlist:<id>|library|allTracks|settings|lyrics|queue|sleep
                     // — экран для снимка.
                     if let target = defaults.string(forKey: "MelogoldOpen") {
@@ -86,6 +93,7 @@ struct MelogoldWatchApp: App {
                         case ("lyrics", _): model.path = [.nowPlaying, .lyrics]
                         case ("queue", _): model.path = [.nowPlaying, .queue]
                         case ("sleep", _): model.path = [.nowPlaying, .sleepTimer]
+                        case ("devices", _): model.path = [.remote]
                         default: break
                         }
                     }
@@ -211,14 +219,20 @@ final class WatchModel {
         path.append(.nowPlaying)
     }
 
-    /// Другое устройство аккаунта: часы становятся его пультом, очередь уходит туда (`play_queue`), открывается пульт.
+    /// Другое устройство аккаунта: часы становятся его пультом, очередь уходит туда (`play_queue`), открывается «Сейчас
+    /// играет» — в нём управление тем устройством.
     func play(_ pending: PendingPlay, on device: RemoteDevice) {
         pendingPlay = nil
-        if services.player.isPlaying { services.player.pause() }
-        remote.connect(device)
+        connect(device)
         let queue = pending.tracks.map { TrackInput($0) }
         Task { await remote.playQueue(queue, index: pending.index) }
-        path.append(.remote)
+        path.append(.nowPlaying)
+    }
+
+    /// Выбрать другое устройство в «Устройстве»: свой звук — на паузу, играть должно одно устройство.
+    func connect(_ device: RemoteDevice) {
+        if services.player.isPlaying { services.player.pause() }
+        remote.connect(device)
     }
 
     func download(_ track: Track) {
