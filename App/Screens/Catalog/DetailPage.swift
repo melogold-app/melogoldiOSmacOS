@@ -282,7 +282,10 @@ struct PlayButton: View {
             .minimumScaleFactor(typeSize.isAccessibilitySize ? 0.5 : 0.75)
             .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.borderedProminent)
+        // Liquid Glass (macOS 26, iOS 26): главная кнопка — стеклянная капсула акцентного цвета, а не плоская синяя кнопка
+        // AppKit (пользователь, 2026-10-02: «как будто старые стили»)
+        .prominentGlassButton()
+        .controlSize(.large)
     }
 }
 
@@ -303,7 +306,8 @@ struct ShuffleButton: View {
             .minimumScaleFactor(typeSize.isAccessibilitySize ? 0.5 : 0.75)
             .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.bordered)
+        .glassButton()
+        .controlSize(.large)
     }
 }
 
