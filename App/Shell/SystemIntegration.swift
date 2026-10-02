@@ -26,13 +26,13 @@ final class MacAppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(shortcut("shortcut.favorites", "heart", .favorites))
         menu.addItem(shortcut("shortcut.shuffleFavorites", "shuffle", .shuffleFavorites))
         menu.addItem(shortcut("shortcut.downloads", "arrow.down.circle", .downloads))
-        guard let player = AppModel.current?.services.player, let track = player.currentTrack else { return menu }
+        guard let model = AppModel.current, let track = model.playingTrack else { return menu }
         menu.addItem(.separator())
         let title = NSMenuItem(title: track.title, action: nil, keyEquivalent: "")
         title.isEnabled = false
         menu.addItem(title)
         menu.addItem(item(String(localized: "player.previous"), #selector(previous)))
-        menu.addItem(item(String(localized: player.isPlaying ? "player.pause" : "player.play"), #selector(togglePlay)))
+        menu.addItem(item(String(localized: model.playingIsPlaying ? "player.pause" : "player.play"), #selector(togglePlay)))
         menu.addItem(item(String(localized: "player.next"), #selector(next)))
         return menu
     }
@@ -58,9 +58,9 @@ final class MacAppDelegate: NSObject, NSApplicationDelegate {
         AppModel.current?.perform(action)
     }
 
-    @objc private func togglePlay() { AppModel.current?.services.player.togglePlayPause() }
-    @objc private func next() { AppModel.current?.services.player.next() }
-    @objc private func previous() { AppModel.current?.services.player.previous() }
+    @objc private func togglePlay() { AppModel.current?.togglePlayback() }
+    @objc private func next() { AppModel.current?.playbackNext() }
+    @objc private func previous() { AppModel.current?.playbackPrevious() }
 }
 
 /// `representedObject` меню — объект, а не значение перечисления.

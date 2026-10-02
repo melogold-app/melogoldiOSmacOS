@@ -257,9 +257,20 @@ enum DebugScript {
                 // remote connect | disconnect: пульт управляет выдуманным «Test Mac» (сервера нет — команды не уйдут, но видно,
                 // что нажатие по треку не играет здесь)
                 guard let remote = model.remoteBridge?.remote else { log("remote: нет пульта"); break }
-                if arg == "connect" {
-                    let json = #"{"deviceId":"00000000-0000-4000-8000-000000000001","name":"Test Mac","platform":"macos","online":true,"controllable":true,"playing":null,"volume":null}"#
-                    if let device = try? JSONDecoder().decode(RemoteDevice.self, from: Data(json.utf8)) { remote.connect(device); log("remote: подключено к «\(device.name)»") }
+                if arg == "connect" || arg == "playing" {
+                    // playing: на «Test Mac» играет «Группа крови» с 1:00 — панель и «Сейчас играет» должны показать её
+                    let now = ISO8601DateFormatter().string(from: Date())
+                    let playing = arg == "playing"
+                        ? #"{"rev":5,"deviceId":"00000000-0000-4000-8000-000000000001","deviceName":"Test Mac","sessionId":"s","queueVersion":1,"index":0,"queueLength":3,"track":{"videoId":"xtxjm7ciwmc","title":"Группа крови","artistsText":"Кино","artists":[{"name":"Кино","id":"UCL9NQ06h7I0CRUcGxPWMtkQ"}],"albumId":"MPREb_OLmD8O5IYNS","albumTitle":"Группа крови","durationMs":285000,"thumbnailUrl":"https://yt3.googleusercontent.com/8p-kNEIniDDMEBefwljp3Yw2pc09M35Yw_fnEgOm3R9V9F79Dj8tZCKNLjgFoXvUogTeNR4lKeNF4Y23=w544-h544-l90-rj","explicit":false,"videoType":"song","metadataStub":false},"positionMs":60000,"durationMs":285000,"playing":true,"at":"\#(now)","updatedAt":"\#(now)","handoffFrom":null,"volume":40}"#
+                        : "null"
+                    let json = #"{"deviceId":"00000000-0000-4000-8000-000000000001","name":"Test Mac","platform":"macos","online":true,"controllable":true,"playing":\#(playing),"volume":40}"#
+                    do {
+                        let device = try JSONDecoder().decode(RemoteDevice.self, from: Data(json.utf8))
+                        model.selectPlaybackDevice(device)
+                        log("remote: подключено к «\(device.name)»")
+                    } catch {
+                        log("remote: \(error)")
+                    }
                 } else {
                     remote.disconnect()
                     log("remote: отключено")

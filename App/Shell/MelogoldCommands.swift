@@ -74,7 +74,7 @@ struct MelogoldCommands: Commands {
             Button("menu.toggleSidebar") { MainSplit.toggleSidebar() }
             .keyboardShortcut("s", modifiers: [.command, .control])
             Divider()
-            let hasTrack = model.services.player.currentTrack != nil
+            let hasTrack = model.playingTrack != nil
             Button(model.showNowPlaying ? "menu.hideNowPlaying" : "menu.showNowPlaying") { showMain { model.toggleNowPlaying() } }
                 .keyboardShortcut("n", modifiers: [.command, .option])
                 .disabled(!hasTrack)
@@ -87,7 +87,7 @@ struct MelogoldCommands: Commands {
 
         // «Трек»: действия с играющим треком
         CommandMenu("menu.track") {
-            let track = model.services.player.currentTrack
+            let track = model.playingTrack
             Button("menu.trackInfo") { showMain { model.showCurrentTrackDetails() } }
                 .keyboardShortcut("i", modifiers: .command)
                 .disabled(track == nil)
@@ -125,34 +125,39 @@ struct MelogoldCommands: Commands {
         // «Управление»: воспроизведение и пауза (пробел, если курсор не в поле ввода), следующий и предыдущий,
         // перемотка на 10 секунд, громкость, режимы, таймер сна.
         CommandMenu("menu.controls") {
+            // Пока выбрано другое устройство, команды уходят ему (`PlaybackFacade`); перемешивания и повтора у пульта нет
             let player = model.services.player
-            Button(player.isPlaying ? "player.pause" : "player.play") { player.togglePlayPause() }
+            let remote = model.remoteTarget != nil
+            let hasTrack = model.playingTrack != nil
+            Button(model.playingIsPlaying ? "player.pause" : "player.play") { model.togglePlayback() }
                 .keyboardShortcut(.space, modifiers: [])
-                .disabled(model.textInputActive || player.currentTrack == nil)
-            Button("player.next") { player.next() }
+                .disabled(model.textInputActive || !hasTrack)
+            Button("player.next") { model.playbackNext() }
                 .keyboardShortcut(.rightArrow, modifiers: .command)
-                .disabled(!player.hasNext)
-            Button("player.previous") { player.previous() }
+                .disabled(!model.playingHasNext)
+            Button("player.previous") { model.playbackPrevious() }
                 .keyboardShortcut(.leftArrow, modifiers: .command)
-                .disabled(player.currentTrack == nil)
+                .disabled(!hasTrack)
             Button("menu.skipForward") { model.seek(by: 10) }
                 .keyboardShortcut(.rightArrow, modifiers: [.command, .option])
-                .disabled(player.currentTrack == nil)
+                .disabled(!hasTrack)
             Button("menu.skipBack") { model.seek(by: -10) }
                 .keyboardShortcut(.leftArrow, modifiers: [.command, .option])
-                .disabled(player.currentTrack == nil)
+                .disabled(!hasTrack)
             Divider()
-            Button("menu.volumeUp") { player.volume = min(1, player.volume + 0.1) }
+            Button("menu.volumeUp") { model.setPlaybackVolume(model.playingVolume + 0.1) }
                 .keyboardShortcut(.upArrow, modifiers: .command)
-            Button("menu.volumeDown") { player.volume = max(0, player.volume - 0.1) }
+            Button("menu.volumeDown") { model.setPlaybackVolume(model.playingVolume - 0.1) }
                 .keyboardShortcut(.downArrow, modifiers: .command)
-            Button(player.volume == 0 ? "menu.unmute" : "menu.mute") { model.toggleMute() }
+            Button(model.playingVolume == 0 ? "menu.unmute" : "menu.mute") { model.toggleMute() }
                 .keyboardShortcut(.downArrow, modifiers: [.command, .option])
             Divider()
             Toggle("player.shuffle", isOn: Binding(get: { player.shuffled }, set: { player.setShuffled($0) }))
                 .keyboardShortcut("s", modifiers: [.command, .option])
+                .disabled(remote)
             Button("menu.repeatCycle") { model.cycleRepeat() }
                 .keyboardShortcut("r", modifiers: [.command, .option])
+                .disabled(remote)
             Picker(selection: Binding(get: { player.repeatMode }, set: { player.repeatMode = $0 })) {
                 Text("player.repeat.off").tag(RepeatMode.off)
                 Text("player.repeat.all").tag(RepeatMode.all)
@@ -160,6 +165,7 @@ struct MelogoldCommands: Commands {
             } label: {
                 Text("player.repeat")
             }
+            .disabled(remote)
             SleepTimerMenu().environment(model)
             Divider()
             Button("shortcut.shuffleFavorites") { model.perform(.shuffleFavorites) }

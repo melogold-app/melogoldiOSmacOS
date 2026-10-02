@@ -14,6 +14,26 @@ struct QueueView: View {
     @State private var saveAsPlaylist = false
 
     var body: some View {
+        if let target = model.remoteTarget?.target {
+            // Музыка играет на другом устройстве: здешняя очередь к ней не относится (задание 0020)
+            ContentUnavailableView {
+                Label("remote.queueThere \(target.name)", systemImage: DeviceSymbol.name(for: target.platform))
+            } description: {
+                Text("remote.queueThere.hint")
+            }
+            .modifier(QueueTitle(inSheet: inSheet))
+            .toolbar {
+                if inSheet {
+                    ToolbarItem(placement: .confirmationAction) { Button("common.done") { dismiss() } }
+                }
+            }
+        } else {
+            localQueue
+        }
+    }
+
+    @ViewBuilder
+    private var localQueue: some View {
         let player = model.services.player
         let current = player.index ?? 0
         let upcoming = player.upcoming

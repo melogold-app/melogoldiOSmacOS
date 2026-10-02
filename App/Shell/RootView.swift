@@ -75,8 +75,8 @@ struct RootView: View {
             #endif
             .modifier(LibraryTransferModifier())
             // Оттенок обложки для фона «Сейчас играет»: считается при смене трека, до открытия плеера
-            .task(id: model.services.player.currentTrack?.artworkURL) {
-                let url = model.services.player.currentTrack?.artworkURL
+            .task(id: model.playingTrack?.artworkURL) {
+                let url = model.playingTrack?.artworkURL
                 if let hit = CoverPalette.cached(url) {
                     model.coverTint = hit
                 } else {

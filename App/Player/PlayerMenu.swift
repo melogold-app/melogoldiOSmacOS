@@ -15,7 +15,7 @@ struct PlayerMoreMenu: View {
 
     var body: some View {
         Menu {
-            if let track = model.services.player.currentTrack {
+            if let track = model.playingTrack {
                 PlayerMenuItems(track: track)
             }
         } label: {

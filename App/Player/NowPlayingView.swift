@@ -21,10 +21,9 @@ struct NowPlayingView: View {
 
     var body: some View {
         @Bindable var model = model
-        let player = model.services.player
         GeometryReader { proxy in
             Group {
-                if let track = player.currentTrack {
+                if let track = model.playingTrack {
                     content(track, size: proxy.size)
                 } else {
                     ContentUnavailableView { Label("player.nothingPlaying", systemImage: "music.note") }
@@ -262,7 +261,7 @@ struct NowPlayingView: View {
     /// пружиной возвращается; место в раскладке не меняется, середина та же.
     private func artworkButton(_ track: Track, side: CGFloat) -> some View {
         let player = model.services.player
-        let resting = !player.isPlaying && player.phase != .loading
+        let resting = !model.playingIsPlaying && (model.remoteTarget != nil || player.phase != .loading)
         return Button {
             withMotion(.snappy) { model.lyricsVisible = true }
         } label: {

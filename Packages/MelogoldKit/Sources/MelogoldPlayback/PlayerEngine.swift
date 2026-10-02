@@ -102,6 +102,9 @@ public final class PlayerEngine {
     let pipeline = RenderPipeline()
     let audioSession = AudioSessionController()
     private let nowPlaying = NowPlayingCenter()
+    /// Системный пульт (медиаклавиши, Пункт управления) сначала спрашивает приложение: `true` — команду выполнил кто-то
+    /// другой (приложение управляет другим устройством аккаунта), свой плеер её не получает.
+    public var systemCommandOverride: (@MainActor (SystemPlaybackCommand) -> Bool)?
 
     /// Трек на шкале синхронизатора.
     private final class Segment {

@@ -61,7 +61,7 @@ struct SplitShell: View {
                 // Скачанное обновление — над плеером, видно сразу (`AppUpdater`)
                 if let version = AppUpdater.shared.readyVersion {
                     UpdateReadyBanner(version: version)
-                        .padding(.bottom, model.services.player.currentTrack == nil ? Design.Space.m : 0)
+                        .padding(.bottom, !model.hasPlayer ? Design.Space.m : 0)
                 }
                 MacPlayerBar()
             }
@@ -101,7 +101,7 @@ private struct DetailID: Hashable {
 extension SplitShell {
     /// Нижнее поле списков окна: под капсулу плеера и полосу готового обновления.
     var bottomReserve: CGFloat {
-        (model.services.player.currentTrack == nil ? 0 : MacPlayerBar.reservedHeight)
+        (!model.hasPlayer ? 0 : MacPlayerBar.reservedHeight)
             + (AppUpdater.shared.readyVersion == nil ? 0 : UpdateReadyBanner.reservedHeight)
     }
 }
@@ -117,7 +117,7 @@ struct MiniPlayerBar: ViewModifier {
         #if os(iOS)
         if enabled {
             content.safeAreaBar(edge: .bottom) {
-                if model.services.player.currentTrack != nil {
+                if model.hasPlayer {
                     MiniPlayer()
                         .padding(.vertical, 8)
                         .controlGlass(Capsule())
@@ -164,7 +164,7 @@ struct PlayerBarClearance: ViewModifier {
 
     func body(content: Content) -> some View {
         content.safeAreaInset(edge: .bottom, spacing: 0) {
-            Color.clear.frame(height: model.services.player.currentTrack == nil ? 0 : MacPlayerBar.reservedHeight)
+            Color.clear.frame(height: !model.hasPlayer ? 0 : MacPlayerBar.reservedHeight)
         }
     }
 }

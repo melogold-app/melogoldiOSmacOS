@@ -181,6 +181,19 @@ final class AppModel {
         wasOnline = services.network.isOnline
         observeNetwork()
         observeRejectedLyrics()
+        // Медиаклавиши и Пункт управления — туда же, куда кнопки окна: на выбранное другое устройство (`PlaybackFacade`)
+        services.player.systemCommandOverride = { [weak self] command in
+            guard let self, self.remoteTarget != nil else { return false }
+            switch command {
+            case .play: playbackPlay()
+            case .pause: playbackPause()
+            case .toggle: togglePlayback()
+            case .next: playbackNext()
+            case .previous: playbackPrevious()
+            case .seek(let seconds): playbackSeek(to: seconds)
+            }
+            return true
+        }
         remoteBridge = RemoteBridge(account: account, sync: sync, player: services.player, settings: services.settings) { [weak self] text in
             self?.toast = Toast(text: text)
         }

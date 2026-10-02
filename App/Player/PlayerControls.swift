@@ -20,7 +20,17 @@ struct PlayerStatusLine: View {
         let player = model.services.player
         TimelineView(.periodic(from: .now, by: 1)) { context in
             Group {
-                if player.phase == .failed, let failure = player.failure {
+                if let remote = model.remoteTarget, let target = remote.target {
+                    // Играет на другом устройстве: его значок и имя акцентом, за ними исполнитель — как AirPlay в «Музыке»
+                    Label {
+                        Text(verbatim: [target.name, model.playingTrack?.artistsText].compactMap { $0 }.joined(separator: " · "))
+                    } icon: {
+                        Image(systemName: DeviceSymbol.name(for: target.platform))
+                    }
+                    .labelStyle(.titleAndIcon)
+                    .foregroundStyle(.tint)
+                    .accessibilityLabel(Text("remote.playingOn \(target.name)"))
+                } else if player.phase == .failed, let failure = player.failure {
                     Label {
                         Text(verbatim: detailed
                             ? GeoText.message(failure) ?? String(localized: failure.text)
@@ -168,13 +178,16 @@ struct PlayPauseButton: View {
 
     var body: some View {
         let player = model.services.player
-        let symbol = player.phase == .failed ? "arrow.clockwise" : (player.isPlaying ? "pause.fill" : "play.fill")
+        let remote = model.remoteTarget != nil
+        let failed = !remote && player.phase == .failed
+        let playing = model.playingIsPlaying
+        let symbol = failed ? "arrow.clockwise" : (playing ? "pause.fill" : "play.fill")
         Button {
             taps += 1
-            player.togglePlayPause()
+            model.togglePlayback()
         } label: {
             ZStack {
-                if player.phase == .loading, player.isPlaying {
+                if !remote, player.phase == .loading, player.isPlaying {
                     ProgressView()
                         .frame(width: glass?.diameter ?? Design.Size.minTap, height: glass?.diameter ?? Design.Size.minTap)
                 } else {
@@ -186,7 +199,8 @@ struct PlayPauseButton: View {
         }
         .transportGlass(glass, id: "playPause")
         .sensoryFeedback(.impact(weight: .medium), trigger: taps)
-        .accessibilityLabel(Text(player.phase == .failed ? "common.retry" : (player.isPlaying ? "player.pause" : "player.play")))
+        .disabled(remote && model.playingTrack == nil)
+        .accessibilityLabel(Text(failed ? "common.retry" : (playing ? "player.pause" : "player.play")))
     }
 }
 
@@ -199,12 +213,12 @@ struct NextButton: View {
     var body: some View {
         Button {
             taps += 1
-            model.services.player.next()
+            model.playbackNext()
         } label: {
             TransportSymbol(name: "forward.fill", size: size, glass: glass)
         }
         .transportGlass(glass, id: "next")
-        .disabled(!model.services.player.hasNext)
+        .disabled(!model.playingHasNext)
         .sensoryFeedback(.impact(weight: .light), trigger: taps)
         .accessibilityLabel(Text("player.next"))
     }
@@ -219,10 +233,11 @@ struct PreviousButton: View {
     var body: some View {
         Button {
             taps += 1
-            model.services.player.previous()
+            model.playbackPrevious()
         } label: {
             TransportSymbol(name: "backward.fill", size: size, glass: glass)
         }
+        .disabled(model.playingTrack == nil)
         .transportGlass(glass, id: "previous")
         .sensoryFeedback(.impact(weight: .light), trigger: taps)
         .accessibilityLabel(Text("player.previous"))
@@ -257,9 +272,20 @@ struct SeekBar: View {
     @State private var ended = 0
 
     var body: some View {
-        let player = model.services.player
-        let duration = max(player.duration, 0.1)
-        let value = dragValue ?? released ?? min(player.position, duration)
+        // Позиция другого устройства считается от его последнего отчёта — полоса обновляется сама дважды в секунду
+        if model.remoteTarget != nil {
+            TimelineView(.periodic(from: .now, by: 0.5)) { _ in content }
+        } else {
+            content
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        let position = model.playingPosition()
+        let knownDuration = model.playingDuration
+        let duration = max(knownDuration, 0.1)
+        let value = dragValue ?? released ?? min(position, duration)
         let dragging = dragValue != nil
         let thickness: CGFloat = switch style {
         case .large: dragging ? 14 : 6
@@ -280,9 +306,9 @@ struct SeekBar: View {
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { drag in
-                        guard width > 0, player.duration > 0 else { return }
+                        guard width > 0, knownDuration > 0 else { return }
                         if dragStart == nil {
-                            dragStart = min(player.position, duration)
+                            dragStart = min(position, duration)
                             began += 1
                         }
                         let start = dragStart ?? 0
@@ -294,7 +320,7 @@ struct SeekBar: View {
                         dragValue = nil
                         released = target
                         ended += 1
-                        player.seek(to: target)
+                        model.playbackSeek(to: target)
                     }
             )
         }
@@ -331,14 +357,14 @@ struct SeekBar: View {
             }
         }
         .onHover { hovering = $0 }
-        .disabled(player.duration <= 0)
+        .disabled(knownDuration <= 0)
         #if os(macOS)
         // С клавиатуры: Tab — на полосу, ← и → — на 5 секунд (как стрелки у ползунка системы)
         .focusable()
         .onMoveCommand { direction in
             switch direction {
-            case .left: player.seek(to: max(0, player.position - 5))
-            case .right: player.seek(to: min(duration, player.position + 5))
+            case .left: model.playbackSeek(to: max(0, position - 5))
+            case .right: model.playbackSeek(to: min(duration, position + 5))
             default: break
             }
         }
@@ -353,11 +379,11 @@ struct SeekBar: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("player.position"))
         // «1:23 из 4:05»: где стоим и сколько всего; время обновляется каждую секунду — VoiceOver не зачитывает его само
-        .accessibilityValue(Text("player.positionValue \(Durations.format(seconds: value)) \(Durations.format(seconds: player.duration))"))
+        .accessibilityValue(Text("player.positionValue \(Durations.format(seconds: value)) \(Durations.format(seconds: knownDuration))"))
         .accessibilityAddTraits(.updatesFrequently)
         .accessibilityAdjustableAction { direction in
             let step = direction == .increment ? 10.0 : -10.0
-            player.seek(to: min(duration, max(0, player.position + step)))
+            model.playbackSeek(to: min(duration, max(0, position + step)))
         }
     }
 }
@@ -405,7 +431,7 @@ struct LikeButton: View {
     @State private var taps = 0
 
     var body: some View {
-        if let track = model.services.player.currentTrack, model.library != nil {
+        if let track = model.playingTrack, model.library != nil {
             let liked = model.isLiked(track)
             Button {
                 taps += 1
@@ -451,6 +477,8 @@ struct ShuffleToggle: View {
                 .hoverHighlight(Circle())
         }
         .buttonStyle(.plain)
+        // У пульта другого устройства перемешивания нет
+        .disabled(model.remoteTarget != nil)
         .sensoryFeedback(.selection, trigger: player.shuffled)
         .accessibilityLabel(Text("player.shuffle"))
         .accessibilityValue(Text(player.shuffled ? "common.on" : "common.off"))
@@ -483,6 +511,7 @@ struct RepeatToggle: View {
                 .hoverHighlight(Circle())
         }
         .buttonStyle(.plain)
+        .disabled(model.remoteTarget != nil)
         .sensoryFeedback(.selection, trigger: player.repeatMode)
         .accessibilityLabel(Text("player.repeat"))
         .accessibilityValue(Text(player.repeatMode == .off ? "player.repeat.off" : player.repeatMode == .all ? "player.repeat.all" : "player.repeat.one"))
@@ -497,7 +526,6 @@ struct VolumeBar: View {
     @State private var hovering = false
 
     var body: some View {
-        let player = model.services.player
         HStack(spacing: Design.Space.xs) {
             Image(systemName: "speaker.fill").foregroundStyle(Color.fullContrast).font(.caption)
             GeometryReader { proxy in
@@ -505,7 +533,7 @@ struct VolumeBar: View {
                 let thickness: CGFloat = dragStart != nil || hovering ? 8 : 4
                 ZStack(alignment: .leading) {
                     Capsule().fill(.primary.opacity(0.18))
-                    Capsule().fill(Color.fullContrast).frame(width: max(thickness, width * CGFloat(player.volume)))
+                    Capsule().fill(Color.fullContrast).frame(width: max(thickness, width * CGFloat(model.playingVolume)))
                 }
                 .frame(height: thickness)
                 .frame(maxHeight: .infinity)
@@ -514,8 +542,8 @@ struct VolumeBar: View {
                     DragGesture(minimumDistance: 0)
                         .onChanged { drag in
                             guard width > 0 else { return }
-                            if dragStart == nil { dragStart = player.volume }
-                            player.volume = min(1, max(0, (dragStart ?? 0) + Float(drag.translation.width / width)))
+                            if dragStart == nil { dragStart = model.playingVolume }
+                            model.setPlaybackVolume((dragStart ?? 0) + Float(drag.translation.width / width))
                         }
                         .onEnded { _ in dragStart = nil }
                 )
@@ -530,17 +558,17 @@ struct VolumeBar: View {
         .focusable()
         .onMoveCommand { direction in
             switch direction {
-            case .left: player.volume = max(0, player.volume - 0.05)
-            case .right: player.volume = min(1, player.volume + 0.05)
+            case .left: model.setPlaybackVolume(model.playingVolume - 0.05)
+            case .right: model.setPlaybackVolume(model.playingVolume + 0.05)
             default: break
             }
         }
         #endif
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("player.volume"))
-        .accessibilityValue(Text(verbatim: "\(Int((player.volume * 100).rounded())) %"))
+        .accessibilityValue(Text(verbatim: "\(Int((model.playingVolume * 100).rounded())) %"))
         .accessibilityAdjustableAction { direction in
-            player.volume = min(1, max(0, player.volume + (direction == .increment ? 0.1 : -0.1)))
+            model.setPlaybackVolume(model.playingVolume + (direction == .increment ? 0.1 : -0.1))
         }
     }
 }

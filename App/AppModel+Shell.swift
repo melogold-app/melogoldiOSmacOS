@@ -7,13 +7,13 @@ import MelogoldPlayback
 extension AppModel {
     /// «Сведения о треке…» (⌘I) — играющий трек.
     func showCurrentTrackDetails() {
-        trackDetails = services.player.currentTrack
+        trackDetails = playingTrack
     }
 
     /// «К текущему треку» (⌘L): туда, откуда начали играть (раздел и стек), иначе альбом трека, иначе исполнитель,
     /// иначе «Сейчас играет». Музыка не прерывается.
     func goToCurrentTrack() {
-        guard let track = services.player.currentTrack else { return }
+        guard let track = playingTrack else { return }
         showNowPlaying = false
         if let source = playSource {
             section = source.section
@@ -30,12 +30,11 @@ extension AppModel {
     /// Перемотка на `seconds` (отрицательное — назад); не выходит за границы трека.
     /// «Без звука» (⌥⌘↓): громкость в ноль и обратно — к той, что была.
     func toggleMute() {
-        let player = services.player
-        if player.volume > 0 {
-            volumeBeforeMute = player.volume
-            player.volume = 0
+        if playingVolume > 0 {
+            volumeBeforeMute = playingVolume
+            setPlaybackVolume(0)
         } else {
-            player.volume = volumeBeforeMute
+            setPlaybackVolume(volumeBeforeMute)
         }
     }
 
@@ -50,9 +49,9 @@ extension AppModel {
     }
 
     func seek(by seconds: Double) {
-        let player = services.player
-        guard player.currentTrack != nil, player.duration > 0 else { return }
-        player.seek(to: min(player.duration, max(0, player.position + seconds)))
+        let duration = playingDuration
+        guard playingTrack != nil, duration > 0 else { return }
+        playbackSeek(to: min(duration, max(0, playingPosition() + seconds)))
     }
 
     /// Текст песни показан: «Сейчас играет» открыт с текстом.
@@ -75,7 +74,7 @@ extension AppModel {
 
     /// «Показать Сейчас играет» и «Скрыть» (⌥⌘N).
     func toggleNowPlaying() {
-        guard services.player.currentTrack != nil else { return }
+        guard playingTrack != nil else { return }
         showNowPlaying.toggle()
     }
 }

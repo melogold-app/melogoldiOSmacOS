@@ -44,9 +44,10 @@ struct LyricsPanel: View {
                     .padding(.vertical, 6)
             }
         }
-        .onAppear { if let track = model.services.player.currentTrack { lyrics.load(track) } }
-        .onChange(of: model.services.player.currentTrack?.videoId) {
-            if let track = model.services.player.currentTrack { lyrics.load(track) }
+        // Текст трека, который играет там, где сейчас плеер: на выбранном другом устройстве — его трек (`PlaybackFacade`)
+        .onAppear { if let track = model.playingTrack { lyrics.load(track) } }
+        .onChange(of: model.playingTrack?.videoId) {
+            if let track = model.playingTrack { lyrics.load(track) }
         }
         #if os(iOS)
         .onAppear { UIApplication.shared.isIdleTimerDisabled = model.settings.lyricsKeepScreenOn }
@@ -192,10 +193,19 @@ struct SyncedLyricsView: View {
     @State private var lastPlaced: Placement?
 
     var body: some View {
+        // На другом устройстве позиция считается от его последнего отчёта: строка переключается сама по времени
+        if model.remoteTarget != nil {
+            TimelineView(.periodic(from: .now, by: 0.25)) { _ in content }
+        } else {
+            content
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
         let lyrics = model.services.lyrics
-        let player = model.services.player
         let rows = lyrics.rows
-        let position = lyrics.lyricsPosition(player.position)
+        let position = lyrics.lyricsPosition(model.playingPosition())
         let active = LyricRows.activeIndex(rows, at: position)
         let following = manualUntil.map { $0 < Date() } ?? true
         GeometryReader { proxy in
@@ -398,7 +408,7 @@ private struct LyricRowView: View {
     }
 
     private func progress(_ start: Int64, _ end: Int64) -> Double {
-        let position = model.services.lyrics.lyricsPosition(model.services.player.livePosition())
+        let position = model.services.lyrics.lyricsPosition(model.playingLivePosition())
         return min(1, max(0, Double(position - start) / Double(max(1, end - start))))
     }
 
@@ -408,7 +418,7 @@ private struct LyricRowView: View {
         let alignment: HorizontalAlignment = line.side == .end ? .trailing : .leading
         return Button {
             let target = Double(line.startMs - model.services.lyrics.offsetMs) / 1000
-            model.services.player.seek(to: max(0, target))
+            model.playbackSeek(to: max(0, target))
         } label: {
             // Подложка обводит строку вместе с полями: ширина — по самой длинной строке переноса, высота — вся строка
             // с подпевкой и переводом; строка второй стороны дуэта у конечного края — подложка тоже
@@ -469,7 +479,7 @@ private struct LyricRowView: View {
 
     /// Слова загораются по времени; текущее — по мере звучания.
     private func words(_ words: [SyncedWord], size: CGFloat, weight: Font.Weight) -> Text {
-        let position = model.services.lyrics.lyricsPosition(model.services.player.livePosition())
+        let position = model.services.lyrics.lyricsPosition(model.playingLivePosition())
         let font = Font.system(size: size, weight: weight)
         // Одна `AttributedString` со своим шрифтом и цветом у каждого слова: `Text + Text` в iOS 26 устарел
         var line = AttributedString()

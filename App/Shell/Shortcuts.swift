@@ -21,11 +21,11 @@ extension AppModel {
             // Без открытия экрана: играет перемешанное Избранное, как ярлык Android
             playAll(library?.library.favorites() ?? [], shuffled: true)
         case .playPause:
-            services.player.togglePlayPause()
+            togglePlayback()
         case .next:
-            services.player.next()
+            playbackNext()
         case .previous:
-            services.player.previous()
+            playbackPrevious()
         }
     }
 }

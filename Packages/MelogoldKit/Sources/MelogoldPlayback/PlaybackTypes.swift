@@ -72,3 +72,9 @@ public struct PlayerNotice: Equatable, Sendable, Identifiable {
 public enum RepeatMode: String, Sendable, CaseIterable {
     case off, all, one
 }
+
+/// Команда системного пульта: медиаклавиши Mac, Пункт управления, экран блокировки, наушники.
+public enum SystemPlaybackCommand: Sendable, Equatable {
+    case play, pause, toggle, next, previous
+    case seek(Double)
+}

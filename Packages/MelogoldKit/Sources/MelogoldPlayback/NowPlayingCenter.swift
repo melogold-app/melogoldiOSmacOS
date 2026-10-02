@@ -25,15 +25,15 @@ final class NowPlayingCenter {
     func install(_ engine: PlayerEngine) {
         self.engine = engine
         let commands = MPRemoteCommandCenter.shared()
-        commands.playCommand.addTarget { [weak self] _ in self?.run { $0.play() } ?? .commandFailed }
-        commands.pauseCommand.addTarget { [weak self] _ in self?.run { $0.pause() } ?? .commandFailed }
-        commands.togglePlayPauseCommand.addTarget { [weak self] _ in self?.run { $0.togglePlayPause() } ?? .commandFailed }
-        commands.nextTrackCommand.addTarget { [weak self] _ in self?.run { $0.next() } ?? .commandFailed }
-        commands.previousTrackCommand.addTarget { [weak self] _ in self?.run { $0.previous() } ?? .commandFailed }
+        commands.playCommand.addTarget { [weak self] _ in self?.run(.play) { $0.play() } ?? .commandFailed }
+        commands.pauseCommand.addTarget { [weak self] _ in self?.run(.pause) { $0.pause() } ?? .commandFailed }
+        commands.togglePlayPauseCommand.addTarget { [weak self] _ in self?.run(.toggle) { $0.togglePlayPause() } ?? .commandFailed }
+        commands.nextTrackCommand.addTarget { [weak self] _ in self?.run(.next) { $0.next() } ?? .commandFailed }
+        commands.previousTrackCommand.addTarget { [weak self] _ in self?.run(.previous) { $0.previous() } ?? .commandFailed }
         commands.changePlaybackPositionCommand.addTarget { [weak self] event in
             guard let event = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
             let time = event.positionTime
-            return self?.run { $0.seek(to: time) } ?? .commandFailed
+            return self?.run(.seek(time)) { $0.seek(to: time) } ?? .commandFailed
         }
         commands.changeRepeatModeCommand.addTarget { [weak self] event in
             guard let event = event as? MPChangeRepeatModeCommandEvent else { return .commandFailed }
@@ -49,9 +49,12 @@ final class NowPlayingCenter {
         commands.skipBackwardCommand.isEnabled = false
     }
 
-    private nonisolated func run(_ action: @escaping @MainActor (PlayerEngine) -> Void) -> MPRemoteCommandHandlerStatus {
+    private nonisolated func run(_ command: SystemPlaybackCommand? = nil,
+                                 _ action: @escaping @MainActor (PlayerEngine) -> Void) -> MPRemoteCommandHandlerStatus {
         MainActor.assumeIsolated {
             guard let engine else { return .noActionableNowPlayingItem }
+            // Приложение управляет другим устройством: медиаклавиши и Пункт управления — туда, а не своему плееру
+            if let command, engine.systemCommandOverride?(command) == true { return .success }
             action(engine)
             return .success
         }

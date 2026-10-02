@@ -155,6 +155,7 @@
 		EB58C678885BD00468F8B042 /* ExploreStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 261AC95AEB0213020ABB2C1E /* ExploreStore.swift */; };
 		ECF668E0796812EE0204B1EA /* AccountText.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDE62678E8C83CFCC9DFA91C /* AccountText.swift */; };
 		ED21E611BEDFA84B1787CE94 /* WatchRemoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B05A079853F6773481709A5 /* WatchRemoteView.swift */; };
+		EDA2C90A6FEACCBF587FF096 /* PlaybackFacade.swift in Sources */ = {isa = PBXBuildFile; fileRef = D712EF8FD8B39645A71AA3D9 /* PlaybackFacade.swift */; };
 		EE794A34E673F168A7B05EAB /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5BC4994B458B516BAF06933 /* AppModel.swift */; };
 		F17DF1D843A31CA3197502C9 /* AccountRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13B81A946E728A6A1CF4DBE3 /* AccountRoute.swift */; };
 		F42A7A749C360FA3E6E10534 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2002A5E05B308C9C6AD5E580 /* SettingsView.swift */; };
@@ -326,6 +327,7 @@
 		D0606F8F802EDA814564C80E /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		D119024F0DC89E9F8B88D4DC /* DownloadMenuItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadMenuItem.swift; sourceTree = "<group>"; };
 		D57728F1C4495976700637A3 /* WatchAccountViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchAccountViews.swift; sourceTree = "<group>"; };
+		D712EF8FD8B39645A71AA3D9 /* PlaybackFacade.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackFacade.swift; sourceTree = "<group>"; };
 		D72E675CA1E535993FE48A90 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		D95213D23BAB220EC09658AC /* AccountUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountUITests.swift; sourceTree = "<group>"; };
 		D973D05A9FF5C0DB6B2438D4 /* AppModel+Selection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppModel+Selection.swift"; sourceTree = "<group>"; };
@@ -458,6 +460,7 @@
 				7D6C4E54E29C8CF7F8B0D862 /* MiniPlayer.swift */,
 				224966FBD9C8AAE03D911296 /* NowPlayingControls.swift */,
 				71E0614E21C5CA15E4B6BFF3 /* NowPlayingView.swift */,
+				D712EF8FD8B39645A71AA3D9 /* PlaybackFacade.swift */,
 				44E7488F82A5E9E689DE17B0 /* PlayerControls.swift */,
 				F7704BEE3DFEDE997F23D5CC /* PlayerMenu.swift */,
 				AE53BF230CBCA5A02C4E3D84 /* QueueView.swift */,
@@ -1044,6 +1047,7 @@
 				D2E17263C8874BAF4ED062B0 /* NewView.swift in Sources */,
 				27BC3F726C517FCA48A23D30 /* NowPlayingControls.swift in Sources */,
 				67B5305E5D263A1E61CE33D2 /* NowPlayingView.swift in Sources */,
+				EDA2C90A6FEACCBF587FF096 /* PlaybackFacade.swift in Sources */,
 				A80173124DB9EE5F48306046 /* PlaybackStorageSettings.swift in Sources */,
 				C2ECEAB367E75307F765505B /* PlayerControls.swift in Sources */,
 				541782B9FFF7E37EAC7D901A /* PlayerMenu.swift in Sources */,

@@ -19,8 +19,7 @@ struct MacMiniPlayer: View {
     }
 
     var body: some View {
-        let player = model.services.player
-        let track = player.currentTrack
+        let track = model.playingTrack
         HStack(spacing: Design.Space.s) {
             cover(track)
             VStack(alignment: .leading, spacing: 0) {
@@ -81,7 +80,7 @@ struct MacMiniPlayer: View {
     /// Главное окно с «Сейчас играет»: окно могло быть закрыто (музыка при этом играет).
     private func showMain() {
         model.openMainWindow?()
-        model.showNowPlaying = model.services.player.currentTrack != nil
+        model.showNowPlaying = model.playingTrack != nil
         NSApp.activate()
     }
 }

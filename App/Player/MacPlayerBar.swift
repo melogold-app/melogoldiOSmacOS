@@ -29,7 +29,8 @@ struct MacPlayerBar: View {
     static let reservedHeight: CGFloat = Metrics.content + Design.Space.xxs * 2 + Metrics.inset + Design.Space.xs
 
     var body: some View {
-        if let track = model.services.player.currentTrack {
+        if model.hasPlayer {
+            let track = model.playingTrack
             GeometryReader { proxy in
                 let width = min(Metrics.maxWidth, proxy.size.width - Metrics.inset * 2)
                 let volume = width >= 820
@@ -65,7 +66,7 @@ struct MacPlayerBar: View {
             PreviousButton(glass: GlassSpec(diameter: Metrics.button, glass: false))
                 .help(Text("player.previous"))
             PlayPauseButton(glass: GlassSpec(diameter: 34, glass: false))
-                .help(Text(model.services.player.isPlaying ? "player.pause" : "player.play"))
+                .help(Text(model.playingIsPlaying ? "player.pause" : "player.play"))
             NextButton(glass: GlassSpec(diameter: Metrics.button, glass: false))
                 .help(Text("player.next"))
             if modes {
@@ -77,18 +78,21 @@ struct MacPlayerBar: View {
 
     // MARK: - В центре: обложка, название, исполнитель, тонкая полоса перемотки
 
-    private func screen(_ track: Track) -> some View {
+    /// `track` — `nil`, пока на выбранном другом устройстве ничего не играет: «Ничего не играет» и где.
+    private func screen(_ track: Track?) -> some View {
         HStack(spacing: Design.Space.xs) {
-            CoverButton(url: track.artworkURL, size: Metrics.cover) { model.showNowPlaying = true }
+            CoverButton(url: track?.artworkURL, size: Metrics.cover) { if track != nil { model.showNowPlaying = true } }
             VStack(alignment: .leading, spacing: 1) {
-                if track.albumId != nil {
+                if let track, track.albumId != nil {
                     LinkText(text: track.title, prominent: true, hint: "menu.goToAlbum") { model.openAlbum(of: track) }
                         .font(.callout.weight(.semibold))
                         .lineLimit(1)
-                } else {
+                } else if let track {
                     Text(verbatim: track.title).font(.callout.weight(.semibold)).lineLimit(1).foregroundStyle(Color.fullContrast)
+                } else {
+                    Text("remote.nothingPlaying").font(.callout.weight(.semibold)).lineLimit(1).foregroundStyle(.secondary)
                 }
-                PlayerStatusLine(font: .caption) { model.openArtist(of: track) }
+                PlayerStatusLine(font: .caption) { if let track { model.openArtist(of: track) } }
                 SeekBar(style: .hairline)
             }
             .frame(maxWidth: .infinity, alignment: .leading)

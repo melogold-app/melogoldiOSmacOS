@@ -23,8 +23,7 @@ struct MiniPlayer: View {
     }
 
     var body: some View {
-        let player = model.services.player
-        if let track = player.currentTrack {
+        if let track = model.playingTrack {
             HStack(spacing: Design.Space.s) {
                 ArtworkView(url: track.artworkURL, size: compact ? 28 : 36, cornerRadius: compact ? 6 : Design.Radius.small)
                 VStack(alignment: .leading, spacing: 0) {
@@ -32,16 +31,8 @@ struct MiniPlayer: View {
                         .font(.subheadline.weight(.semibold))
                         .lineLimit(1)
                     if !compact {
-                        if let remote = model.remoteBridge?.remote, remote.isActive, let target = remote.target {
-                            // Пульт управляет другим устройством: мини-плеер говорит где (задание 0020)
-                            Label { Text("remote.playingOn \(target.name)").lineLimit(1) } icon: {
-                                Image(systemName: DeviceSymbol.name(for: target.platform))
-                            }
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.tint)
-                        } else {
-                            PlayerStatusLine(font: .caption)
-                        }
+                        // Пока выбрано другое устройство, строка говорит где (задание 0020)
+                        PlayerStatusLine(font: .caption)
                     }
                 }
                 .offset(x: dragOffset)
@@ -64,18 +55,18 @@ struct MiniPlayer: View {
                     .onEnded { value in
                         withMotion(.snappy) { dragOffset = 0 }
                         guard abs(value.translation.width) > 60, abs(value.translation.width) > abs(value.translation.height) else { return }
-                        if value.translation.width < 0 { player.next() } else { player.previous() }
+                        if value.translation.width < 0 { model.playbackNext() } else { model.playbackPrevious() }
                     }
             )
             .accessibilityElement(children: .combine)
             .accessibilityLabel(Text(verbatim: "\(track.title), \(track.artistsText ?? "")"))
-            .accessibilityValue(Text(player.isPlaying ? "player.playing" : "player.paused"))
+            .accessibilityValue(Text(model.playingIsPlaying ? "player.playing" : "player.paused"))
             .accessibilityAddTraits(.isButton)
             .accessibilityHint(Text("player.openNowPlaying"))
             .accessibilityAction { model.showNowPlaying = true }
-            .accessibilityAction(named: Text("player.previousTrack")) { player.previous() }
-            .accessibilityAction(named: Text("player.nextTrack")) { player.next() }
-            .accessibilityAction(named: Text(player.isPlaying ? "player.pause" : "player.play")) { player.togglePlayPause() }
+            .accessibilityAction(named: Text("player.previousTrack")) { model.playbackPrevious() }
+            .accessibilityAction(named: Text("player.nextTrack")) { model.playbackNext() }
+            .accessibilityAction(named: Text(model.playingIsPlaying ? "player.pause" : "player.play")) { model.togglePlayback() }
         }
     }
 }

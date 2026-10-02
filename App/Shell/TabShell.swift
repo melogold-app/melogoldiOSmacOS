@@ -13,7 +13,7 @@ struct TabShell: View {
 
     var body: some View {
         @Bindable var model = model
-        let hasTrack = model.services.player.currentTrack != nil
+        let hasTrack = model.playingTrack != nil
         TabView(selection: Binding(get: { model.section }, set: { model.select($0) })) {
             Tab(value: AppSection.trends) {
                 SectionStack(section: .trends)

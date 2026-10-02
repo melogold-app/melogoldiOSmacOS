@@ -9605,6 +9605,40 @@
         }
       }
     },
+    "remote.queueThere %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The queue is on “%@”"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Очередь — на «%@»"
+          }
+        }
+      }
+    },
+    "remote.queueThere.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap a track in any list to play it there."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нажмите трек в любом списке — он заиграет там."
+          }
+        }
+      }
+    },
     "remote.selected" : {
       "extractionState" : "manual",
       "localizations" : {
