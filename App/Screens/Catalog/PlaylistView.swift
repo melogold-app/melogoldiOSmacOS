@@ -27,7 +27,7 @@ struct PlaylistView: View {
     private func content(_ details: PlaylistDetails) -> some View {
         let tracks = page.tracks
         return DetailPage(title: details.playlist.title, fullBleedHeader: DetailLayout.compactCover == .hero,
-                          rowIds: tracks.map { RowID.make("t", $0.videoId) }) {
+                          rowIds: tracks.map { RowID.make("t", $0.videoId) }, tintURL: details.playlist.thumbnailUrl) {
             CollectionHeader(artworkURL: details.playlist.thumbnailUrl, style: DetailLayout.compactCover, title: details.playlist.title) {
                 HeaderSubtitle {
                     if let author = details.authorText {
@@ -45,8 +45,8 @@ struct PlaylistView: View {
                     }
                 }
             } actions: {
-                PlayButton { page.playAll(model: model, shuffled: false) }
-                ShuffleButton { page.playAll(model: model, shuffled: true) }
+                CollectionActions(play: { page.playAll(model: model, shuffled: false) },
+                                  shuffle: { page.playAll(model: model, shuffled: true) })
             }
         } rows: {
             if tracks.isEmpty {

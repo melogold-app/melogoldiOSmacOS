@@ -62,6 +62,8 @@ struct CollectionDownloadButton: View {
     let kind: DownloadCollection.Kind
     let key: String
     let title: String?
+    /// Значки без круга — кнопка сама круглая (ряд кнопок шапки альбома).
+    var plainGlyphs = false
     /// Перед загрузкой коллекции (альбом сохраняется в библиотеку).
     var prepare: (() -> Void)?
     @State private var confirmRemove = false
@@ -80,11 +82,11 @@ struct CollectionDownloadButton: View {
             }
         } label: {
             if let collection, collection.total > 0, collection.done >= collection.total {
-                Label("download.done", systemImage: "arrow.down.circle.fill")
+                Label("download.done", systemImage: plainGlyphs ? "checkmark" : "arrow.down.circle.fill")
             } else if let collection {
-                Label("download.progress \(collection.done) \(collection.total)", systemImage: "arrow.down.circle.dotted")
+                Label("download.progress \(collection.done) \(collection.total)", systemImage: plainGlyphs ? "arrow.down.to.line.compact" : "arrow.down.circle.dotted")
             } else {
-                Label("menu.download", systemImage: "arrow.down.circle")
+                Label("menu.download", systemImage: plainGlyphs ? "arrow.down" : "arrow.down.circle")
             }
         }
         .labelStyle(.iconOnly)
