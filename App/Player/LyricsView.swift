@@ -135,9 +135,19 @@ enum LyricsStyle {
     /// Полоса затухания снизу — над панелью управления.
     static let bottomFade: CGFloat = 48
 
-    /// Размер по области: растёт с окном, но не меньше `title` и не больше 40.
+    /// Размер по области: растёт вместе с окном (как в «Музыке»: колонка 400 pt — 30, 600 pt — 45, 800 pt — 60), но не
+    /// меньше `title` и не больше 64. Высота тоже ограничивает: в низком широком окне строки не должны занимать пол-экрана.
     static func fontSize(in size: CGSize) -> CGFloat {
-        min(40, max(baseSize, min(size.width * 0.05, size.height * 0.05))).rounded()
+        min(64, max(baseSize, min(size.width * 0.075, size.height * 0.08))).rounded()
+    }
+
+    /// Крупный Dynamic Type растит текст до 1,7 раза, но не шире, чем позволяет область: ширина ÷ 300 (iPhone в портрете —
+    /// 1,34; колонка текста боком — 1,05…1,25; от 510 pt — 1,7), и всего не больше десятой доли ширины. Иначе длинное
+    /// слово («клетчатый») не влезает в строку и ломается посередине.
+    static func fontSize(in size: CGSize, typeScale: CGFloat) -> CGFloat {
+        let base = fontSize(in: size)
+        let scaled = base * min(typeScale, min(1.7, max(1, size.width / 300)))
+        return min(scaled, max(base, size.width * 0.1)).rounded()
     }
 }
 
@@ -189,10 +199,7 @@ struct SyncedLyricsView: View {
         let active = LyricRows.activeIndex(rows, at: position)
         let following = manualUntil.map { $0 < Date() } ?? true
         GeometryReader { proxy in
-            // Крупный Dynamic Type растит текст до 1,7 раза, но не шире, чем позволяет область: ширина ÷ 300 (iPhone в портрете —
-            // 1,34; колонка текста боком — 1,05…1,25; от 510 pt — 1,7). Иначе длинное слово («клетчатый») не влезает в строку
-            // и ломается посередине.
-            let fontSize = LyricsStyle.fontSize(in: proxy.size) * min(typeScale, min(1.7, max(1, proxy.size.width / 300)))
+            let fontSize = LyricsStyle.fontSize(in: proxy.size, typeScale: typeScale)
             let scale = fontSize / LyricsStyle.baseSize
             let height = proxy.size.height
             // Точка, где встаёт середина текущей строки, от верха области: по обложке, но не ближе пятой части высоты к краю
@@ -456,7 +463,7 @@ private struct LyricRowView: View {
 
     /// Прошедшие строки приглушены сильнее будущих (docs/PROMPT.md §5.7), но обе читаются (`Design.lyricsDim`).
     private func color(isActive: Bool, isPast: Bool) -> AnyShapeStyle {
-        if isActive { return AnyShapeStyle(.primary) }
+        if isActive { return AnyShapeStyle(Color.fullContrast) }
         return AnyShapeStyle(Design.lyricsDim(past: isPast, increasedContrast: contrast == .increased))
     }
 
@@ -478,7 +485,7 @@ private struct LyricRowView: View {
             run.font = font
             // Ещё не спетое слово — не тусклее следующей строки (`Design.lyricsDim`), спетое — полностью яркое
             let floor = contrast == .increased ? 0.6 : 0.45
-            run.foregroundColor = Color.primary.opacity(floor + (1 - floor) * fill)
+            run.foregroundColor = Color.fullContrast.opacity(floor + (1 - floor) * fill)
             line.append(run)
         }
         return Text(line)

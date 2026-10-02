@@ -33,6 +33,10 @@ struct ClientTests {
         #expect(Thumbnails.sized("https://i.ytimg.com/vi/xtxjm7ciwmc/hqdefault.jpg", px: 720) == "https://i.ytimg.com/vi/xtxjm7ciwmc/hq720.jpg")
         #expect(Thumbnails.sized("//yt3.ggpht.com/x=s88", px: 88) == "https://yt3.ggpht.com/x=w88-h88-l90-rj")
         #expect(Thumbnails.isWide("https://i.ytimg.com/vi/xtxjm7ciwmc/mqdefault.jpg"))
+        #expect(Thumbnails.fallback("https://i.ytimg.com/vi/JGwWNGJdvx8/hq720.jpg") == "https://i.ytimg.com/vi/JGwWNGJdvx8/hqdefault.jpg")
+        #expect(Thumbnails.fallback("https://i.ytimg.com/vi/JGwWNGJdvx8/hqdefault.jpg?sqp=1") == "https://i.ytimg.com/vi/JGwWNGJdvx8/mqdefault.jpg")
+        #expect(Thumbnails.fallback("https://i.ytimg.com/vi/JGwWNGJdvx8/mqdefault.jpg") == nil)
+        #expect(Thumbnails.fallback("https://lh3.googleusercontent.com/abc=w544-h544-l90-rj") == nil)
     }
 
     @Test func durations() {

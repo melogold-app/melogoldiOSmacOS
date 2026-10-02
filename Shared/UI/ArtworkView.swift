@@ -78,7 +78,7 @@ actor ArtworkLoader {
         if let task = running[url] { return await task.value }
         let isFrame = Thumbnails.isWide(url)
         let task = Task<CGImage?, Never> {
-            guard let (data, _) = try? await ArtworkSession.shared.data(from: address),
+            guard let data = await ArtworkSession.imageData(from: address),
                   let source = CGImageSourceCreateWithData(data as CFData, nil),
                   let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return nil }
             // У обложки — только обводка скана со всех сторон, у кадра видео — ещё и поля

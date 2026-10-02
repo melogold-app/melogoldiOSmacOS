@@ -71,7 +71,7 @@ enum FileExport {
     @concurrent
     private static func cover(artwork: String?) async -> Data? {
         guard let url = Thumbnails.sized(artwork, px: 1200).flatMap(URL.init(string:)),
-              let (data, _) = try? await ArtworkSession.shared.data(from: url) else { return nil }
+              let data = await ArtworkSession.imageData(from: url) else { return nil }
         return coverImage(data, square: Thumbnails.isWide(artwork))
     }
 

@@ -165,7 +165,7 @@ private struct ControlSymbol: ViewModifier {
         content
             .symbolRenderingMode(.monochrome)
             .foregroundStyle(active ? AnyShapeStyle(.tint)
-                : muted ? AnyShapeStyle(secondaryTint) : AnyShapeStyle(.primary))
+                : muted ? AnyShapeStyle(secondaryTint) : AnyShapeStyle(Color.fullContrast))
     }
 }
 

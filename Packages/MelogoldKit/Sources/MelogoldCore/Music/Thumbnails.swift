@@ -25,6 +25,22 @@ public enum Thumbnails {
         px <= 320 ? "https://i.ytimg.com/vi/\(videoId)/mqdefault.jpg" : "https://i.ytimg.com/vi/\(videoId)/hqdefault.jpg"
     }
 
+    /// Что просить, если превью нужного размера нет: `hq720.jpg` есть не у всех видео (старые клипы, например «Shape of
+    /// You»), и на 404 YouTube отдаёт серую заглушку с тремя точками — её нельзя показывать как обложку. `hqdefault.jpg`
+    /// есть у каждого видео, `mqdefault.jpg` — последняя попытка.
+    public static func fallback(_ url: String) -> String? {
+        guard let videoId = ytimgVideoId(url) else { return nil }
+        let name = url.split(separator: "?").first?.split(separator: "/").last.map(String.init) ?? ""
+        switch name {
+        case "hq720.jpg", "maxresdefault.jpg", "sddefault.jpg", "hq720.webp", "maxresdefault.webp", "sddefault.webp":
+            return "https://i.ytimg.com/vi/\(videoId)/hqdefault.jpg"
+        case "hqdefault.jpg", "hqdefault.webp":
+            return "https://i.ytimg.com/vi/\(videoId)/mqdefault.jpg"
+        default:
+            return nil
+        }
+    }
+
     /// Превью видео 16:9: при показе квадратом его нужно обрезать по центру.
     public static func isWide(_ url: String?) -> Bool {
         guard let url else { return false }

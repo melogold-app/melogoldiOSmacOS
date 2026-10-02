@@ -86,7 +86,7 @@ struct MacPlayerBar: View {
                         .font(.callout.weight(.semibold))
                         .lineLimit(1)
                 } else {
-                    Text(verbatim: track.title).font(.callout.weight(.semibold)).lineLimit(1)
+                    Text(verbatim: track.title).font(.callout.weight(.semibold)).lineLimit(1).foregroundStyle(Color.fullContrast)
                 }
                 PlayerStatusLine(font: .caption) { model.openArtist(of: track) }
                 SeekBar(style: .hairline)
@@ -160,7 +160,8 @@ private struct CoverButton: View {
     }
 }
 
-/// Кнопка-значок правой части панели: зона нажатия 30 pt, включённая — на мягкой подложке, под указателем подсвечивается.
+/// Кнопка-значок правой части панели: зона нажатия 30 pt, значок во весь контраст (как в «Музыке»), включённая — на мягкой
+/// подложке, под указателем подсвечивается.
 private struct BarIconButton: View {
     let symbol: String
     var activeSymbol: String?
@@ -173,7 +174,7 @@ private struct BarIconButton: View {
             Image(systemName: active ? (activeSymbol ?? symbol) : symbol)
                 .font(.callout)
                 .symbolRenderingMode(.monochrome)
-                .foregroundStyle(active ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                .foregroundStyle(Color.fullContrast)
                 .frame(width: 30, height: 30)
                 .background {
                     RoundedRectangle(cornerRadius: Design.Radius.small, style: .continuous)

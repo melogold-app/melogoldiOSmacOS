@@ -1,6 +1,6 @@
 # Страница исполнителя и лист «Об исполнителе», как в Apple Music
 
-Статус: открыто
+Статус: Mac — сделано (2026-10-02), iOS — проверить снимками; канал без видео — открыто
 
 Те же задания: `melogoldAndroid/tasks/0022-artist-page.md`, `melogoldWindows/tasks/0024-artist-page.md`, `melogoldLinux/tasks/0019-artist-page.md`.
 

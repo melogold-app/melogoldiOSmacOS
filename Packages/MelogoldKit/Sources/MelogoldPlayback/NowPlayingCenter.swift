@@ -97,7 +97,7 @@ final class NowPlayingCenter {
               let url = URL(string: Thumbnails.sized(raw, px: 544) ?? raw) else { return }
         let isFrame = Thumbnails.isWide(url.absoluteString)
         artworkTask = Task { [weak self] in
-            guard let (data, _) = try? await ArtworkSession.shared.data(from: url), !Task.isCancelled,
+            guard let data = await ArtworkSession.imageData(from: url), !Task.isCancelled,
                   let image = Self.squareImage(from: data, stripBars: isFrame) else { return }
             guard let self, self.shownVideoId == videoId else { return }
             self.artwork = Self.makeArtwork(image)

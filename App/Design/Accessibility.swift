@@ -138,7 +138,7 @@ extension Design {
     /// у прежних `.secondary` и `.tertiary` на оттенке обложки выходило 3,2 и 1,8 к 1. При «Повышенной контрастности» обе
     /// ярче ещё на ступень.
     static func lyricsDim(past: Bool, increasedContrast: Bool) -> Color {
-        Color.primary.opacity(increasedContrast ? (past ? 0.65 : 0.85) : (past ? 0.46 : 0.7))
+        Color.fullContrast.opacity(increasedContrast ? (past ? 0.65 : 0.85) : (past ? 0.46 : 0.7))
     }
 
     /// Второстепенный текст и значки на оттенке обложки («Сейчас играет»): системный `.secondary` на нём — 3,2 к 1 (светлая

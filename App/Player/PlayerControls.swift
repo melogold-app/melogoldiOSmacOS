@@ -70,7 +70,7 @@ struct LinkText: View {
         Button(action: action) {
             Text(verbatim: text)
                 .underline(hovering)
-                .foregroundStyle(hovering || prominent ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                .foregroundStyle(hovering || prominent ? AnyShapeStyle(Color.fullContrast) : AnyShapeStyle(.secondary))
         }
         .buttonStyle(.plain)
         .accessibilityHint(hint.map { Text($0) } ?? Text(verbatim: ""))
@@ -146,7 +146,7 @@ private struct TransportPressBody: View {
     var body: some View {
         let fill = configuration.isPressed ? 0.12 : (hovering && isEnabled ? 0.07 : 0)
         configuration.label
-            .foregroundStyle(isEnabled ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
+            .foregroundStyle(isEnabled ? AnyShapeStyle(Color.fullContrast) : AnyShapeStyle(.tertiary))
             .background {
                 Circle()
                     .fill(.primary.opacity(fill))
@@ -271,7 +271,7 @@ struct SeekBar: View {
             let width = proxy.size.width
             ZStack(alignment: .leading) {
                 Capsule().fill(.primary.opacity(0.18))
-                Capsule().fill(.primary.opacity(dragging ? 1 : 0.8))
+                Capsule().fill(Color.fullContrast)
                     .frame(width: max(thickness, width * value / duration))
             }
             .frame(height: thickness)
@@ -499,13 +499,13 @@ struct VolumeBar: View {
     var body: some View {
         let player = model.services.player
         HStack(spacing: Design.Space.xs) {
-            Image(systemName: "speaker.fill").foregroundStyle(.secondary).font(.caption)
+            Image(systemName: "speaker.fill").foregroundStyle(Color.fullContrast).font(.caption)
             GeometryReader { proxy in
                 let width = proxy.size.width
                 let thickness: CGFloat = dragStart != nil || hovering ? 8 : 4
                 ZStack(alignment: .leading) {
                     Capsule().fill(.primary.opacity(0.18))
-                    Capsule().fill(.primary.opacity(0.8)).frame(width: max(thickness, width * CGFloat(player.volume)))
+                    Capsule().fill(Color.fullContrast).frame(width: max(thickness, width * CGFloat(player.volume)))
                 }
                 .frame(height: thickness)
                 .frame(maxHeight: .infinity)
@@ -522,7 +522,7 @@ struct VolumeBar: View {
                 .motion(.snappy(duration: 0.2), value: thickness)
             }
             .frame(height: 16)
-            Image(systemName: "speaker.wave.3.fill").foregroundStyle(.secondary).font(.caption)
+            Image(systemName: "speaker.wave.3.fill").foregroundStyle(Color.fullContrast).font(.caption)
         }
         .onHover { hovering = $0 }
         #if os(macOS)
@@ -551,5 +551,17 @@ struct ActionCircleGlass: ViewModifier {
 
     func body(content: Content) -> some View {
         if enabled { content.controlGlass(Circle(), interactive: true) } else { content }
+    }
+}
+
+extension Color {
+    /// Текст и значки плеера во весь контраст: белый в тёмной теме, чёрный в светлой — как в «Музыке». Системный
+    /// `.primary` на Mac — белый на 85 %, и название и кнопки капсулы выглядели серыми.
+    static var fullContrast: Color {
+        #if os(macOS)
+        Color(nsColor: .textColor)
+        #else
+        Color.primary
+        #endif
     }
 }

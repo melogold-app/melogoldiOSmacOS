@@ -157,7 +157,8 @@ enum DebugScript {
                 let target = parts.count > 1 ? (AppSection(rawValue: parts[0]) ?? .library) : .library
                 let name = parts.last ?? ""
                 let library = model.library?.library
-                let artistId = library?.favorites().compactMap(\.primaryArtistId).first
+                let favorites = library?.favorites() ?? []
+                let artistId = (favorites.first { $0.albumId != nil } ?? favorites.first)?.primaryArtistId
                 let playlistId = library?.playlists().first?.id
                 var routes: [String: Route] = ["favorites": .favorites, "allTracks": .allTracks, "downloads": .downloads, "history": .history,
                                                "album": .album("MPREb_OLmD8O5IYNS"), "moods": .moods, "newReleases": .newReleases,
@@ -198,6 +199,11 @@ enum DebugScript {
             case "updateready":
                 AppUpdater.shared.debugShowReady(arg.isEmpty ? "0.2.5" : arg)
                 log("обновление готово \(arg)")
+            case "swipe":
+                // swipe <точки> [x y]: жест трекпада — начало, движение, конец и инерция — в вид под точкой (как настоящий
+                // скролл двумя пальцами); после жеста — смещение самого большого списка
+                let n = arg.split(separator: " ").compactMap { Double($0) }
+                await swipe(total: n.first ?? 600, at: n.count >= 3 ? CGPoint(x: n[1], y: n[2]) : nil)
             case "scrollbench":
                 // scrollbench <шагов> <точек за шаг>: листает самый большой список колонки детали и меряет каждый шаг
                 // (прокрутка + раскладка + отрисовка окна), между шагами — кадр 16 мс
@@ -487,6 +493,52 @@ enum DebugScript {
             event.location = CGPoint(x: onScreen.x, y: screenHeight - onScreen.y)
             event.postToPid(ProcessInfo.processInfo.processIdentifier)
             log("wheel \(Int(dy)) в \(Int(local.x)),\(Int(local.y))")
+        }
+
+        private func swipe(total: Double, at point: CGPoint?) async {
+            guard let window = window(nil), let content = window.contentView else { log("swipe: нет окна"); return }
+            let local = point ?? CGPoint(x: content.bounds.width * 0.62, y: content.bounds.height * 0.45)
+            let inWindow = NSPoint(x: local.x, y: content.bounds.height - local.y)
+            guard let target = content.hitTest(inWindow) else { log("swipe: под точкой ничего"); return }
+            func offset() -> Int {
+                var found: [NSScrollView] = []
+                func walk(_ view: NSView) {
+                    if let scroll = view as? NSScrollView, scroll.documentView != nil, scroll.convert(scroll.bounds, to: nil).width > 300 { found.append(scroll) }
+                    view.subviews.forEach(walk)
+                }
+                walk(content)
+                return Int(found.max(by: { $0.bounds.width * $0.bounds.height < $1.bounds.width * $1.bounds.height })?.contentView.bounds.origin.y ?? -1)
+            }
+            func send(_ dy: Double, phase: Int64, momentum: Int64) {
+                guard let event = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: Int32(-dy), wheel2: 0, wheel3: 0) else { return }
+                event.setIntegerValueField(.scrollWheelEventIsContinuous, value: 1)
+                event.setIntegerValueField(.scrollWheelEventScrollPhase, value: phase)
+                event.setIntegerValueField(.scrollWheelEventMomentumPhase, value: momentum)
+                event.setDoubleValueField(.scrollWheelEventPointDeltaAxis1, value: -dy)
+                event.setDoubleValueField(.scrollWheelEventFixedPtDeltaAxis1, value: -dy)
+                if let ns = NSEvent(cgEvent: event) { target.scrollWheel(with: ns) }
+            }
+            let before = offset()
+            var trace: [Int] = []
+            let steps = 12
+            send(0, phase: 1, momentum: 0) // began
+            for _ in 0 ..< steps {
+                send(total * 0.6 / Double(steps), phase: 2, momentum: 0)
+                try? await Task.sleep(for: .milliseconds(12))
+                trace.append(offset())
+            }
+            send(0, phase: 4, momentum: 0) // ended
+            var v = total * 0.4 / 8
+            send(v, phase: 0, momentum: 1)
+            for _ in 0 ..< 14 {
+                v *= 0.82
+                send(v, phase: 0, momentum: 2)
+                try? await Task.sleep(for: .milliseconds(16))
+                trace.append(offset())
+            }
+            send(0, phase: 0, momentum: 3)
+            try? await Task.sleep(for: .milliseconds(100))
+            log("swipe \(Int(total)) над \(type(of: target)): было \(before), стало \(offset()); путь \(trace.map(String.init).joined(separator: " "))")
         }
 
         private func scrollBench(steps: Int, dy: Double) async {

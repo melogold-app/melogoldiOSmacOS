@@ -25,6 +25,20 @@ public enum ArtworkSession {
         return URLSession(configuration: configuration)
     }()
 
+    /// Картинка обложки: только ответ 200. На 404 YouTube присылает картинку-заглушку (серый прямоугольник с тремя
+    /// точками), и она вставала вместо обложки в приложении, на экране блокировки и в тегах файла; у превью без нужного
+    /// размера просится следующий (`Thumbnails.fallback`).
+    public static func imageData(from url: URL) async -> Data? {
+        var next: URL? = url
+        while let current = next {
+            next = Thumbnails.fallback(current.absoluteString).flatMap(URL.init(string:))
+            guard let (data, response) = try? await shared.data(from: current) else { return nil }
+            if let http = response as? HTTPURLResponse, http.statusCode != 200 { continue }
+            return data
+        }
+        return nil
+    }
+
     /// Сколько занимают обложки на диске.
     public static var diskUsage: Int { (shared.configuration.urlCache ?? URLCache.shared).currentDiskUsage }
 
