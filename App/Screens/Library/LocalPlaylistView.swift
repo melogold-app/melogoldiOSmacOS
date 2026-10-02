@@ -94,8 +94,8 @@ struct LocalPlaylistView: View {
                 linkLine(playlist)
             }
         }, actions: {
-            PlayButton { model.playAll(visible, shuffled: false) }
-            ShuffleButton { model.playAll(visible, shuffled: true) }
+            CollectionActions(play: { model.playAll(visible, shuffled: false) },
+                              shuffle: { model.playAll(visible, shuffled: true) })
         })
     }
 
