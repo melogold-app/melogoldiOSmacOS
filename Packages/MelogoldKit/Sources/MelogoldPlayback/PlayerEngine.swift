@@ -371,6 +371,41 @@ public final class PlayerEngine {
         }
     }
 
+    /// Трек, на который встанет «Следующий» (`next()`): следующий в очереди, на последнем с повтором очереди — первый;
+    /// `nil` — переключать некуда. Его показывает лента мини-плеера справа, пока палец тянет её.
+    public var nextItem: QueueItem? {
+        guard let index else { return nil }
+        if let following = nextPlayable(after: index) { return items[following] }
+        if repeatMode == .all, !items.isEmpty, index != 0 { return items[0] }
+        return nil
+    }
+
+    /// Трек, на который встанет свайп назад (`skipBack()`): предыдущий в очереди, на первом с повтором очереди —
+    /// последний; `nil` — некуда.
+    public var previousItem: QueueItem? {
+        guard let index else { return nil }
+        if let earlier = previousPlayable(before: index) { return items[earlier] }
+        if repeatMode == .all, let last = items.indices.last, last != index { return items[last] }
+        return nil
+    }
+
+    /// Свайп назад по мини-плееру: всегда предыдущий трек. «Предыдущий» с позиции больше 3 с перематывает в начало, а
+    /// лента уже показала, что приедет предыдущий трек.
+    public func skipBack() {
+        guard let target = previousItem, let position = items.firstIndex(where: { $0.id == target.id }) else { return }
+        index = position
+        startCurrent(tapped: true)
+    }
+
+    private func previousPlayable(before position: Int) -> Int? {
+        var candidate = position - 1
+        while candidate >= 0 {
+            if !(shouldSkip?(items[candidate].track) ?? false) { return candidate }
+            candidate -= 1
+        }
+        return nil
+    }
+
     /// «Предыдущий»: с позиции больше 3 с — в начало трека (REWRITE §4.10.4).
     public func previous() {
         guard let index else { return }
