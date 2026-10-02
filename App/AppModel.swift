@@ -169,7 +169,7 @@ final class AppModel {
     init(services: Services) {
         self.services = services
         self.search = SearchModel(catalog: services.catalog, history: services.searchHistory, settings: services.settings)
-        self.account = Account(settings: services.settings)
+        self.account = Account(settings: services.settings, secrets: DeviceSecrets.store(directory: services.paths?.root))
         self.sync = LibrarySync(account: account, library: services.library?.library)
         self.section = services.settings.lastTab
         refreshCached()

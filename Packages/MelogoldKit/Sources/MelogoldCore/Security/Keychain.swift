@@ -1,6 +1,9 @@
 import Foundation
 import Security
 import Synchronization
+#if os(macOS)
+import LocalAuthentication
+#endif
 
 /// Где лежат секреты устройства: токены сессии и `platformId` (docs/PROMPT.md §3).
 public protocol SecretStore: Sendable {
@@ -24,14 +27,9 @@ extension SecretStore {
 /// разблокировки, не уходят в резервную копию и не переезжают на новое устройство. Поэтому новое устройство получает
 /// новый `hwid`, и сервер видит его отдельной строкой (API §1.6).
 ///
-/// На iPhone, iPad, часах и Vision это всегда Keychain с защитой данных. На Mac — обычный Keychain входа: Keychain с
-/// защитой данных там требует подписи командой разработчика, а локальные сборки подписаны ad hoc.
-///
-/// В Keychain входа запись по умолчанию доступна только программе, которая её создала, и когда подпись программы
-/// меняется (сборка из Xcode, другой сертификат), система спрашивает пароль входа: «Melogold хочет получить доступ к
-/// ключу…». Поэтому на Mac записи создаются с доступом «любой программе пользователя» (`SecAccessCreate` без списка
-/// доверенных программ) — вопрос больше не возникает; старая запись один раз читается (с вопросом, если он будет) и
-/// тут же записывается заново так же.
+/// iPhone, iPad, часы и Vision — Keychain с защитой данных. На Mac секреты лежат в файле (`SecretFile`): Keychain входа
+/// при подписи без команды разработчика спрашивал пароль после каждого обновления. Там `Keychain` только отдаёт записи
+/// прежних версий при переезде и удаляет их — без окна с паролем, если система его потребует.
 public struct Keychain: SecretStore {
     public let service: String
 
@@ -46,11 +44,7 @@ public struct Keychain: SecretStore {
         query[kSecMatchLimit as String] = kSecMatchLimitOne
         var result: AnyObject?
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess else { return nil }
-        let value = result as? Data
-        #if os(macOS)
-        if let value { openAccessIfNeeded(account, value: value) }
-        #endif
-        return value
+        return result as? Data
     }
 
     @discardableResult
@@ -67,9 +61,6 @@ public struct Keychain: SecretStore {
         }
         var insert = base(account)
         insert.merge(attributes) { _, new in new }
-        #if os(macOS)
-        if let access = openAccess() { insert[kSecAttrAccess as String] = access }
-        #endif
         let added = SecItemAdd(insert as CFDictionary, nil)
         if added != errSecSuccess { Log.error("keychain", "Запись не добавилась: \(added)") }
         return added == errSecSuccess
@@ -77,45 +68,16 @@ public struct Keychain: SecretStore {
 
     @discardableResult
     public func delete(_ account: String) -> Bool {
-        let status = SecItemDelete(base(account) as CFDictionary)
+        var query = base(account)
+        #if os(macOS)
+        // Удаление записи прежней версии на Mac может потребовать пароль входа — тогда запись остаётся, вопроса нет
+        let context = LAContext()
+        context.interactionNotAllowed = true
+        query[kSecUseAuthenticationContext as String] = context
+        #endif
+        let status = SecItemDelete(query as CFDictionary)
         return status == errSecSuccess || status == errSecItemNotFound
     }
-
-    #if os(macOS)
-    /// Доступ «любой программе пользователя без вопроса»: список доверенных программ — `nil`. `SecAccessCreate` помечена
-    /// устаревшей вместе со всем Keychain входа, но замены для доступа без вопроса у него нет (запись с защитой данных
-    /// требует подписи командой разработчика), поэтому функция берётся по имени, а не по ссылке на устаревший символ.
-    private func openAccess() -> SecAccess? {
-        typealias Create = @convention(c) (CFString, CFArray?, UnsafeMutablePointer<SecAccess?>) -> OSStatus
-        guard let handle = dlopen(nil, RTLD_NOW), let symbol = dlsym(handle, "SecAccessCreate") else { return nil }
-        var access: SecAccess?
-        let create = unsafeBitCast(symbol, to: Create.self)
-        return create(service as CFString, nil, &access) == errSecSuccess ? access : nil
-    }
-
-    private var openFlagKey: String { "keychain.openAccess.\(service)" }
-
-    /// Запись, созданная прежней версией, ограничена её подписью: прочитанную записываем заново с открытым доступом,
-    /// один раз на запись.
-    private func openAccessIfNeeded(_ account: String, value: Data) {
-        let defaults = UserDefaults.standard
-        var done = Set(defaults.stringArray(forKey: openFlagKey) ?? [])
-        guard !done.contains(account), let access = openAccess() else { return }
-        _ = SecItemDelete(base(account) as CFDictionary)
-        var insert = base(account)
-        insert[kSecValueData as String] = value
-        insert[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        insert[kSecAttrAccess as String] = access
-        if SecItemAdd(insert as CFDictionary, nil) == errSecSuccess {
-            done.insert(account)
-            defaults.set(Array(done), forKey: openFlagKey)
-        } else {
-            // Не вышло — вернуть как было, иначе сеанс потеряется
-            insert.removeValue(forKey: kSecAttrAccess as String)
-            _ = SecItemAdd(insert as CFDictionary, nil)
-        }
-    }
-    #endif
 
     private func base(_ account: String) -> [String: Any] {
         [
@@ -123,6 +85,19 @@ public struct Keychain: SecretStore {
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
         ]
+    }
+}
+
+/// Хранилище секретов устройства: на Mac — файл в папке данных с переездом из Keychain прежних версий, на остальных
+/// платформах — Keychain.
+public enum DeviceSecrets {
+    public static func store(directory: URL?) -> any SecretStore {
+        #if os(macOS)
+        if let directory {
+            return SecretFile(url: directory.appendingPathComponent("secrets.json"), legacy: Keychain())
+        }
+        #endif
+        return Keychain()
     }
 }
 
