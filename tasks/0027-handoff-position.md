@@ -1,8 +1,12 @@
 # Пульт: перенос воспроизведения на другое устройство с той же секунды (как AirPlay)
 
-Статус: открыто. Сервер — `melogoldServer` задание 0005 (ветка `feat/handoff-position`: `positionMs` у `play_queue`).
-Образец — Linux, задание 0027 (ветка `feat/handoff-position`): отправитель в списке устройств шлёт `play_queue` с
-очередью и позицией, если здесь играет; получатель начинает трек `index` с `positionMs`.
+Статус: сделано в ветке `feat/handoff-position` (не выпущено, **не собрано** — правка с Linux, Swift там нет).
+Перенос был и раньше (`AppModel.selectPlaybackDevice`), но позицию сервер у `play_queue` выбрасывал, и цель начинала трек
+с начала, а перемотка приходила через секунды. Теперь `RemoteControl.playQueue(…, positionMs)` передаёт её с очередью,
+цель стартует с места (`RemotePlayable.remotePlayQueue(…, startMs)` → `PlayerEngine.play(tracks:startAt:from:)`);
+`seekWhenStarted` остаётся запасным путём для целей старых версий. «Слушать здесь» тоже стартует сразу с места
+(раньше — `play` и тут же `seek`, который до загрузки трека пропускался). Нужен сервер с заданием 0005.
+Проверить: `swift test` в `Packages/MelogoldKit` (`PlaybackRemoteTests`).
 
 ## Что нужно пользователю (07.10.2026)
 

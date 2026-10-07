@@ -212,14 +212,16 @@ public final class PlayerEngine {
     }
 
     /// Нажатие по треку в списке: очередь — весь список, начиная с выбранного (REWRITE §2.3).
-    public func play(tracks: [Track], startAt: Int) {
+    /// Очередь с трека `startAt`; `seconds` — с какой секунды его начать (очередь перенесли с другого устройства,
+    /// задание 0027).
+    public func play(tracks: [Track], startAt: Int, from seconds: Double = 0) {
         guard tracks.indices.contains(startAt) else { return }
         radioTask?.cancel()
         radio = nil
         items = tracks.map { queueItem($0) }
         index = startAt
         queueId = UUID()
-        startCurrent(tapped: true)
+        startCurrent(tapped: true, from: seconds)
     }
 
     /// Нажатие по одиночному треку: трек и радио по нему (автовоспроизведение похожих). `seconds` — стартовая

@@ -66,8 +66,8 @@ final class RemoteBridge {
         }
         if let duration = state.durationMs, duration > 1000 { positionMs = min(positionMs, duration - 1000) }
         reporter.takeOver(from: state)
-        player.play(tracks: state.queue.map(\.track), startAt: state.index)
-        player.seek(to: Double(positionMs) / 1000)
+        // Сразу с места: перемотку до загрузки трека плеер пропускает, и трек начинался бы с начала.
+        player.play(tracks: state.queue.map(\.track), startAt: state.index, from: Double(positionMs) / 1000)
         if let volume = state.volume { player.volume = Float(volume) / 100 }
     }
 
@@ -174,6 +174,8 @@ extension PlayerEngine: @retroactive RemotePlayable {
     public func remotePrevious() { previous() }
     public func remoteSeek(toMs positionMs: Int64) { seek(to: Double(positionMs) / 1000) }
     public func remoteSetVolume(_ volume: Int) { self.volume = Float(min(100, max(0, volume))) / 100 }
-    public func remotePlayQueue(_ tracks: [TrackDto], index: Int) { play(tracks: tracks.map(\.track), startAt: index) }
+    public func remotePlayQueue(_ tracks: [TrackDto], index: Int, startMs: Int64) {
+        play(tracks: tracks.map(\.track), startAt: index, from: Double(startMs) / 1000)
+    }
     public func remoteStop() { stop() }
 }
