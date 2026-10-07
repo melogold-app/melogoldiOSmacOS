@@ -164,8 +164,9 @@ public actor StreamSource {
                         lastError = error
                         throw error
                     }
-                    Log.warning("stream", "\(videoId): googlevideo \(status.code) — беру свежий адрес")
-                    await resolver.invalidate(videoId)
+                    Log.warning("stream", "\(videoId): googlevideo \(status.code) — беру свежий адрес в новом сеансе")
+                    // В «помеченном» сеансе свежие адреса тоже обрываются на первом мегабайте.
+                    await resolver.renewVisitor()
                     info = nil
                 }
                 continue
