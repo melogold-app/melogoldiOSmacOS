@@ -125,30 +125,42 @@ struct PlainLyricsView: View {
     }
 }
 
-/// Как выглядит текст песни: размер зависит от области (шире окно — крупнее текст, как у Windows и Android) и от Dynamic
-/// Type; отступы подложки, подпевка и перевод считаются от него (задание 0012 §2).
+/// Как выглядит текст песни: размер строки — от высоты всей области «Сейчас играет» (задание 0030 §3) и от Dynamic Type;
+/// отступы подложки, подпевка, перевод и точки проигрыша считаются от него в прежних пропорциях (задание 0012 §2).
 enum LyricsStyle {
-    /// Размер строки при обычной области и обычном Dynamic Type: `title` iPhone — 28.
-    static let baseSize: CGFloat = 28
+    /// Размер строки, к которому привязаны поля и остальные размеры строки: `title` iPhone — 28.
+    static let baseSize = CGFloat(NowPlayingMetrics.baseLyricsSize)
     /// Узкая раскладка: верх текущей строки — на 24 pt ниже верха области текста, сразу под полосой затухания кромки
     /// (задание 0016 §2, Android `LyricsAnchor`).
     static let anchor: CGFloat = 24
     /// Полоса затухания снизу — над панелью управления.
     static let bottomFade: CGFloat = 48
+    /// Поле колонки строк по бокам — внутри области текста, за полями самих строк. Широкая раскладка «Сейчас играет»
+    /// раздвигает область на него, чтобы строки и подложка стояли ровно в своей колонке (`NowPlayingMetrics.wideLayout`).
+    static let sidePadding = Design.Space.s
 
-    /// Размер по области: растёт вместе с окном (как в «Музыке»: колонка 400 pt — 30, 600 pt — 45, 800 pt — 60), но не
-    /// меньше `title` и не больше 64. Высота тоже ограничивает: в низком широком окне строки не должны занимать пол-экрана.
-    static func fontSize(in size: CGSize) -> CGFloat {
-        min(64, max(baseSize, min(size.width * 0.075, size.height * 0.08))).rounded()
+    /// Размер строки: `clamp(0,042 · H, 18, 64)` по высоте `areaHeight` всей области «Сейчас играет» (`NowPlayingMetrics`),
+    /// а не колонки текста — раньше размер шёл от колонки, и при смене раскладки текст то рос, то мельчал. Крупный Dynamic
+    /// Type растит его до 1,7 раза, но не шире, чем позволяет колонка `width`: ширина ÷ 300 (iPhone в портрете — 1,34, колонка
+    /// текста боком — 1,05…1,25, от 510 pt — 1,7), и всего не больше десятой доли ширины. Иначе длинное слово («клетчатый»)
+    /// не влезает в строку и ломается посередине.
+    static func fontSize(areaHeight: CGFloat, width: CGFloat, typeScale: CGFloat) -> CGFloat {
+        let base = CGFloat(NowPlayingMetrics.lyricsSize(areaHeight: Double(areaHeight)))
+        let scaled = base * min(typeScale, min(1.7, max(1, width / 300)))
+        return min(scaled, max(base, width * 0.1)).rounded()
     }
+}
 
-    /// Крупный Dynamic Type растит текст до 1,7 раза, но не шире, чем позволяет область: ширина ÷ 300 (iPhone в портрете —
-    /// 1,34; колонка текста боком — 1,05…1,25; от 510 pt — 1,7), и всего не больше десятой доли ширины. Иначе длинное
-    /// слово («клетчатый») не влезает в строку и ломается посередине.
-    static func fontSize(in size: CGSize, typeScale: CGFloat) -> CGFloat {
-        let base = fontSize(in: size)
-        let scaled = base * min(typeScale, min(1.7, max(1, size.width / 300)))
-        return min(scaled, max(base, size.width * 0.1)).rounded()
+/// Высота всей области «Сейчас играет» — по ней размер строки текста (задание 0030 §3). Нет её (текст вне «Сейчас играет») —
+/// размер считается по высоте самой области текста.
+private struct NowPlayingHeightKey: EnvironmentKey {
+    static let defaultValue: CGFloat? = nil
+}
+
+extension EnvironmentValues {
+    var nowPlayingHeight: CGFloat? {
+        get { self[NowPlayingHeightKey.self] }
+        set { self[NowPlayingHeightKey.self] = newValue }
     }
 }
 
@@ -185,6 +197,7 @@ struct SyncedLyricsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.lyricsCoverMid) private var coverMid
+    @Environment(\.nowPlayingHeight) private var areaHeight
     @ScaledMetric(relativeTo: .title) private var typeScale: CGFloat = 1
     @State private var manualUntil: Date?
     @State private var followTick = 0
@@ -209,7 +222,7 @@ struct SyncedLyricsView: View {
         let active = LyricRows.activeIndex(rows, at: position)
         let following = manualUntil.map { $0 < Date() } ?? true
         GeometryReader { proxy in
-            let fontSize = LyricsStyle.fontSize(in: proxy.size, typeScale: typeScale)
+            let fontSize = LyricsStyle.fontSize(areaHeight: areaHeight ?? proxy.size.height, width: proxy.size.width, typeScale: typeScale)
             let scale = fontSize / LyricsStyle.baseSize
             let height = proxy.size.height
             // Точка, где встаёт середина текущей строки, от верха области: по обложке, но не ближе пятой части высоты к краю
@@ -231,7 +244,7 @@ struct SyncedLyricsView: View {
                         // Последняя строка тоже может встать на своё место
                         Color.clear.frame(height: height)
                     }
-                    .padding(.horizontal, Design.Space.s)
+                    .padding(.horizontal, LyricsStyle.sidePadding)
                     .coordinateSpace(name: lyricsSpace)
                     .onPreferenceChange(RowFramesKey.self) { frames = $0 }
                     .background(alignment: .topLeading) {
