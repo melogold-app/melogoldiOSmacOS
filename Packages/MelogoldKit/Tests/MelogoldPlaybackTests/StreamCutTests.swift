@@ -108,6 +108,38 @@ struct StreamCutTests {
         }
     }
 
+    // MARK: - Решение по ошибке
+
+    /// Что делает плеер с ошибкой потока (задания 0026, 0033 §2): нет сети — ждать; обрыв посреди трека — открыть заново,
+    /// дважды; бот — стоп; причина в видео — пропуск; поток не получен — прежний повтор по классу.
+    @Test func failureDecisionFollowsTheClassOfTheError() {
+        func action(_ kind: StreamError.Kind, midStream: Bool, reopens: Int = 0, retries: Int = 0) -> PlayerEngine.FailureAction {
+            PlayerEngine.action(for: StreamError(kind, ""), midStream: midStream, reopens: reopens, retries: retries)
+        }
+        for midStream in [false, true] {
+            #expect(action(.botCheck, midStream: midStream) == .stop)
+            #expect(action(.network, midStream: midStream, reopens: 2, retries: 9) == .waitForNetwork)
+            #expect(action(.timeout, midStream: midStream) == .waitForNetwork)
+            for final in [StreamError.Kind.geo, .age, .unavailable] {
+                #expect(action(final, midStream: midStream) == .skip, "\(final)")
+            }
+        }
+        // Сеть есть, а адрес умер посреди песни: до двух переоткрытий, третий обрыв — пропуск
+        #expect(action(.extractor, midStream: true) == .reopen)
+        #expect(action(.extractor, midStream: true, reopens: 1) == .reopen)
+        #expect(action(.extractor, midStream: true, reopens: 2) == .skip)
+        // Поток не получен вовсе — как раньше: один повтор, затем пропуск
+        #expect(action(.extractor, midStream: false) == .retry)
+        #expect(action(.extractor, midStream: false, retries: 1) == .skip)
+    }
+
+    /// Строка журнала — как у Linux и Windows.
+    @Test func reopenLogLineIsThatOfTheOtherClients() {
+        let error = StreamError(.extractor, "googlevideo 403 after 4 fresh URLs at byte 1048576 of 3567210 (VISIONOS)")
+        #expect(PlayerEngine.reopenLine(videoId: "uDhUT3I5OSI", at: 83.6, attempt: 2, error: error)
+            == "Reopening uDhUT3I5OSI at 1:23 (attempt 2): extractor: googlevideo 403 after 4 fresh URLs at byte 1048576 of 3567210 (VISIONOS)")
+    }
+
     // MARK: - Плеер
 
     /// Плеер на подставке: настоящий файл формата YouTube (60 с, фрагменты по 10 с), звук выключен, рендерер настоящий.
@@ -240,6 +272,28 @@ struct StreamCutTests {
             engine.play()
             #expect(engine.position == at, "с того же места")
             try await until("снова играет", engine: engine) { engine.phase == .playing }
+            engine.stop()
+        }
+
+        /// Задание 0033 §2: адрес googlevideo умер посреди трека (403 и на четыре свежих адреса — смена сети или сервера
+        /// VPN), а сеть есть. Трек открывается заново с той же секунды со свежим адресом — дважды, потом пропуск. Раньше
+        /// он начинался с 0:00.
+        @Test func aCutMidTrackReopensAtTheSameSecondTwiceThenSkips() async throws {
+            let cut = try Self.fragmentOffset(at: 30)
+            let engine = try await engine { request in
+                request.videoId == "aaaaaaaaaaa" && request.range.lowerBound > 0 ? .status(403) : .bytes
+            }
+            engine.play(tracks: [track("aaaaaaaaaaa"), track("bbbbbbbbbbb")], startAt: 0, from: 30)
+            try await until("трек пропущен после двух переоткрытий", engine: engine) { engine.index == 1 }
+            let reads = FakeGoogleVideo.ranges.filter { $0.videoId == "aaaaaaaaaaa" && $0.range.lowerBound > 0 }
+            // Каждое открытие — с фрагмента с 0:30, а не с начала; в каждом — первый адрес и четыре свежих
+            #expect(reads.allSatisfy { $0.range.lowerBound == cut }, "\(reads.map(\.range))")
+            #expect(reads.count == 3 * 5)
+            #expect(FakeGoogleVideo.ranges.filter { $0.videoId == "aaaaaaaaaaa" && $0.range.lowerBound == 0 }.count == 3,
+                    "начало файла — по разу на открытие")
+            // Переоткрытие не берёт умерший адрес из кэша резолвера: и его первый адрес — свежий
+            #expect(players("aaaaaaaaaaa") == 3 * 5)
+            #expect(engine.notice?.skippedTitle == "aaaaaaaaaaa" && engine.notice?.reason == .extractor)
             engine.stop()
         }
     }

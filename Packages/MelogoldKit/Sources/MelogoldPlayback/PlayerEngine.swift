@@ -11,7 +11,9 @@ import Network
 ///
 /// - треки лежат на одной шкале синхронизатора отрезками: следующий подаётся сразу за текущим — переход без паузы;
 /// - адреса двух следующих треков резолвятся заранее (быстрый старт, REWRITE §4.10.2);
-/// - ошибка потока: повторы по классу ошибки, затем пропуск; после трёх пропусков подряд воспроизведение встаёт;
+/// - ошибка потока: нет сети — трек ждёт её на месте (задание 0026), поток оборвался посреди трека — трек открывается
+///   заново с той же секунды (задание 0033 §2), иначе повторы по классу ошибки, затем пропуск; после трёх пропусков подряд
+///   воспроизведение встаёт;
 /// - одинаково на iPhone, iPad, Mac, Vision и часах (на часах без кэша потока).
 @MainActor
 @Observable
@@ -149,6 +151,8 @@ public final class PlayerEngine {
     @ObservationIgnored var networkWaitDelays: [TimeInterval] = [2, 4, 8, 15, 30]
     @ObservationIgnored var networkWaitLimit: TimeInterval = 10 * 60
     @ObservationIgnored private let pathMonitor = NWPathMonitor()
+    /// Трек, открытый заново после обрыва потока посреди песни, и сколько раз (задание 0033 §2).
+    @ObservationIgnored private var reopened: (id: UUID, count: Int)?
     /// Паузы перед свежими адресами googlevideo после 403 (`StreamSource.freshURLPauses`); тесты ставят нулевые.
     @ObservationIgnored var freshURLPauses: [TimeInterval] = StreamSource.freshURLPauses
     private var tapTime: Date?
@@ -490,14 +494,15 @@ public final class PlayerEngine {
         seek(to: at)
     }
 
-    /// Карточка ошибки › «Повторить»: с того же места (нет сети 10 минут — песня продолжается, а не начинается с 0:00).
+    /// Карточка ошибки › «Повторить»: с того же места (нет сети 10 минут — песня продолжается, а не начинается с 0:00),
+    /// со свежим адресом.
     public func retryCurrent() {
         guard let current else { return }
         failure = nil
         consecutiveSkips = 0
         attempts[current.id] = 0
-        Task { await resolver.invalidate(current.track.videoId) }
-        startCurrent(tapped: true, from: position)
+        reopened = nil
+        startCurrent(tapped: true, from: position, freshURL: true)
     }
 
     // MARK: - Столбики
@@ -745,8 +750,9 @@ public final class PlayerEngine {
         (pipeline.enqueuedEnd - pipeline.currentTime).seconds
     }
 
-    /// Начать текущий элемент заново: шкала с нуля, первый фрагмент, звук как только он есть.
-    private func startCurrent(tapped: Bool, from offset: Double = 0) {
+    /// Начать текущий элемент заново: шкала с нуля, первый фрагмент, звук как только он есть. `freshURL` — адрес из кэша
+    /// резолвера не брать (трек открывается заново после обрыва или по «Повторить»).
+    private func startCurrent(tapped: Bool, from offset: Double = 0, freshURL: Bool = false) {
         flushSession()
         if retryingAfterNetwork {
             retryingAfterNetwork = false
@@ -768,7 +774,7 @@ public final class PlayerEngine {
         let startTime = CMTime(seconds: max(0, offset), preferredTimescale: 44_100)
         generation = pipeline.reset(to: startTime)
         levelTimeline.removeAll()
-        let segment = makeSegment(for: current, start: .zero, userInitiated: tapped)
+        let segment = makeSegment(for: current, start: .zero, userInitiated: tapped, freshURL: freshURL)
         segment.startOffset = max(0, offset)
         segments = [segment]
         protectCache()
@@ -790,9 +796,9 @@ public final class PlayerEngine {
 
     /// `userInitiated` — трек начат действием пользователя (нажатие, «Далее», «Повторить»): при закрытом адресе YouTube он
     /// пробует один запрос. Следующий трек, который подаётся сам, и повторы движка — фон: закрытый адрес их не пробует.
-    private func makeSegment(for item: QueueItem, start: CMTime, userInitiated: Bool = false) -> Segment {
+    private func makeSegment(for item: QueueItem, start: CMTime, userInitiated: Bool = false, freshURL: Bool = false) -> Segment {
         let source = StreamSource(videoId: item.track.videoId, resolver: resolver, cache: cache, downloads: downloads,
-                                  session: session, userInitiated: userInitiated, freshURLPauses: freshURLPauses)
+                                  session: session, userInitiated: userInitiated, freshURL: freshURL, freshURLPauses: freshURLPauses)
         return Segment(item: item, reader: TrackReader(source: source), start: start)
     }
 
@@ -844,7 +850,9 @@ public final class PlayerEngine {
             } catch {
                 guard generation == self.generation else { return }
                 let streamError = error as? StreamError ?? StreamError(.extractor, "\(error)")
-                self.handleFailure(of: segment.item, error: streamError)
+                let midStream = await segment.reader.source.isOpen
+                guard generation == self.generation else { return }
+                self.handleFailure(of: segment.item, error: streamError, midStream: midStream)
             }
         }
     }
@@ -1067,40 +1075,81 @@ public final class PlayerEngine {
 
     // MARK: - Ошибки и пропуски
 
+    /// Что делать, когда поток текущего трека упал.
+    enum FailureAction: Equatable, Sendable {
+        /// Проверка «вы не бот»: карточка сразу, очередь стоит.
+        case stop
+        /// Нет сети: трек ждёт её на месте (задание 0026).
+        case waitForNetwork
+        /// Поток оборвался посреди трека: открыть заново с той же секунды со свежим адресом (задание 0033 §2).
+        case reopen
+        /// Поток не получен: повтор по классу ошибки (`StreamError.retries`).
+        case retry
+        case skip
+    }
+
+    /// Сколько раз трек открывается заново после обрыва потока посреди песни, прежде чем пропуск (как у Linux и Windows).
+    nonisolated static let reopensPerTrack = 2
+
+    /// Решение по ошибке потока (задания 0026, 0033 §2; Linux `reopen_after_cut`, Windows `RecoverOrSkip`). `midStream` —
+    /// поток уже был получен (`StreamSource.isOpen`), `reopens` — сколько раз трек уже открыт заново после обрыва,
+    /// `retries` — сколько раз повторён после отказа в потоке.
+    ///
+    /// Сеть пропала — ждать её; сеть есть, а адрес умер посреди песни (смена сети или сервера VPN: адрес привязан к IP) —
+    /// открыть трек заново с того же места, не больше `reopensPerTrack` раз. Проверка «вы не бот», страна, возраст и
+    /// удалённое видео не лечатся ни тем, ни другим.
+    nonisolated static func action(for error: StreamError, midStream: Bool, reopens: Int, retries: Int) -> FailureAction {
+        if error.stopsQueue { return .stop }
+        if error.kind == .network || error.kind == .timeout { return .waitForNetwork }
+        if error.isFinal { return .skip }
+        if midStream { return reopens < reopensPerTrack ? .reopen : .skip }
+        return retries < error.retries ? .retry : .skip
+    }
+
+    /// Строка журнала о переоткрытии — та же, что у Linux и Windows: по журналам всех клиентов видно одно и то же.
+    nonisolated static func reopenLine(videoId: String, at seconds: Double, attempt: Int, error: StreamError) -> String {
+        "Reopening \(videoId) at \(Durations.format(seconds: seconds)) (attempt \(attempt)): \(error)"
+    }
+
     /// Трек ждёт сеть (задание 0026).
     var isWaitingForNetwork: Bool { networkWait != nil }
 
-    private func handleFailure(of element: QueueItem, error: StreamError) {
+    private func handleFailure(of element: QueueItem, error: StreamError, midStream: Bool) {
         Log.warning("player", "«\(element.track.title)» (\(element.track.videoId)): \(error)")
         guard element.id == current?.id else {
             // Следующий трек не подготовился — попробуем, когда до него дойдёт очередь.
             segments.removeAll { $0.item.id == element.id }
             return
         }
-        if error.stopsQueue {
+        let reopens = reopened?.id == element.id ? reopened?.count ?? 0 : 0
+        let action = Self.action(for: error, midStream: midStream, reopens: reopens, retries: attempts[element.id, default: 0])
+        if !wantsToPlay, action != .stop, action != .skip {
+            // Пауза: чтение вперёд оборвалось, пока человек не слушает. Ни ожидания, ни повторов сейчас, и сам трек не
+            // заиграет: «Играть» откроет его заново с этого места (`play()` без отрезка).
+            park(at: livePosition())
+            return
+        }
+        switch action {
+        case .stop:
             // Проверка на бота: YouTube закрыл адрес, а не трек. Ни повтора, ни пропуска, ни плашки «Пропущен…» — карточка
             // с причиной сразу; «Повторить» — одно новое обращение, когда пользователь сменил сервер VPN или подождал.
             wantsToPlay = false
             fail(PlaybackFailure(error, videoId: element.track.videoId))
-            return
+        case .waitForNetwork:
+            waitForNetwork(element, error: error)
+        case .reopen:
+            reopened = (element.id, reopens + 1)
+            let at = livePosition()
+            Log.warning("player", Self.reopenLine(videoId: element.track.videoId, at: at, attempt: reopens + 1, error: error))
+            startCurrent(tapped: false, from: at, freshURL: true)
+        case .retry:
+            attempts[element.id, default: 0] += 1
+            // С того же места: трек мог начинаться не с нуля (перенос с другого устройства, ссылка с `t=`)
+            startCurrent(tapped: false, from: position)
+        case .skip:
+            Log.warning("player", "Skipped \(element.track.videoId): \(error)")
+            skip(element, reason: PlaybackFailure(error, videoId: element.track.videoId))
         }
-        if error.kind == .network || error.kind == .timeout {
-            if wantsToPlay {
-                waitForNetwork(element, error: error)
-            } else {
-                // Пауза: чтение вперёд оборвалось, пока человек не слушает. Сеть не ждём, и сам трек не заиграет: «Играть»
-                // откроет его заново с этого места (`play()` без отрезка).
-                park(at: livePosition())
-            }
-            return
-        }
-        let tries = attempts[element.id, default: 0]
-        if !error.isFinal, tries < error.retries {
-            attempts[element.id] = tries + 1
-            startCurrent(tapped: false)
-            return
-        }
-        skip(element, reason: PlaybackFailure(error, videoId: element.track.videoId))
     }
 
     /// Снять трек со шкалы, оставив его текущим на месте `seconds`: поданный вперёд звук не доигрывается. С этого места трек

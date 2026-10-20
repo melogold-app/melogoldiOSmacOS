@@ -37,6 +37,8 @@ public actor StreamSource {
     /// источник всё же пробует один запрос потока (`StreamResolver.resolve(_:userInitiated:)`).
     private let userInitiated: Bool
     private let freshURLPauses: [TimeInterval]
+    /// Трек открыт заново после обрыва потока: адрес из кэша резолвера уже не пускает, первый запрос берёт свежий.
+    private var needsFreshURL: Bool
     /// Трек скачан целиком: байты — из загрузок, сети не нужно.
     private var downloaded = false
     private var info: StreamInfo?
@@ -55,11 +57,12 @@ public actor StreamSource {
     /// Сколько раз запрашивался адрес потока.
     public private(set) var resolveCount = 0
 
-    /// `freshURLPauses` — тестам нулевые.
+    /// `freshURL` — трек открывается заново после обрыва: адрес из кэша резолвера не брать. `freshURLPauses` — тестам нулевые.
     public init(videoId: String, resolver: StreamResolver, cache: AudioCache?, downloads: DownloadStore? = nil, session: URLSession,
-                userInitiated: Bool = false, freshURLPauses: [TimeInterval] = StreamSource.freshURLPauses) {
+                userInitiated: Bool = false, freshURL: Bool = false, freshURLPauses: [TimeInterval] = StreamSource.freshURLPauses) {
         self.videoId = videoId
         self.userInitiated = userInitiated
+        self.needsFreshURL = freshURL
         self.freshURLPauses = freshURLPauses
         self.resolver = resolver
         self.cache = cache
@@ -81,6 +84,10 @@ public actor StreamSource {
     public var details: Details {
         Details(info: info, content: content, downloaded: downloaded, networkBytes: networkBytes)
     }
+
+    /// Поток получен: длина и тип известны (из загрузок, кэша или по адресу). Ошибка после этого — обрыв потока посреди
+    /// трека, а не отказ в нём: плеер открывает трек заново с того же места (задание 0033 §2).
+    public var isOpen: Bool { content != nil }
 
     /// Длина, тип, длительность. Из индекса кэша — без сети; иначе через адрес потока.
     public func contentInfo() async throws -> StreamContent {
@@ -140,6 +147,10 @@ public actor StreamSource {
         if let freshURLAt, freshURLAt > Date() {
             try await Task.sleep(for: .seconds(freshURLAt.timeIntervalSinceNow))
             if let info, !info.url.isEmpty, info.expiresAt > Date() { return info }
+        }
+        if needsFreshURL {
+            needsFreshURL = false
+            await resolver.invalidate(videoId)
         }
         do {
             resolveCount += 1
