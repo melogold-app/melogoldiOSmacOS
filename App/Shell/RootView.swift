@@ -74,15 +74,22 @@ struct RootView: View {
             }
             #endif
             .modifier(LibraryTransferModifier())
-            // Оттенок обложки для фона «Сейчас играет»: считается при смене трека, до открытия плеера
+            #if os(iOS) || os(macOS)
+            // Обложка для фона «Сейчас играет»: готовится при смене трека, до открытия плеера. Пока новая не готова, на
+            // фоне остаётся прежняя — новая сменит её затуханием
             .task(id: model.playingTrack?.artworkURL) {
+                // Шейдер живого фона собирается один раз и не в потоке интерфейса — до первого открытия плеера
+                await FluidPipeline.prepare()
                 let url = model.playingTrack?.artworkURL
-                if let hit = CoverPalette.cached(url) {
-                    model.coverTint = hit
-                } else {
-                    model.coverTint = await CoverPalette.shared.tint(for: url)
+                if let hit = NowPlayingCovers.cached(url) {
+                    model.nowPlayingCover = hit
+                } else if let cover = await NowPlayingCovers.shared.cover(for: url), !Task.isCancelled {
+                    // Пока обложка готовилась, трек сменился (быстрое «далее»): у следующего обложка могла уже встать из
+                    // кеша — прежняя её не перекрывает
+                    model.nowPlayingCover = cover
                 }
             }
+            #endif
             .onAppear {
                 model.undoManager = undoManager
                 #if os(macOS)

@@ -81,6 +81,8 @@ targets:
         NSLocalNetworkUsageDescription: Melogold connects to your own Melogold server on the local network.
         NSSiriUsageDescription: Siri plays music in Melogold when you ask.
         UIBackgroundModes: [audio]
+        # Живой фон «Сейчас играет» (задание 0031) — с частотой экрана: без ключа iPhone с ProMotion держит 60 кадров
+        CADisableMinimumFrameDurationOnPhone: true
         UILaunchScreen: {}
         UIApplicationSceneManifest:
           # visionOS: «Сейчас играет» — второе окно; CarPlay — своя сцена (срез 7).

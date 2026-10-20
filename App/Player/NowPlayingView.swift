@@ -4,7 +4,7 @@ import MelogoldPlayback
 
 /// «Сейчас играет» (docs/PROMPT.md §5.7) на iPhone, iPad, Mac и Vision.
 ///
-/// - Фон — мягкий статичный оттенок цвета обложки (`NowPlayingBackground`, §5.1); стекло — только у управления.
+/// - Фон — размытая обложка, живая под музыку (`NowPlayingBackdrop`, задания 0030 и 0031); стекло — только у управления.
 /// - Закрытие: на iPhone и iPad это лист (`.sheet`) с системным grabber и закрытием смахиванием вниз, на Mac — Esc
 ///   и кнопка в углу, на Vision — окно.
 /// - Обложка — крупно, нажатие включает текст; на узком экране портретный вид: обложка, название, полоса, транспорт на
@@ -435,20 +435,26 @@ private struct FullSheetSizing: PresentationSizing {
 #endif
 
 /// Фон и способ показа: лист с grabber на iPhone и iPad, слой поверх окна на Mac (кнопка закрытия и Esc), Vision — стекло
-/// окна без своего фона.
+/// окна без своего фона. Поверх размытой обложки текст и кнопки всегда светлые (задание 0030): тёмная схема, какая бы ни
+/// была тема приложения; при повышенной контрастности фона нет — схема темы.
 private struct NowPlayingChrome: ViewModifier {
     @Environment(AppModel.self) private var model
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    private var surfaceScheme: ColorScheme { contrast == .increased ? scheme : .dark }
 
     func body(content: Content) -> some View {
         #if os(iOS)
         content
-            .presentationBackground { NowPlayingBackground(tint: model.coverTint) }
+            .presentationBackground { NowPlayingBackdrop(cover: model.nowPlayingCover) }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
             .presentationSizing(FullSheetSizing())
+            .environment(\.colorScheme, surfaceScheme)
         #elseif os(macOS)
         content
-            .background { NowPlayingBackground(tint: model.coverTint) }
+            .background { NowPlayingBackdrop(cover: model.nowPlayingCover) }
             // Панель инструментов окна скрыта, пока открыт «Сейчас играет»: в ней поле поиска и заголовок раздела из
             // экрана под ним. Скрывает её AppKit, а не `toolbar(.hidden, for: .windowToolbar)` — тот гасит и кнопки окна.
             .background { MacToolbarHidden() }
@@ -472,6 +478,7 @@ private struct NowPlayingChrome: ViewModifier {
                 .help(Text("common.collapse"))
                 .accessibilityLabel(Text("common.collapse"))
             }
+            .environment(\.colorScheme, surfaceScheme)
         #else
         content
         #endif

@@ -23,6 +23,7 @@
 		11441C891FE0D24D0B7EF386 /* AboutViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85E2B2288648108298990241 /* AboutViews.swift */; };
 		137DA5566FD1F88AD3A11CED /* SystemIntegration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FFA6E1800667B694083CA84 /* SystemIntegration.swift */; };
 		15B0DF1A79493B1D9C92D337 /* AdaptiveLayoutUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A524A538BEBD0D7CD250E8B9 /* AdaptiveLayoutUITests.swift */; };
+		17BC66D207068BDC9C8F846A /* FluidBackdrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = F360181492A558BCDDBBDD40 /* FluidBackdrop.swift */; };
 		181309BE19354DF37DFAAE97 /* MelogoldLyrics in Frameworks */ = {isa = PBXBuildFile; productRef = 13B66DE7028A725A82C328B4 /* MelogoldLyrics */; };
 		1813387E02F116DA5080EABA /* PlayerUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 682BBF8C408EDA9E19B8D661 /* PlayerUITests.swift */; };
 		1A83A03BA63362F319089F9E /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDD0F2577B6C283234174F5C /* SignInView.swift */; };
@@ -51,6 +52,7 @@
 		46E2E7F8D8D807B25B3277F4 /* CoverPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9BEAFDA118E8881D530FBA7 /* CoverPalette.swift */; };
 		475366A415EBF23D9623432C /* RemoteUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE653D4AC70A4D5CF6F7DD65 /* RemoteUITests.swift */; };
 		487A4AFB6D59F59926D9F0D9 /* MelogoldInnerTube in Frameworks */ = {isa = PBXBuildFile; productRef = EE83B993730C176DE0BCEA02 /* MelogoldInnerTube */; };
+		496E0C295516FD2B9F1822D2 /* NowPlayingBackdrop.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC68CD46BA44FED6EA3A389A /* NowPlayingBackdrop.swift */; };
 		4B799A1160487B46F707750B /* FileExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24F1F7B1F153ABCE7ABE1A14 /* FileExport.swift */; };
 		4CB6CB531388EC4C9CEAF2B2 /* MelogoldServer in Frameworks */ = {isa = PBXBuildFile; productRef = 2973D1F8B1EADECCA8A6B50E /* MelogoldServer */; };
 		4D5FB7051C4692E8C4BF3BEE /* WatchStatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E0831A338DA1AD82A6C7E08 /* WatchStatsView.swift */; };
@@ -95,6 +97,7 @@
 		7EA3249E428FB6CF17568CE9 /* MelogoldCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93441BF35DA128B8AAFCDF1C /* MelogoldCommands.swift */; };
 		7FAA9163A0D77D5A2D6DB610 /* SectionPlaceholder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C31A6FD2D13A78CE31432CC /* SectionPlaceholder.swift */; };
 		801A448C45EBC0CB3F7627B4 /* MySharesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B1165B55721AD533A4BF27B /* MySharesView.swift */; };
+		82F40440A6CE542AD844B34C /* FluidShader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DE9C2D95BDD0A0A6889395A /* FluidShader.swift */; };
 		84231D42BA22F3633F7FAF73 /* WatchLyricsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62072A5FC2C2D17D85550480 /* WatchLyricsView.swift */; };
 		845064408A0914C55E91722E /* MelogoldData in Frameworks */ = {isa = PBXBuildFile; productRef = 072FCA9CE57C410C91C3C70D /* MelogoldData */; };
 		879CF9E4081E4CD415815A6E /* TrackDetailsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A33EB33F8B1416FA4A19256C /* TrackDetailsSheet.swift */; };
@@ -224,6 +227,7 @@
 		09C67B6DB37BD9B39F0015A5 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		09E3FE63121B6413A0852E3E /* Design.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Design.swift; sourceTree = "<group>"; };
 		0D14923C98D9F69AD5CB8EF5 /* WrappedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WrappedView.swift; sourceTree = "<group>"; };
+		0DE9C2D95BDD0A0A6889395A /* FluidShader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FluidShader.swift; sourceTree = "<group>"; };
 		0E0F3CDE1537AB387F77F857 /* LyricsEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsEditorView.swift; sourceTree = "<group>"; };
 		0E3D46A2D0984F35D3968E45 /* MacWindowSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacWindowSupport.swift; sourceTree = "<group>"; };
 		0ED1959497A998519DFBAEC6 /* SectionStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionStyle.swift; sourceTree = "<group>"; };
@@ -316,6 +320,7 @@
 		BA1E666D2EB50A9A2A7486C4 /* MelogoldKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MelogoldKit; path = Packages/MelogoldKit; sourceTree = SOURCE_ROOT; };
 		BAD0FA4DA65561711F6D1EA4 /* SharedPlaylistView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedPlaylistView.swift; sourceTree = "<group>"; };
 		BBCE493DD034CF658A9F6866 /* GRDB.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = GRDB.txt; sourceTree = "<group>"; };
+		BC68CD46BA44FED6EA3A389A /* NowPlayingBackdrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingBackdrop.swift; sourceTree = "<group>"; };
 		BC8171812B4C4F41481F1303 /* SearchModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchModel.swift; sourceTree = "<group>"; };
 		BD6176B0421F4BED1367019F /* WatchLibraryViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchLibraryViews.swift; sourceTree = "<group>"; };
 		BDE62678E8C83CFCC9DFA91C /* AccountText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountText.swift; sourceTree = "<group>"; };
@@ -348,6 +353,7 @@
 		F1B51C8ABF1BCB381E829D6C /* LibraryScreens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryScreens.swift; sourceTree = "<group>"; };
 		F1D156A776E7F72E0757C991 /* AccountOverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountOverviewView.swift; sourceTree = "<group>"; };
 		F35CC0B73BA7B96B4B82E927 /* MelogoldUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MelogoldUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		F360181492A558BCDDBBDD40 /* FluidBackdrop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FluidBackdrop.swift; sourceTree = "<group>"; };
 		F5BC4994B458B516BAF06933 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		F7704BEE3DFEDE997F23D5CC /* PlayerMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerMenu.swift; sourceTree = "<group>"; };
 		F9BEAFDA118E8881D530FBA7 /* CoverPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverPalette.swift; sourceTree = "<group>"; };
@@ -688,7 +694,10 @@
 				A750B5CCAD30F15964318FF8 /* Accessibility.swift */,
 				F9BEAFDA118E8881D530FBA7 /* CoverPalette.swift */,
 				09E3FE63121B6413A0852E3E /* Design.swift */,
+				F360181492A558BCDDBBDD40 /* FluidBackdrop.swift */,
+				0DE9C2D95BDD0A0A6889395A /* FluidShader.swift */,
 				ED91884E2ED7FBC192538906 /* Lists.swift */,
+				BC68CD46BA44FED6EA3A389A /* NowPlayingBackdrop.swift */,
 			);
 			path = Design;
 			sourceTree = "<group>";
@@ -1022,6 +1031,8 @@
 				EB58C678885BD00468F8B042 /* ExploreStore.swift in Sources */,
 				4B799A1160487B46F707750B /* FileExport.swift in Sources */,
 				F87D91F1BC181B9ABC759C36 /* FilterField.swift in Sources */,
+				17BC66D207068BDC9C8F846A /* FluidBackdrop.swift in Sources */,
+				82F40440A6CE542AD844B34C /* FluidShader.swift in Sources */,
 				EB45DEA00E3D3D42F21D9B41 /* ForYouStore.swift in Sources */,
 				FD8FF1AA223179C6ECF614D6 /* GeoText.swift in Sources */,
 				97AA66665A5D8A308D2D6AA3 /* HistoryView.swift in Sources */,
@@ -1045,6 +1056,7 @@
 				066325A2E0A9B9E988EEF947 /* MiniPlayer.swift in Sources */,
 				801A448C45EBC0CB3F7627B4 /* MySharesView.swift in Sources */,
 				D2E17263C8874BAF4ED062B0 /* NewView.swift in Sources */,
+				496E0C295516FD2B9F1822D2 /* NowPlayingBackdrop.swift in Sources */,
 				27BC3F726C517FCA48A23D30 /* NowPlayingControls.swift in Sources */,
 				67B5305E5D263A1E61CE33D2 /* NowPlayingView.swift in Sources */,
 				EDA2C90A6FEACCBF587FF096 /* PlaybackFacade.swift in Sources */,
