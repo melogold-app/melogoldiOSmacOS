@@ -341,6 +341,8 @@ struct PlaybackRemoteTests {
             calls.append(startMs > 0 ? "queue \(tracks.count) \(index) \(startMs)" : "queue \(tracks.count) \(index)")
         }
         func remoteStop() { calls.append("stop") }
+        var handoff: HandoffQueue?
+        var remoteHandoffQueue: HandoffQueue? { handoff }
     }
 
     static func command(_ id: String, _ action: String, extra: String = "") -> PlaybackCommand {
@@ -363,5 +365,64 @@ struct PlaybackRemoteTests {
         #expect(player.calls == ["pause", "seek 61000", "volume 100", "queue 2 1", "next"])
         clock.advance(31)
         #expect(executor.execute(Self.command("7", "toggle")) == "Pixel 7 Pro")
+    }
+
+    // MARK: - Перенос на другое устройство (задание 0027)
+
+    /// Отправитель: здесь играет, выбрано другое устройство — ему уходит `play_queue` с очередью и секундой, на которой
+    /// здесь играло; здесь пауза; пульт показывает цель. Перемотки вдогонку нет: цель начинает с этой секунды сама.
+    @Test func choosingADeviceWhilePlayingHandsTheQueueOverAtTheSameSecond() async {
+        let port = FakeRemotePort()
+        let remote = RemoteControl(port: port)
+        let player = FakePlayer()
+        player.handoff = HandoffQueue(tracks: (0 ..< 5).map(Self.track), index: 3, positionMs: 83_000)
+        await remote.select(Self.device(), handingOffFrom: player)
+        #expect(remote.isActive && remote.target?.deviceId == "mac")
+        #expect(player.calls == ["pause"], "здесь — пауза")
+        #expect(port.commands.map(\.action) == [.playQueue], "одна команда, без перемотки после старта")
+        #expect(port.commands.first?.positionMs == 83_000)
+        #expect(port.commands.first?.index == 3 && port.commands.first?.queue?.count == 5)
+    }
+
+    /// Здесь тишина или пауза — как раньше: просто управлять выбранным устройством, ничего ему не отправляя.
+    @Test func choosingADeviceWhileSilentOnlyConnects() async {
+        let port = FakeRemotePort()
+        let remote = RemoteControl(port: port)
+        let player = FakePlayer()
+        await remote.select(Self.device(), handingOffFrom: player)
+        #expect(remote.isActive && port.commands.isEmpty && player.calls.isEmpty)
+    }
+
+    /// Пульт уже управлял другим устройством: свой плеер стоит, переносить нечего — новое устройство только выбирается.
+    @Test func switchingBetweenOtherDevicesHandsNothingOver() async {
+        let port = FakeRemotePort()
+        let remote = RemoteControl(port: port)
+        remote.connect(RemoteDevice(deviceId: "pixel", name: "Pixel", platform: "android", online: true, controllable: true, playing: nil, volume: nil))
+        let player = FakePlayer()
+        player.handoff = HandoffQueue(tracks: (0 ..< 2).map(Self.track), index: 0, positionMs: 5_000)
+        await remote.select(Self.device(), handingOffFrom: player)
+        #expect(remote.target?.deviceId == "mac")
+        #expect(port.commands.isEmpty && player.calls.isEmpty)
+    }
+
+    /// С начала трека позиция не пишется (`positionMs` без поля — «с начала» и у старых клиентов).
+    @Test func handOverAtTheVeryStartSendsNoPosition() async {
+        let port = FakeRemotePort()
+        let remote = RemoteControl(port: port)
+        let player = FakePlayer()
+        player.handoff = HandoffQueue(tracks: (0 ..< 2).map(Self.track), index: 1, positionMs: 0)
+        await remote.select(Self.device(), handingOffFrom: player)
+        #expect(port.commands.count == 1 && port.commands.first?.positionMs == nil)
+    }
+
+    /// Получатель: `play_queue` с `positionMs` — очередь с трека `index`, его — с этой секунды.
+    @Test func receiverStartsTheQueueAtTheSentSecond() {
+        let player = FakePlayer()
+        let executor = RemoteCommandExecutor()
+        executor.player = player
+        let queue = #","queue":[{"videoId":"dQw4w9WgXcQ","title":"T"},{"videoId":"a1B2c3D4e5F","title":"U"}],"index":1"#
+        executor.execute(Self.command("1", "play_queue", extra: queue + #","positionMs":83000"#))
+        executor.execute(Self.command("2", "play_queue", extra: queue + #","positionMs":-5"#))
+        #expect(player.calls == ["queue 2 1 83000", "queue 2 1"])
     }
 }

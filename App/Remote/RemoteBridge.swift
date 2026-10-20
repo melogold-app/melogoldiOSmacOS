@@ -178,4 +178,10 @@ extension PlayerEngine: @retroactive RemotePlayable {
         play(tracks: tracks.map(\.track), startAt: index, from: Double(startMs) / 1000)
     }
     public func remoteStop() { stop() }
+
+    /// Очередь для переноса на другое устройство (задание 0027): только пока играет, позиция — по часам звука.
+    public var remoteHandoffQueue: HandoffQueue? {
+        guard isPlaying, let index, items.indices.contains(index) else { return nil }
+        return HandoffQueue(tracks: items.map { TrackInput($0.track.raw) }, index: index, positionMs: Int64(max(0, livePosition()) * 1000))
+    }
 }

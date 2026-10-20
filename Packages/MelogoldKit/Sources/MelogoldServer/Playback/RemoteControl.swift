@@ -85,6 +85,20 @@ public final class RemoteControl {
         }
     }
 
+    /// Выбор в листе «Устройство» (задание 0027): плеер становится пультом этого устройства. Если здесь играет (не пауза),
+    /// очередь переезжает туда с той же секунды, как AirPlay, а здесь — пауза: играть должно одно устройство. Здесь тишина
+    /// или пульт уже управлял другим устройством — просто управлять выбранным.
+    ///
+    /// Позиция уходит вместе с очередью (`play_queue` с `positionMs`, сервер с заданием 0005), и цель сразу начинает трек с
+    /// неё — перемотка вдогонку, когда цель сообщит о старте, не нужна (у Linux и Windows её нет).
+    public func select(_ device: RemoteDevice, handingOffFrom player: (any RemotePlayable)?) async {
+        let handoff = isActive ? nil : player?.remoteHandoffQueue
+        connect(device)
+        guard let handoff, let player else { return }
+        player.remotePause()
+        await playQueue(handoff.tracks, index: handoff.index, positionMs: handoff.positionMs)
+    }
+
     /// Выбрать устройство: плеер становится пультом.
     public func connect(_ device: RemoteDevice) {
         cancelVolume()
@@ -206,6 +220,19 @@ public final class RemoteControl {
     }
 }
 
+/// Очередь, играющая на этом устройстве, — для переноса на другое (задание 0027): треки, индекс играющего и его позиция.
+public struct HandoffQueue: Sendable, Equatable {
+    public var tracks: [TrackInput]
+    public var index: Int
+    public var positionMs: Int64
+
+    public init(tracks: [TrackInput], index: Int, positionMs: Int64) {
+        self.tracks = tracks
+        self.index = index
+        self.positionMs = positionMs
+    }
+}
+
 /// То, чем пульт управляет на этом устройстве: плеер приложения (`PlayerEngine` в приложении).
 @MainActor
 public protocol RemotePlayable: AnyObject {
@@ -220,6 +247,8 @@ public protocol RemotePlayable: AnyObject {
     /// Очередь с трека `index`, его — с `startMs` (перенос с другого устройства; 0 — с начала).
     func remotePlayQueue(_ tracks: [TrackDto], index: Int, startMs: Int64)
     func remoteStop()
+    /// Что играет здесь, если играет (не пауза и не тишина): выбор другого устройства переносит это туда.
+    var remoteHandoffQueue: HandoffQueue? { get }
 }
 
 /// Выполняет SSE `playback.command` своим плеером (задание 0020 §2 «Выполнять команды»). Итог уходит обычным

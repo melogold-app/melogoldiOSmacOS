@@ -111,8 +111,8 @@ extension AppModel {
 
 extension AppModel {
     /// Выбор в «Устройстве» — где играть; управление остаётся в плеере окна. Играющая здесь очередь переезжает на
-    /// выбранное устройство с того же места, здесь — пауза (играть должно одно устройство). «Это устройство» (`nil`)
-    /// забирает то, что играет на прежнем, с его места («Слушать здесь»); если там тишина — просто отключает пульт.
+    /// выбранное устройство с того же места, здесь — пауза (`RemoteControl.select`). «Это устройство» (`nil`) забирает то,
+    /// что играет на прежнем, с его места («Слушать здесь»); если там тишина — просто отключает пульт.
     func selectPlaybackDevice(_ device: RemoteDevice?) {
         guard let bridge = remoteBridge else { return }
         let remote = bridge.remote
@@ -127,31 +127,6 @@ extension AppModel {
         }
         guard remote.target?.deviceId != device.deviceId else { return }
         let player = services.player
-        let handOver = !remote.isActive && player.isPlaying
-        remote.connect(device)
-        guard handOver, let index = player.index, player.items.indices.contains(index),
-              let track = player.currentTrack, PlaybackReporter.isYouTube(track.videoId) else { return }
-        let queue = player.items.map { TrackInput($0.track.raw) }
-        let positionMs = Int64(max(0, player.livePosition()) * 1000)
-        player.pause()
-        Task {
-            await remote.playQueue(queue, index: index, positionMs: positionMs)
-            await Self.seekWhenStarted(remote, videoId: track.videoId, positionMs: positionMs)
-        }
-    }
-
-    /// Запасной путь: позицию с очередью передаёт сервер с заданием 0005, а цель старой версии её не знает и начинает
-    /// трек с начала (перемотку до загрузки трека она пропускает). Ждём (до 15 с), пока цель сообщит, что этот трек
-    /// играет, и, если он далеко от места, перематываем.
-    private static func seekWhenStarted(_ remote: RemoteControl, videoId: String, positionMs: Int64) async {
-        guard positionMs > 3000 else { return }
-        for _ in 0 ..< 60 {
-            try? await Task.sleep(for: .milliseconds(250))
-            guard remote.isActive else { return }
-            if let state = remote.state, state.track?.videoId == videoId, state.playing {
-                if abs((remote.livePositionMs() ?? 0) - positionMs) > 2000 { await remote.seek(toMs: positionMs) }
-                return
-            }
-        }
+        Task { await remote.select(device, handingOffFrom: player) }
     }
 }

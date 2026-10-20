@@ -296,5 +296,17 @@ struct StreamCutTests {
             #expect(engine.notice?.skippedTitle == "aaaaaaaaaaa" && engine.notice?.reason == .extractor)
             engine.stop()
         }
+
+        /// Задание 0027, получатель: очередь с другого устройства начинается сразу с той секунды — первый запрос после
+        /// начала файла уже за фрагментом с этой секундой, а не старт с 0:00 и перемотка вдогонку.
+        @Test func aHandedOffQueueStartsAtItsSecond() async throws {
+            let engine = try await engine()
+            engine.play(tracks: [track("aaaaaaaaaaa"), track("bbbbbbbbbbb")], startAt: 0, from: 52)
+            #expect(engine.position == 52)
+            try await until("чтение после начала файла") { FakeGoogleVideo.ranges.contains { $0.range.lowerBound > 0 } }
+            let first = FakeGoogleVideo.ranges.first { $0.videoId == "aaaaaaaaaaa" && $0.range.lowerBound > 0 }
+            #expect(first?.range.lowerBound == (try Self.fragmentOffset(at: 52)))
+            engine.stop()
+        }
     }
 }
