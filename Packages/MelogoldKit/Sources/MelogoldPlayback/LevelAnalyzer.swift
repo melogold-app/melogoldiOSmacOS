@@ -24,7 +24,14 @@ final class LevelAnalyzer {
     private var midState: Float = 0
     private let lowAlpha: Float
     private let midAlpha: Float
-    private let spectrum = SpectrumAnalyzer()
+    /// Спектр живого фона; на часах фона нет — там спектр не считается, батарея дороже.
+    private let spectrum: SpectrumAnalyzer? = {
+        #if os(watchOS)
+        nil
+        #else
+        SpectrumAnalyzer()
+        #endif
+    }()
     private var mono: [Float] = []
 
     init?(format: CMAudioFormatDescription) {
@@ -45,7 +52,7 @@ final class LevelAnalyzer {
     /// Перемотка: прежнее состояние декодера и фильтров не относится к новому месту.
     func reset() {
         converter.reset()
-        spectrum.reset()
+        spectrum?.reset()
         lowState = 0
         midState = 0
     }
@@ -65,8 +72,10 @@ final class LevelAnalyzer {
                 mono[i] = sum / Float(channelCount)
             }
             let start = CMSampleBufferGetPresentationTimeStamp(buffer).seconds
-            measurements += mono.withUnsafeBufferPointer { samples in
-                spectrum.feed(UnsafeBufferPointer(rebasing: samples[0..<count]), start: start, rate: input.sampleRate)
+            if let spectrum {
+                measurements += mono.withUnsafeBufferPointer { samples in
+                    spectrum.feed(UnsafeBufferPointer(rebasing: samples[0..<count]), start: start, rate: input.sampleRate)
+                }
             }
             let frameSize = max(1, Int(input.sampleRate / Self.framesPerSecond))
             var index = 0
