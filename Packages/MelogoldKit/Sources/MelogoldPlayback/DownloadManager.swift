@@ -320,7 +320,8 @@ public final class DownloadManager {
     /// Кусок не пришёл (истёк адрес, сеть): трек — снова в очередь, при следующем открытии возьмётся свежий адрес.
     func backgroundFailed(videoId: String, status: Int?) {
         if let status, [401, 403, 410].contains(status) {
-            Task { await resolver.invalidate(videoId) }
+            // Свежий адрес — в новом сеансе YouTube (`StreamResolver.renewVisitor`).
+            Task { await resolver.renewVisitor() }
         }
         store.setState(videoId, .queued)
         changed()
