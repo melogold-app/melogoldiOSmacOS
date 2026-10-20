@@ -62,20 +62,41 @@ struct ArtworkView: View {
 
 /// Загрузка и разбор обложек вне главного потока; готовые картинки — в памяти. До того как картинка попадёт в память,
 /// у кадра видео (`i.ytimg.com/vi/`) срезаются поля любого ровного цвета, у любой картинки — обводка одного цвета со
-/// всех четырёх сторон (задание 0008, `FrameBars`).
+/// всех четырёх сторон (задание 0008, `FrameBars`). Помнит, какие размеры одной обложки грузились (`Thumbnails.family`):
+/// большая обложка «Сейчас играет» показывает маленькую из мини-плеера, пока грузится сама (задание 0033 §6).
 actor ArtworkLoader {
     static let shared = ArtworkLoader()
     private let memory = NSCache<NSString, CGImageBox>()
     private var running: [String: Task<CGImage?, Never>] = [:]
+    /// Обложка (`Thumbnails.family`) → адреса её размеров, которые грузились.
+    private var sizes: [String: Set<String>] = [:]
 
     init() {
         memory.countLimit = 120
+    }
+
+    /// Картинка по адресу, если она уже в памяти, — без загрузки.
+    func cached(_ url: String?) -> CGImage? {
+        url.flatMap { memory.object(forKey: $0 as NSString)?.image }
+    }
+
+    /// Та же обложка другого размера, пока эта грузится: самая крупная из памяти; нет такой и `wait` — та, что уже в пути
+    /// (мини-плеер начал её раньше, и маленькая приходит быстрее). Ничего нет — `nil`: сама загрузка здесь не начинается.
+    func otherSize(of url: String?, wait: Bool) async -> CGImage? {
+        guard let url else { return nil }
+        let others = (sizes[Thumbnails.family(url)] ?? []).subtracting([url])
+        if let ready = others.compactMap({ memory.object(forKey: $0 as NSString)?.image }).max(by: { $0.width < $1.width }) {
+            return ready
+        }
+        guard wait, let task = others.lazy.compactMap({ self.running[$0] }).first else { return nil }
+        return await task.value
     }
 
     func image(_ url: String?) async -> CGImage? {
         guard let url, let address = URL(string: url) else { return nil }
         if let hit = memory.object(forKey: url as NSString) { return hit.image }
         if let task = running[url] { return await task.value }
+        remember(url)
         let isFrame = Thumbnails.isWide(url)
         let task = Task<CGImage?, Never> {
             guard let data = await ArtworkSession.imageData(from: address),
@@ -89,6 +110,14 @@ actor ArtworkLoader {
         running[url] = nil
         if let result { memory.setObject(CGImageBox(result), forKey: url as NSString) }
         return result
+    }
+
+    private func remember(_ url: String) {
+        // В памяти не больше 120 картинок: время от времени забываются обложки, которых нет ни в памяти, ни в пути
+        if sizes.count >= 600 {
+            sizes = sizes.filter { $0.value.contains { memory.object(forKey: $0 as NSString) != nil || running[$0] != nil } }
+        }
+        sizes[Thumbnails.family(url), default: []].insert(url)
     }
 }
 

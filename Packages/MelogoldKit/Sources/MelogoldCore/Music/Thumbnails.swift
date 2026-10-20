@@ -41,6 +41,22 @@ public enum Thumbnails {
         }
     }
 
+    /// Одна и та же обложка любого размера — один ключ: у googleusercontent — адрес без размера после «=», у превью видео —
+    /// id видео (`mqdefault`, `hqdefault`, `hq720` — один и тот же кадр). По нему большая обложка «Сейчас играет» находит
+    /// маленькую копию, которую уже загрузил мини-плеер, и показывает её, пока грузится сама (задание 0033 §6).
+    public static func family(_ url: String) -> String {
+        var url = url
+        if url.hasPrefix("//") { url = "https:" + url }
+        if let videoId = ytimgVideoId(url) { return "ytimg:" + videoId }
+        if url.contains("googleusercontent.com") || url.contains("ggpht.com") {
+            let schemeEnd = url.range(of: "://").map { url.distance(from: url.startIndex, to: $0.upperBound) } ?? 0
+            if let eq = url.lastIndex(of: "="), url.distance(from: url.startIndex, to: eq) > schemeEnd {
+                return String(url[..<eq])
+            }
+        }
+        return url
+    }
+
     /// Превью видео 16:9: при показе квадратом его нужно обрезать по центру.
     public static func isWide(_ url: String?) -> Bool {
         guard let url else { return false }

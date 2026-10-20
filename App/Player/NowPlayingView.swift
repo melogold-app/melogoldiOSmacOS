@@ -492,8 +492,9 @@ private extension View {
 
 /// Обложка «Сейчас играет», которая перелетает между местами: картинка тянется по рамке, которую ей дают (при
 /// переключении текста рамка анимируется — картинка плавно растёт или уменьшается, скругление тоже). Грузится один раз
-/// крупной — в шапке та же картинка, без подмены. Кадр видео 16:9 в большом месте — целиком по ширине (задание 0008), в
-/// шапке — квадратом. В паузе большая обложка отступает, как у Apple Music: чуть меньше и с короткой тенью.
+/// крупной — в шапке та же картинка, без подмены; пока крупная грузится, на её месте та же обложка меньшего размера из
+/// памяти (задание 0033 §6). Кадр видео 16:9 в большом месте — целиком по ширине (задание 0008), в шапке — квадратом. В
+/// паузе большая обложка отступает, как у Apple Music: чуть меньше и с короткой тенью.
 private struct HeroArtwork: View {
     let url: String?
     let big: Bool
@@ -548,9 +549,31 @@ private struct HeroArtwork: View {
     private func load() async {
         // Одна крупная картинка на оба места: в шапке не грузится своя, поэтому при перелёте ничего не мигает
         let sized = Thumbnails.sized(url, px: Int((600 * displayScale).rounded(.up)))
-        let loaded = await ArtworkLoader.shared.image(sized)
-        image = loaded
-        wide = loaded.map { Double($0.width) > Double($0.height) * 1.2 } ?? false
+        let loader = ArtworkLoader.shared
+        if let ready = await loader.cached(sized) {
+            show(ready)
+            return
+        }
+        // Пока крупная грузится — та же обложка меньшего размера: она уже есть у мини-плеера (или он её как раз грузит),
+        // а не нота на пустом месте и не обложка прежнего трека. Крупная закрывает её, когда загрузится (задание 0033 §6,
+        // как у Linux f26b7e6 и Windows 69f4a58)
+        show(await loader.otherSize(of: sized, wait: false))
+        let waitsForSmall = image == nil
+        await withTaskGroup(of: (big: Bool, picture: CGImage?).self) { group in
+            group.addTask { (true, await loader.image(sized)) }
+            if waitsForSmall { group.addTask { (false, await loader.otherSize(of: sized, wait: true)) } }
+            for await result in group {
+                guard !Task.isCancelled else { break }
+                if let picture = result.picture { show(picture) }
+                // Крупная пришла — маленькая, если ещё в пути, уже не нужна; не пришла — остаётся маленькая
+                if result.big, result.picture != nil { break }
+            }
+        }
+    }
+
+    private func show(_ picture: CGImage?) {
+        image = picture
+        wide = picture.map { Double($0.width) > Double($0.height) * 1.2 } ?? false
     }
 }
 
