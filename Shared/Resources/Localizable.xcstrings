@@ -11273,6 +11273,40 @@
         }
       }
     },
+    "settings.liveBackground" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live background"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Живой фон"
+          }
+        }
+      }
+    },
+    "settings.liveBackground.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The blurred artwork behind Now Playing flows and pulses with the music while a track plays. Off, it stands still"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Размытая обложка за «Сейчас играет» течёт и пульсирует под музыку, пока играет трек. Выключен — фон неподвижен"
+          }
+        }
+      }
+    },
     "settings.normalize" : {
       "extractionState" : "manual",
       "localizations" : {

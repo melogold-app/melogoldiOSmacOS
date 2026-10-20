@@ -52,6 +52,12 @@ public final class AppSettings {
         didSet { store(remoteControl, SettingsKey.remoteControl, isDefault: remoteControl) }
     }
 
+    /// «Живой фон» (задания 0030 и 0031): фон «Сейчас играет» движется под музыку, пока трек играет; выключен — тот же
+    /// фон неподвижен. Включён по умолчанию.
+    public var liveBackground: Bool {
+        didSet { store(liveBackground, SettingsKey.liveBackground, isDefault: liveBackground) }
+    }
+
     /// «Не сохранять историю».
     public var historyPaused: Bool {
         didSet { store(historyPaused, SettingsKey.historyPaused, isDefault: !historyPaused) }
@@ -87,6 +93,7 @@ public final class AppSettings {
         normalization = defaults.object(forKey: SettingsKey.playbackNormalization) as? Bool ?? true
         autoplay = defaults.object(forKey: SettingsKey.playbackAutoplay) as? Bool ?? true
         remoteControl = defaults.object(forKey: SettingsKey.remoteControl) as? Bool ?? true
+        liveBackground = defaults.object(forKey: SettingsKey.liveBackground) as? Bool ?? true
         speed = min(max(defaults.object(forKey: SettingsKey.playbackSpeed) as? Double ?? 1.0, 0.5), 2.0)
         lyricsKeepScreenOn = defaults.bool(forKey: SettingsKey.lyricsKeepScreenOn)
         lyricsView = LyricsView(rawValue: defaults.string(forKey: SettingsKey.lyricsView) ?? "") ?? .synced

@@ -11,7 +11,8 @@ public struct CoverRGB: Hashable, Sendable {
     }
 }
 
-/// Доминирующий цвет обложки для фона «Сейчас играет» (docs/PROMPT.md §5.1: «мягкий статичный оттенок цвета обложки»).
+/// Доминирующий цвет обложки: оттенок страницы альбома и плейлиста на iPhone (`PageTint`) и фон плеера на часах. Фон
+/// «Сейчас играет» строится иначе — размытой обложкой и цветами по долям (`ArtworkColors`, задания 0030 и 0031).
 ///
 /// Не среднее по картинке: среднее из красного и синего даёт грязно-лиловый, а чёрная рамка обложки тянет всё в серое.
 /// Пиксели делятся по оттенку на 12 секторов; побеждает сектор с наибольшей площадью (насыщенные весят больше), в него
@@ -69,57 +70,6 @@ public enum CoverColor {
         }
         guard w > 0 else { return nil }
         return soften(CoverRGB(red: r / w, green: g / w, blue: b / w))
-    }
-
-    /// Палитра для живого фона «Сейчас играет» (пользователь, 2026-10-02: «живой градиент из цветов обложки, двигается под
-    /// звук»): первым — доминирующий цвет (`dominant`), за ним до трёх заметных цветов других оттенков, отстоящих от уже
-    /// взятых хотя бы на два сектора (60°), — по убыванию площади. Если других цветов на обложке нет, палитру дополняют
-    /// светлый и тёмный вариант доминирующего, чтобы пятнам фона было чем отличаться. У чёрно-белой обложки — пусто.
-    public static func palette(rgba: [UInt8], maxColors: Int = 4) -> [CoverRGB] {
-        guard let main = dominant(rgba: rgba) else { return [] }
-        let count = rgba.count / 4
-        var weight = [Double](repeating: 0, count: sectors)
-        var sum = [(r: Double, g: Double, b: Double, w: Double)](repeating: (0, 0, 0, 0), count: sectors)
-        for index in 0..<count {
-            let offset = index * 4
-            guard rgba[offset + 3] >= 128 else { continue }
-            let r = Double(rgba[offset]) / 255, g = Double(rgba[offset + 1]) / 255, b = Double(rgba[offset + 2]) / 255
-            let (hue, saturation, value) = hsv(r, g, b)
-            guard saturation >= minSaturation, value >= minValue else { continue }
-            let w = 0.3 + saturation
-            let sector = min(sectors - 1, Int(hue / 360 * Double(sectors)))
-            weight[sector] += w
-            sum[sector] = (sum[sector].r + r * w, sum[sector].g + g * w, sum[sector].b + b * w, sum[sector].w + w)
-        }
-        let total = weight.reduce(0, +)
-        var colors = [main]
-        var taken = [sector(of: main)]
-        // Сектора по убыванию площади; цвет берётся, если его не меньше 4 % цветных пикселей и он далёк от уже взятых
-        for candidate in weight.indices.sorted(by: { weight[$0] > weight[$1] }) where colors.count < maxColors {
-            guard total > 0, weight[candidate] / total >= 0.04, sum[candidate].w > 0 else { continue }
-            let far = taken.allSatisfy { other in
-                let distance = abs(candidate - other)
-                return min(distance, sectors - distance) >= 2
-            }
-            guard far else { continue }
-            let cell = sum[candidate]
-            colors.append(soften(CoverRGB(red: cell.r / cell.w, green: cell.g / cell.w, blue: cell.b / cell.w)))
-            taken.append(candidate)
-        }
-        // Одноцветная обложка: светлее и темнее того же цвета
-        if colors.count < 3 {
-            let (hue, saturation, value) = hsv(main.red, main.green, main.blue)
-            colors.append(rgb(hue: hue, saturation: min(0.8, saturation * 1.15), value: max(0.35, value * 0.7)))
-            if colors.count < maxColors {
-                colors.append(rgb(hue: (hue + 18).truncatingRemainder(dividingBy: 360), saturation: saturation * 0.8, value: min(0.95, value * 1.1)))
-            }
-        }
-        return Array(colors.prefix(maxColors))
-    }
-
-    private static func sector(of color: CoverRGB) -> Int {
-        let hue = hsv(color.red, color.green, color.blue).hue
-        return min(sectors - 1, Int(hue / 360 * Double(sectors)))
     }
 
     /// Насыщенность не выше 0,75 и не ниже 0,25, яркость — 0,45…0,92: под фон и с тёмным, и со светлым текстом.

@@ -19,6 +19,9 @@ public enum SettingsKey {
     public static let serverURL = "server.url"
     /// «Управление с других устройств» (задание 0020): поток событий с `remote=1`.
     public static let remoteControl = "playback.remoteControl"
+    /// «Живой фон» «Сейчас играет» (задания 0030 и 0031): ключ как у Linux. Не синхронизируется — у телефона и ноутбука
+    /// разная батарея.
+    public static let liveBackground = "appearance.liveBackground"
 
     /// Сортировка списка: `sort.favorites`, `sort.downloads`, `sort.playlistItems` и т. д.
     /// Значение — «Поле:asc» или «Поле:desc», как на Android (`SortPreferences.kt`).

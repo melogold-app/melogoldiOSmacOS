@@ -45,6 +45,13 @@ struct SettingsView: View {
                     }
                 }
                 languageRow
+                #if os(iOS) || os(macOS)
+                // «Живой фон» «Сейчас играет» (задания 0030 и 0031): выключен — фон неподвижен; не синхронизируется
+                Toggle(isOn: $settings.liveBackground) {
+                    Text("settings.liveBackground")
+                    Text("settings.liveBackground.description")
+                }
+                #endif
             }
 
             PlaybackSettingsSection()
