@@ -178,8 +178,28 @@ final class FluidRenderer: NSObject, MTKViewDelegate {
         let url: String
         let texture: any MTLTexture
         let luma: Float
-        let shares: [ColorShare]
         let base: UInt32
+        /// Палитра и доли — уже в виде униформ: кадров до 120 в секунду, пересчитывать их каждый раз незачем.
+        let palette: (SIMD4<Float>, SIMD4<Float>, SIMD4<Float>, SIMD4<Float>, SIMD4<Float>, SIMD4<Float>)
+        let shares: (Float, Float, Float, Float, Float, Float)
+        let count: Int32
+
+        init(url: String, texture: any MTLTexture, cover: BackdropCover) {
+            self.url = url
+            self.texture = texture
+            luma = Float(cover.luma)
+            base = cover.base
+            var colors = [SIMD4<Float>](repeating: .zero, count: 6)
+            var weights = [Float](repeating: 0, count: 6)
+            for (index, color) in cover.shares.prefix(6).enumerated() {
+                colors[index] = SIMD4(Float((color.rgb >> 16) & 0xFF) / 255, Float((color.rgb >> 8) & 0xFF) / 255,
+                                      Float(color.rgb & 0xFF) / 255, 1)
+                weights[index] = Float(color.share)
+            }
+            palette = (colors[0], colors[1], colors[2], colors[3], colors[4], colors[5])
+            shares = (weights[0], weights[1], weights[2], weights[3], weights[4], weights[5])
+            count = Int32(min(cover.shares.count, 6))
+        }
     }
 
     var spectrum: @MainActor () -> SpectrumFrame? = { nil }
@@ -219,6 +239,8 @@ final class FluidRenderer: NSObject, MTKViewDelegate {
         let fading = previous != nil
         let running = view.windowVisible && (fading || current != nil && live && (playing || !motion.calm))
         guard view.isPaused == running else { return }
+        Log.debug("backdrop", "Живой фон: кадры \(running ? "идут" : "стоят") (окно видно: \(view.windowVisible), живой: \(live), "
+                  + "играет: \(playing), смена обложки: \(fading))")
         if !running {
             lastFrame = nil
             frames = (0, 0)
@@ -279,23 +301,13 @@ final class FluidRenderer: NSObject, MTKViewDelegate {
 
     /// Униформы варианта 1 (задание 0031, §4): силы из движения, постоянные — из задания.
     private func uniforms(_ layer: Layer, size: SIMD2<Float>, alpha: Float) -> FluidUniforms {
-        var palette = [SIMD4<Float>](repeating: .zero, count: 6)
-        var shares = [Float](repeating: 0, count: 6)
-        for (index, color) in layer.shares.prefix(6).enumerated() {
-            palette[index] = SIMD4(Float((color.rgb >> 16) & 0xFF) / 255, Float((color.rgb >> 8) & 0xFF) / 255,
-                                   Float(color.rgb & 0xFF) / 255, 1)
-            shares[index] = Float(color.share)
-        }
         let blob = motion.blob
         return FluidUniforms(
-            pal: (palette[0], palette[1], palette[2], palette[3], palette[4], palette[5]),
-            blob: (blob, blob, blob, blob, blob, blob),
-            share: (shares[0], shares[1], shares[2], shares[3], shares[4], shares[5]),
-            res: size,
+            pal: layer.palette, blob: (blob, blob, blob, blob, blob, blob), share: layer.shares, res: size,
             liquid: motion.liquid, liquidFlow: motion.liquidFlow, lavaFlow: motion.lavaFlow, pulse: motion.pulse,
             lavaMix: 0.55, loud: analysis.loud, luma: layer.luma,
             liquidBase: 0.16, blobScale: 1.0, zoom: 0.02, lodBase: 5.3, lodPulse: 3.0, bright: 1.0, sat: 1.6,
-            alpha: alpha, palCount: Int32(min(layer.shares.count, 6)))
+            alpha: alpha, palCount: layer.count)
     }
 
     /// Текстура 256 × 256 RGBA с полной цепочкой мипов (стандартное усреднение 2 × 2 — `generateMipmaps`, аналог
@@ -314,8 +326,7 @@ final class FluidRenderer: NSObject, MTKViewDelegate {
         blit.generateMipmaps(for: texture)
         blit.endEncoding()
         buffer.commit()
-        return Layer(url: cover.url, texture: texture, luma: Float(cover.backdrop.luma), shares: cover.backdrop.shares,
-                     base: cover.backdrop.base)
+        return Layer(url: cover.url, texture: texture, cover: cover.backdrop)
     }
 
     private static func clearColor(_ rgb: UInt32) -> MTLClearColor {
