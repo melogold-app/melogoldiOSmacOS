@@ -23,6 +23,14 @@ struct LiveYouTubeTests {
         #expect(!suggestions.isEmpty)
     }
 
+    /// Задание 0032: у переиздания «CALL ME IF YOU GET LOST: The Estate Sale» плейлист альбома пуст, а все 16 клипов
+    /// находят свои песни поиском «Песни».
+    @Test func estateSaleClipsBecomeSongs() async throws {
+        let twins = try await catalog.albumTwins("MPREb_VpXYEs5HeNs")
+        #expect(twins.count == 16, "\(twins.map(\.clipId))")
+        #expect(twins.first { $0.clipId == "a5JCltuobqQ" }?.song.videoId == "QjckqsLmb1o", "LEMONHEAD — песня на 2:11")
+    }
+
     @Test func streamThroughVisionOSClient() async throws {
         try await catalog.client.ensureVisitorData()
         let visitor = await catalog.client.visitorData

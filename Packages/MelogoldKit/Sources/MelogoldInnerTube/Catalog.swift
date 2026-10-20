@@ -38,8 +38,10 @@ extension YouTubeMusic {
 
     // MARK: - Альбом
 
+    /// Альбом — с песнями, а не с клипами (`AlbumClips.swift`, задания 0029 и 0032). Не нашлось песни — строка остаётся
+    /// клипом, альбом открывается всё равно.
     public func album(_ browseId: String) async throws -> AlbumDetails {
-        try Self.parseAlbum(try await client.postJSON(.webRemix, "browse", body: ["browseId": browseId]), browseId: browseId)
+        try await albumWithRows(browseId).details
     }
 
     static func parseAlbum(_ response: JSON, browseId: String) throws -> AlbumDetails {
