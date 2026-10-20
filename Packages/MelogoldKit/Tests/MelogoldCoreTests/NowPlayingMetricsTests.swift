@@ -64,6 +64,20 @@ struct NowPlayingMetricsTests {
         #expect(low.cover <= 150)
     }
 
+    /// Рядом с колонкой очереди (Mac, окно 1000 × 700: на блок остаётся 624) текст получил бы 136 — слова ломались бы
+    /// посередине, а в окне 800 — ноль. Где колонки встают рядом, текст не уже 240, поля не меньше 48.
+    @Test func narrowAreaIsNotWide() {
+        #expect(NowPlayingMetrics.fitsWideLayout(width: 728, columnMin: 320))
+        #expect(!NowPlayingMetrics.fitsWideLayout(width: 727, columnMin: 320))
+        #expect(!NowPlayingMetrics.fitsWideLayout(width: 624, columnMin: 320))
+        #expect(!NowPlayingMetrics.fitsWideLayout(width: 800, columnMin: 420), "кнопки шире — нужно и место шире")
+        for width in stride(from: 728.0, through: 2400, by: 8) {
+            let layout = NowPlayingMetrics.wideLayout(width: width, height: 700, below: 250, columnMin: 320, lineSize: 29)
+            #expect(layout.lyrics >= NowPlayingMetrics.minLyricsWidth, "\(width): текст \(layout.lyrics)")
+            #expect(layout.edge >= NowPlayingMetrics.wideEdge, "\(width): поле \(layout.edge)")
+        }
+    }
+
     /// iPhone боком: обложка маленькая, колонка — по кнопкам, текст забирает остаток; совсем низко — обложки нет.
     @Test func phoneInLandscape() {
         let layout = NowPlayingMetrics.wideLayout(width: 750, height: 350, below: 210, columnMin: 320, lineSize: 18)

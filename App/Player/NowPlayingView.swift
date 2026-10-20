@@ -98,8 +98,9 @@ struct NowPlayingView: View {
     /// влезает управление), под ней название с ♡ и «…», полоса, ряд транспорта, громкость и нижний ряд — ровным шагом;
     /// лишняя высота уходит в зазор под обложкой. С текстом: шапка — обложка 84 pt (крупнее, чем у Apple Music, по просьбе
     /// пользователя), название, ♡ и «…»; текст; под ним те же полоса, компактный транспорт и нижний ряд. Кнопки — одни и
-    /// те же виды в обоих видах: при переключении они только сдвигаются.
-    private func stackedPortrait(_ track: Track, size: CGSize, margin: CGFloat) -> some View {
+    /// те же виды в обоих видах: при переключении они только сдвигаются. `insets` — свои поля сверху и снизу; без них —
+    /// внутри широкой раскладки Mac рядом с колонкой очереди (`landscapeLayout`), у которой поля свои.
+    private func stackedPortrait(_ track: Track, size: CGSize, margin: CGFloat, insets: Bool = true) -> some View {
         let lyrics = model.lyricsVisible
         let wide = size.width >= 700
         #if os(iOS)
@@ -147,8 +148,8 @@ struct NowPlayingView: View {
             .frame(maxWidth: 560)
             .padding(.horizontal, margin)
         }
-        .padding(.top, Metrics.topInset + Design.Space.xs)
-        .padding(.bottom, Design.Space.xs)
+        .padding(.top, insets ? Metrics.topInset + Design.Space.xs : 0)
+        .padding(.bottom, insets ? Design.Space.xs : 0)
     }
 
     /// Крупный Dynamic Type без текста: всё в прокрутке, обложка не сжимается до точки.
@@ -171,17 +172,26 @@ struct NowPlayingView: View {
     /// - с текстом — колонка обложки (обложка, под ней сразу название, полоса и кнопки) и колонка текста одним блоком
     ///   посередине окна, на Mac — без колонки очереди (`OneBlockLayout`, задание 0033 §4: Максим отменил половины, как на
     ///   Windows и Linux); середина текущей строки стоит на уровне середины обложки (`lyricsCoverMid`), нет обложки — верх
-    ///   области.
+    ///   области. На Mac рядом с колонкой очереди блоку может не хватить ширины (`NowPlayingMetrics.fitsWideLayout`) — тогда
+    ///   текст над управлением, как в портрете.
     private func landscapeLayout(_ track: Track, size: CGSize, margin: CGFloat, short: Bool) -> some View {
         #if os(macOS)
         // Колонка очереди справа внутри «Сейчас играет»: половины делят остальное окно
         let queueWidth: CGFloat = model.queueVisible ? 320 + Design.Space.l : 0
+        // Рядом с очередью в окне 1000 pt текст получил бы 136 pt и ломал слова посередине, в окне 800 — пропадал вовсе:
+        // колонкам обложки и текста не хватает места — текст над управлением (у Linux и Windows узко — ниже 860 и 900)
+        let blockWidth = size.width - (model.queueVisible ? queueWidth + margin : 0)
+        let oneBlock = NowPlayingMetrics.fitsWideLayout(width: Double(blockWidth), columnMin: Double(OneBlockLayout.minColumn))
         #else
         let queueWidth: CGFloat = 0
+        let blockWidth = size.width
+        let oneBlock = true
         #endif
         let half = (size.width - queueWidth) / 2
         return HStack(spacing: 0) {
-            if model.lyricsVisible {
+            if model.lyricsVisible, !oneBlock {
+                stackedPortrait(track, size: CGSize(width: blockWidth, height: size.height), margin: margin, insets: false)
+            } else if model.lyricsVisible {
                 OneBlockLayout(lineSize: CGFloat(NowPlayingMetrics.lyricsSize(areaHeight: Double(size.height))),
                                coverAspect: wideArtwork ? 16 / 9 : 1, spacing: Design.Space.l, lyricsInset: LyricsStyle.sidePadding) {
                     coverSlot()
@@ -357,7 +367,7 @@ private struct OneBlockLayout: Layout {
     /// Поле, которое текст держит внутри своей области по бокам (`LyricsStyle.sidePadding`).
     var lyricsInset: CGFloat
     /// Колонка обложки не уже этого, как и раньше рядом с текстом (и не уже ряда кнопок).
-    let minColumn: CGFloat = 320
+    static let minColumn: CGFloat = 320
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) -> CGSize {
         proposal.replacingUnspecifiedDimensions()
@@ -370,7 +380,7 @@ private struct OneBlockLayout: Layout {
         func controlsHeight(_ width: CGFloat) -> CGFloat {
             min(controls.sizeThatFits(ProposedViewSize(width: width, height: nil)).height, bounds.height)
         }
-        let columnMin = max(minColumn, controls.sizeThatFits(ProposedViewSize(width: 0, height: nil)).width)
+        let columnMin = max(Self.minColumn, controls.sizeThatFits(ProposedViewSize(width: 0, height: nil)).width)
         func measure(at width: CGFloat) -> NowPlayingMetrics.WideLayout {
             NowPlayingMetrics.wideLayout(width: bounds.width, height: bounds.height, below: controlsHeight(width) + spacing,
                                          columnMin: columnMin, lineSize: lineSize)

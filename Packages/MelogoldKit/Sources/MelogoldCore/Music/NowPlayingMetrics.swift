@@ -29,6 +29,14 @@ public enum NowPlayingMetrics {
         28 * 0.55 * lineSize + 2 * 16 * lineSize / baseLyricsSize
     }
 
+    /// Встают ли колонка обложки (не уже `columnMin` — ряда кнопок) и текст рядом в области шириной `width`: поля 48,
+    /// промежуток 72 и текст не уже 240. Уже — `wideLayout` отдал бы тексту меньше (рядом с колонкой очереди на Mac — до
+    /// нуля, слова ломались посередине), поэтому там узкая раскладка: текст над управлением. Так же у Linux и Windows —
+    /// узкая раскладка ниже 860 и 900 ширины без очереди.
+    public static func fitsWideLayout(width: Double, columnMin: Double) -> Bool {
+        width >= 2 * wideEdge + wideGap + columnMin + minLyricsWidth
+    }
+
     /// Стороны широкой раскладки, точки.
     public struct WideLayout: Equatable, Sendable {
         /// Сторона обложки; 0 — обложки нет (не помещается).
