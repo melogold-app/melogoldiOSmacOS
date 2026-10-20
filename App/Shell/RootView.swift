@@ -83,7 +83,9 @@ struct RootView: View {
                 let url = model.playingTrack?.artworkURL
                 if let hit = NowPlayingCovers.cached(url) {
                     model.nowPlayingCover = hit
-                } else if let cover = await NowPlayingCovers.shared.cover(for: url) {
+                } else if let cover = await NowPlayingCovers.shared.cover(for: url), !Task.isCancelled {
+                    // Пока обложка готовилась, трек сменился (быстрое «далее»): у следующего обложка могла уже встать из
+                    // кеша — прежняя её не перекрывает
                     model.nowPlayingCover = cover
                 }
             }
