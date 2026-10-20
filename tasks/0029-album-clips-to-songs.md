@@ -1,6 +1,8 @@
 # Альбом: песни, а не клипы (на Маке)
 
-Статус: открыто
+Статус: сделано (2026-10-20, коммит `145f416`, не выпущено) — `MelogoldInnerTube/AlbumClips.swift`: `YouTubeMusic.album(_:)`
+догружает плейлист альбома, `preferAlbumAudio` ставит песни вместо клипов; тесты `AlbumClipsTests`, `AlbumTwinsTests`,
+фикстуры `album-clips/` из Linux. Сохранённые раньше клипы чинит 0033 §3.
 
 Сделано в Linux (задание 0029, `melogoldLinux/crates/melogold-innertube/src/music.rs`: `prefer_album_audio`) и Windows
 (0032, `YouTubeMusic.PreferAlbumAudio`). Здесь — то же в `MelogoldInnerTube/Catalog.swift` (`album(_:)`, `parseAlbum`):
@@ -34,5 +36,5 @@ Android так делает давно: `albumPage` берёт треки аль
 Фикстуры `album-clips/` (альбом и его плейлист, 18.10.2026, `hl=en gl=US`): все 16 клипов становятся песнями,
 LEMONHEAD — `QjckqsLmb1o`, 2:11; перемешанный плейлист без LEMONHEAD — 15 замен, LEMONHEAD остаётся клипом.
 
-Не сделано: треки, уже сохранённые в медиатеку с клипом (лайки, плейлисты), остаются клипами — менять ли их, решает
-Максим.
+Треки, уже сохранённые в медиатеку с клипом (лайки, плейлисты), меняет на песни починка из 0033 §3 (Максим на Linux:
+«да», задание 0030 там).

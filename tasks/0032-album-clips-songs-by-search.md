@@ -1,6 +1,10 @@
 # Альбом: песни для клипов ищет поиск, если плейлист альбома пуст (на Маке)
 
-Статус: открыто
+Статус: сделано (2026-10-20, коммит `145f416`, не выпущено) — `MelogoldInnerTube/AlbumClips.swift`: `songsForClips`,
+`songForClip`, `albumTwins`; тесты `AlbumClipsTests`, `AlbumTwinsTests`; вживую (`MELOGOLD_LIVE=1`,
+`LiveYouTubeTests.estateSaleClipsBecomeSongs`) у Estate Sale 16 из 16 клипов стали песнями, LEMONHEAD — `QjckqsLmb1o`.
+Сверх Linux: проверка на бота (HTTP 403/429) останавливает поиски сразу — новые не начинаются, а после плейлиста с
+проверкой поиск не идёт вовсе (правило «один запрос к YouTube на трек»).
 
 Продолжение 0029 — делать вместе с ним. Сделано в Linux (задание 0033, коммит `736eca0`;
 `melogoldLinux/crates/melogold-innertube/src/music.rs`: `songs_for_clips`, `song_for_clip`). Здесь — то же в
