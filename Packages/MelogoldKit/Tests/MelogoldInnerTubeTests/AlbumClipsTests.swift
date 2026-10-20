@@ -193,6 +193,37 @@ struct AlbumClipsTests {
         #expect(afterPlaylist.queries.isEmpty)
     }
 
+    /// Проверку на бота не сменяет ошибка поиска строки ниже: по ней починка библиотеки останавливается, а не идёт к
+    /// следующему альбому.
+    @Test func aBotCheckIsNotHiddenByALaterError() async throws {
+        let album = try Self.album("estate-sale.album.en", Self.estateSale)
+        var tracks = try ["CORSO", "LEMONHEAD (feat. 42 Dugg)"].map { title in try #require(album.tracks.first { $0.title == title }) }
+        let result = try await YouTubeMusic.songsForClips(&tracks, search: SearchLog().search { query in
+            if query.hasSuffix("CORSO") { throw YouTubeError(.blocked, "HTTP 429 from search") }
+            throw YouTubeError(.offline, "нет сети")
+        })
+        #expect(result.swapped == 0)
+        #expect((result.failed as? YouTubeError)?.kind == .blocked)
+    }
+
+    /// Страницу альбома закрыли — оборванные поиски не запускают следующие.
+    @Test func closingTheAlbumStopsTheSearches() async throws {
+        let album = try Self.album("estate-sale.album.en", Self.estateSale)
+        let log = SearchLog()
+        let search = log.search { _ in
+            try await Task.sleep(for: .seconds(30))
+            return ItemsPage(items: [], continuation: nil)
+        }
+        let task = Task {
+            var tracks = album.tracks
+            return try await YouTubeMusic.songsForClips(&tracks, search: search)
+        }
+        while log.queries.count < YouTubeMusic.songSearchesAtOnce { try await Task.sleep(for: .milliseconds(5)) }
+        task.cancel()
+        await #expect(throws: CancellationError.self) { try await task.value }
+        #expect(log.queries.count == YouTubeMusic.songSearchesAtOnce)
+    }
+
     /// Поиски идут по восемь сразу, а не по одному и не все шестнадцать.
     @Test func searchesRunEightAtOnce() async throws {
         var album = try Self.album("estate-sale.album.en", Self.estateSale)

@@ -103,14 +103,16 @@ extension YouTubeMusic {
                 swapped += 1
             case .failure(let error):
                 Log.warning("catalog", "\(tracks[index].videoId): поиск песни для клипа не прошёл — \(error)")
-                failed = error
+                // Проверку на бота не сменяет ошибка строки ниже: по ней починка библиотеки останавливается сразу
+                if !(failed.map(isBotCheck) ?? false) { failed = error }
             }
         }
         return (swapped, failed)
     }
 
     /// Поиски по `songSearchesAtOnce` сразу; итог — в порядке запросов. После проверки на бота новые поиски не
-    /// начинаются: те, что не начались, получают её же ошибку.
+    /// начинаются: те, что не начались, получают её же ошибку. Страницу альбома закрыли (задача отменена) — тоже: иначе
+    /// каждый оборванный поиск запускал бы следующий.
     private static func searchAll(
         _ queries: [String], search: @escaping @Sendable (String) async throws -> ItemsPage
     ) async -> [Result<ItemsPage, any Error>] {
@@ -130,11 +132,11 @@ extension YouTubeMusic {
                     }
                 }
             }
-            while next < min(queries.count, songSearchesAtOnce) { launch() }
+            while !Task.isCancelled, next < min(queries.count, songSearchesAtOnce) { launch() }
             for await (index, result) in group {
                 results[index] = result
                 if stop == nil, case .failure(let error) = result, isBotCheck(error) { stop = error }
-                if stop == nil, next < queries.count { launch() }
+                if stop == nil, !Task.isCancelled, next < queries.count { launch() }
             }
         }
         return results.map { $0 ?? .failure(stop ?? CancellationError()) }
