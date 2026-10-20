@@ -9,15 +9,18 @@ import MelogoldPlayback
 ///   и кнопка в углу, на Vision — окно.
 /// - Обложка — крупно, нажатие включает текст; на узком экране портретный вид: обложка, название, полоса, транспорт на
 ///   стекле, панель действий; с текстом — маленькая шапка, текст, компактный транспорт под ним.
-/// - iPhone боком, iPad и Mac в широком окне (REWRITE §3.10.11): обложка слева, управление справа; с текстом слева
-///   обложка (если помещается) и компактное управление, справа текст.
+/// - iPhone боком, iPad и Mac в широком окне (REWRITE §3.10.11): обложка слева, управление справа; с текстом колонка
+///   обложки (обложка, если помещается, и компактное управление) и колонка текста — одним блоком посередине окна (0033 §4).
+/// - Размер строки текста — от высоты всей области (задание 0030 §3, `nowPlayingHeight`).
 /// - Крупный Dynamic Type: обложка и управление прокручиваются, значки не растут дальше ряда.
 struct NowPlayingView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dynamicTypeSize) private var typeSize
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// Рамка обложки в широкой раскладке: по ней встаёт середина текущей строки текста.
+    /// Рамка обложки рядом с текстом (`coverSlot`): по ней встаёт середина текущей строки текста.
     @State private var coverFrame: CGRect?
+    /// Картинка обложки — кадр видео 16:9 (`HeroArtwork`): рядом с текстом он стоит целиком, название — сразу под ним.
+    @State private var wideArtwork = false
     /// Название перетекает между местом под обложкой и шапкой текста.
     @Namespace private var heroSpace
 
@@ -33,7 +36,6 @@ struct NowPlayingView: View {
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
             .coordinateSpace(name: nowPlayingSpace)
-            .onPreferenceChange(CoverFrameKey.self) { coverFrame = $0 }
         }
         .modifier(NowPlayingChrome())
         .sheet(item: $model.lyricsSearch) { LyricsSearchSheet(track: $0) }
@@ -83,6 +85,8 @@ struct NowPlayingView: View {
             }
         }
         .transition(.opacity)
+        // Размер строки текста — по высоте всей области, в любой раскладке один и тот же (задание 0030 §3)
+        .environment(\.nowPlayingHeight, size.height)
         // Одна обложка на весь экран: места под неё (`ArtworkSlotKey`) только сообщают, где ей стоять
         .overlayPreferenceValue(ArtworkSlotKey.self) { slots in
             heroArtwork(track, slots: slots)
@@ -94,8 +98,9 @@ struct NowPlayingView: View {
     /// влезает управление), под ней название с ♡ и «…», полоса, ряд транспорта, громкость и нижний ряд — ровным шагом;
     /// лишняя высота уходит в зазор под обложкой. С текстом: шапка — обложка 84 pt (крупнее, чем у Apple Music, по просьбе
     /// пользователя), название, ♡ и «…»; текст; под ним те же полоса, компактный транспорт и нижний ряд. Кнопки — одни и
-    /// те же виды в обоих видах: при переключении они только сдвигаются.
-    private func stackedPortrait(_ track: Track, size: CGSize, margin: CGFloat) -> some View {
+    /// те же виды в обоих видах: при переключении они только сдвигаются. `insets` — свои поля сверху и снизу; без них —
+    /// внутри широкой раскладки Mac рядом с колонкой очереди (`landscapeLayout`), у которой поля свои.
+    private func stackedPortrait(_ track: Track, size: CGSize, margin: CGFloat, insets: Bool = true) -> some View {
         let lyrics = model.lyricsVisible
         let wide = size.width >= 700
         #if os(iOS)
@@ -143,8 +148,8 @@ struct NowPlayingView: View {
             .frame(maxWidth: 560)
             .padding(.horizontal, margin)
         }
-        .padding(.top, Metrics.topInset + Design.Space.xs)
-        .padding(.bottom, Design.Space.xs)
+        .padding(.top, insets ? Metrics.topInset + Design.Space.xs : 0)
+        .padding(.bottom, insets ? Design.Space.xs : 0)
     }
 
     /// Крупный Dynamic Type без текста: всё в прокрутке, обложка не сжимается до точки.
@@ -161,31 +166,41 @@ struct NowPlayingView: View {
         .scrollIndicators(.hidden)
     }
 
-    /// Боком и в широком окне — две равные половины, граница ровно по середине окна (решение пользователя, 2026-09-30):
-    /// - без текста: обложка по центру левой половины, управление по центру правой;
-    /// - с текстом: слева обложка, под ней сразу название, полоса и кнопки — одной группой по центру половины и по
-    ///   вертикали, справа колонка текста по центру своей половины (строки — по левому краю, ширина не больше 620 pt);
-    ///   середина текущей строки стоит на уровне середины обложки (`lyricsCoverMid`), нет обложки — верх области.
+    /// Боком и в широком окне:
+    /// - без текста — две равные половины, граница ровно по середине окна (решение пользователя, 2026-09-30): обложка по
+    ///   центру левой половины, управление по центру правой;
+    /// - с текстом — колонка обложки (обложка, под ней сразу название, полоса и кнопки) и колонка текста одним блоком
+    ///   посередине окна, на Mac — без колонки очереди (`OneBlockLayout`, задание 0033 §4: Максим отменил половины, как на
+    ///   Windows и Linux); середина текущей строки стоит на уровне середины обложки (`lyricsCoverMid`), нет обложки — верх
+    ///   области. На Mac рядом с колонкой очереди блоку может не хватить ширины (`NowPlayingMetrics.fitsWideLayout`) — тогда
+    ///   текст над управлением, как в портрете.
     private func landscapeLayout(_ track: Track, size: CGSize, margin: CGFloat, short: Bool) -> some View {
         #if os(macOS)
         // Колонка очереди справа внутри «Сейчас играет»: половины делят остальное окно
         let queueWidth: CGFloat = model.queueVisible ? 320 + Design.Space.l : 0
+        // Рядом с очередью в окне 1000 pt текст получил бы 136 pt и ломал слова посередине, в окне 800 — пропадал вовсе:
+        // колонкам обложки и текста не хватает места — текст над управлением (у Linux и Windows узко — ниже 860 и 900)
+        let blockWidth = size.width - (model.queueVisible ? queueWidth + margin : 0)
+        let oneBlock = NowPlayingMetrics.fitsWideLayout(width: Double(blockWidth), columnMin: Double(OneBlockLayout.minColumn))
         #else
         let queueWidth: CGFloat = 0
+        let blockWidth = size.width
+        let oneBlock = true
         #endif
         let half = (size.width - queueWidth) / 2
         return HStack(spacing: 0) {
-            if model.lyricsVisible {
-                CoverAboveControls(spacing: Design.Space.l) {
-                    coverSlot(track)
-                    scrollingAtLargeType { controls(track, compact: true, wide: false) }
+            if model.lyricsVisible, !oneBlock {
+                stackedPortrait(track, size: CGSize(width: blockWidth, height: size.height), margin: margin, insets: false)
+            } else if model.lyricsVisible {
+                OneBlockLayout(lineSize: CGFloat(NowPlayingMetrics.lyricsSize(areaHeight: Double(size.height))),
+                               coverAspect: wideArtwork ? 16 / 9 : 1, spacing: Design.Space.l, lyricsInset: LyricsStyle.sidePadding) {
+                    coverSlot()
+                    // Название и кнопки — во всю ширину колонки, как обложка: длинное название переносится под ней
+                    scrollingAtLargeType { controls(track, compact: true, wide: false, maxWidth: .infinity) }
+                    LyricsPanel()
+                        .environment(\.lyricsCoverMid, coverFrame?.midY)
                 }
-                .padding(.horizontal, margin)
-                .frame(width: half)
-                LyricsPanel()
-                    .environment(\.lyricsCoverMid, coverFrame?.midY)
-                    .frame(width: min(half - 2 * margin, 620))
-                    .frame(width: half)
+                .animation(reduceMotion ? nil : .snappy, value: wideArtwork)
             } else {
                 artworkArea(track)
                     .padding(.horizontal, margin)
@@ -222,21 +237,18 @@ struct NowPlayingView: View {
         }
     }
 
-    /// Место под обложку, которое размеряет `CoverAboveControls`: квадрат по предложенному размеру; у кадра видео 16:9
-    /// обложка стоит посередине квадрата, поэтому середина обложки не прыгает при смене формы.
-    private func coverSlot(_ track: Track) -> some View {
-        GeometryReader { slot in
-            let side = min(slot.size.width, slot.size.height)
-            if side >= 96 {
+    /// Место под обложку рядом с текстом — ровно та рамка, что дал `OneBlockLayout` (квадрат или 16:9 у кадра видео);
+    /// нулевая — обложка не помещается, места нет. Рамку для текста (`coverFrame`) сообщает сама геометрия: через
+    /// `PreferenceKey` из листа на iPad она доходила и тут же сбрасывалась в `nil`, и строка вставала к верху, а не к
+    /// середине обложки.
+    private func coverSlot() -> some View {
+        let space = nowPlayingSpace
+        return GeometryReader { slot in
+            if slot.size.width >= 1, slot.size.height >= 1 {
                 Color.clear
-                    .frame(width: side, height: side)
                     .artworkSlot(big: true)
-                    .background {
-                        GeometryReader { cover in
-                            Color.clear.preference(key: CoverFrameKey.self, value: cover.frame(in: .named(nowPlayingSpace)))
-                        }
-                    }
-                    .frame(width: slot.size.width, height: slot.size.height)
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(space)) } action: { coverFrame = $0 }
+                    .onDisappear { coverFrame = nil }
             }
         }
     }
@@ -253,11 +265,6 @@ struct NowPlayingView: View {
                 Color.clear
                     .frame(width: side, height: side)
                     .artworkSlot(big: true)
-                    .background {
-                        GeometryReader { cover in
-                            Color.clear.preference(key: CoverFrameKey.self, value: cover.frame(in: .named(nowPlayingSpace)))
-                        }
-                    }
                     .frame(width: area.size.width, height: area.size.height)
             }
         }
@@ -308,7 +315,7 @@ struct NowPlayingView: View {
         if let slot = slots.first(where: { $0.big != model.lyricsVisible }) ?? slots.last {
             GeometryReader { proxy in
                 let rect = proxy[slot.anchor]
-                HeroArtwork(url: track.artworkURL, big: slot.big) {
+                HeroArtwork(url: track.artworkURL, big: slot.big, onShape: { wideArtwork = $0 }) {
                     withMotion(.snappy) { model.lyricsVisible.toggle() }
                 }
                 .frame(width: rect.width, height: rect.height)
@@ -318,9 +325,10 @@ struct NowPlayingView: View {
     }
 
     /// Название, полоса перемотки, транспорт, громкость, нижний ряд — широкая раскладка. Компактный вид — рядом с
-    /// текстом и в низком окне.
+    /// текстом и в низком окне. Рядом с обложкой без текста — не шире 520 pt; под обложкой рядом с текстом — во всю
+    /// ширину колонки обложки.
     @ViewBuilder
-    private func controls(_ track: Track, compact: Bool, wide: Bool, showsTitle: Bool = true) -> some View {
+    private func controls(_ track: Track, compact: Bool, wide: Bool, showsTitle: Bool = true, maxWidth: CGFloat = 520) -> some View {
         VStack(spacing: 0) {
             if showsTitle { NowPlayingTitle(track: track, large: wide && !compact) }
             SeekBar()
@@ -336,51 +344,65 @@ struct NowPlayingView: View {
             PlayerActionBar()
                 .padding(.top, compact ? Design.Space.xs : Design.Space.l)
         }
-        .frame(maxWidth: 520)
+        .frame(maxWidth: maxWidth)
     }
 }
 
-/// Обложка над блоком управления — одна группа по центру своей половины и по вертикали, без провала между ними:
-/// обложка берёт высоту, которая осталась от управления (не выше 560 pt); не помещается (низкое окно) — остаётся одно
-/// управление. Ширина управления — ширина обложки, но не меньше 320 pt.
-private struct CoverAboveControls: Layout {
+/// «Сейчас играет» в широком окне с текстом (задание 0033 §4; Linux `now_playing::wide_layout`, Windows
+/// `NowPlayingMetrics.WideLayout`): колонка обложки и колонка текста — одним блоком посередине области, поля слева и
+/// справа поровну. Подвиды: место под обложку, управление (название, полоса, кнопки), текст.
+///
+/// Числа — `NowPlayingMetrics.wideLayout`; здесь меряется то, что под обложкой, при ширине колонки: длинное название
+/// переносится, и в узкой колонке — на строку больше. Мерим от самой узкой колонки к итоговой: обложка от раза к разу
+/// только растёт, а то, что под ней, — только убывает, поэтому колонка не вылезает за низ. Колонка обложки — посередине по
+/// высоте, название и кнопки сразу под обложкой; текст — во всю высоту, его колонка раздвинута на собственные поля
+/// (`lyricsInset`), чтобы строки стояли ровно в 72 pt от обложки.
+private struct OneBlockLayout: Layout {
+    /// Размер строки текста — по высоте всей области (задание 0030 §3).
+    var lineSize: CGFloat
+    /// Ширина к высоте у обложки: кадр видео 16:9 стоит целиком, и название — сразу под ним, а не под пустым квадратом.
+    var coverAspect: CGFloat
+    /// Промежуток между обложкой и названием.
     var spacing: CGFloat
-    let maxCover: CGFloat = 560
-    let minCover: CGFloat = 96
-    let minControls: CGFloat = 320
+    /// Поле, которое текст держит внутри своей области по бокам (`LyricsStyle.sidePadding`).
+    var lyricsInset: CGFloat
+    /// Колонка обложки не уже этого, как и раньше рядом с текстом (и не уже ряда кнопок).
+    static let minColumn: CGFloat = 320
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) -> CGSize {
-        CGSize(width: proposal.width ?? maxCover, height: proposal.height ?? maxCover)
+        proposal.replacingUnspecifiedDimensions()
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) {
-        guard subviews.count == 2 else { return }
-        let column = min(bounds.width, maxCover)
-        // Управление не выше самого окна: прокручиваемое (крупный шрифт) отдаёт всю высоту содержимого и без этого вылезло бы за край
-        let natural = min(subviews[1].sizeThatFits(ProposedViewSize(width: column, height: nil)).height, bounds.height)
-        let side = min(column, bounds.height - natural - spacing, maxCover)
-        let showsCover = side >= minCover
-        let controlsWidth = showsCover ? min(column, max(side, minControls)) : column
-        let controlsHeight = min(subviews[1].sizeThatFits(ProposedViewSize(width: controlsWidth, height: nil)).height, bounds.height)
-        let controls = ProposedViewSize(width: controlsWidth, height: controlsHeight)
-        let group = (showsCover ? side + spacing : 0) + controlsHeight
-        var y = bounds.minY + max(0, (bounds.height - group) / 2)
-        if showsCover {
-            subviews[0].place(at: CGPoint(x: bounds.midX, y: y), anchor: .top, proposal: ProposedViewSize(width: side, height: side))
-            y += side + spacing
-        } else {
-            subviews[0].place(at: CGPoint(x: bounds.midX, y: y), anchor: .top, proposal: ProposedViewSize(width: 0, height: 0))
+        guard subviews.count == 3 else { return }
+        let (cover, controls, lyrics) = (subviews[0], subviews[1], subviews[2])
+        // Управление не выше самой области: прокручиваемое (крупный шрифт) отдаёт всю высоту содержимого
+        func controlsHeight(_ width: CGFloat) -> CGFloat {
+            min(controls.sizeThatFits(ProposedViewSize(width: width, height: nil)).height, bounds.height)
         }
-        subviews[1].place(at: CGPoint(x: bounds.midX, y: y), anchor: .top, proposal: controls)
-    }
-}
-
-/// Рамка обложки рядом с текстом в пространстве «Сейчас играет» (`nowPlayingSpace`).
-private struct CoverFrameKey: PreferenceKey {
-    static let defaultValue: CGRect? = nil
-
-    static func reduce(value: inout CGRect?, nextValue: () -> CGRect?) {
-        if let next = nextValue() { value = next }
+        let columnMin = max(Self.minColumn, controls.sizeThatFits(ProposedViewSize(width: 0, height: nil)).width)
+        func measure(at width: CGFloat) -> NowPlayingMetrics.WideLayout {
+            NowPlayingMetrics.wideLayout(width: bounds.width, height: bounds.height, below: controlsHeight(width) + spacing,
+                                         columnMin: columnMin, lineSize: lineSize)
+        }
+        var measured = columnMin
+        var layout = measure(at: measured)
+        for _ in 0..<2 where layout.column != measured {
+            measured = layout.column
+            layout = measure(at: measured)
+        }
+        let column = CGFloat(layout.column)
+        let side = CGFloat(layout.cover)
+        let coverHeight = (side / coverAspect).rounded()
+        let controlsHeight = controlsHeight(column)
+        let group = (side > 0 ? coverHeight + spacing : 0) + controlsHeight
+        let midX = bounds.minX + layout.edge + column / 2
+        var y = bounds.minY + max(0, (bounds.height - group) / 2)
+        cover.place(at: CGPoint(x: midX, y: y), anchor: .top, proposal: ProposedViewSize(width: side, height: side > 0 ? coverHeight : 0))
+        if side > 0 { y += coverHeight + spacing }
+        controls.place(at: CGPoint(x: midX, y: y), anchor: .top, proposal: ProposedViewSize(width: column, height: controlsHeight))
+        lyrics.place(at: CGPoint(x: bounds.minX + layout.edge + column + NowPlayingMetrics.wideGap - lyricsInset, y: bounds.minY),
+                     anchor: .topLeading, proposal: ProposedViewSize(width: layout.lyrics + 2 * lyricsInset, height: bounds.height))
     }
 }
 
@@ -481,11 +503,14 @@ private extension View {
 
 /// Обложка «Сейчас играет», которая перелетает между местами: картинка тянется по рамке, которую ей дают (при
 /// переключении текста рамка анимируется — картинка плавно растёт или уменьшается, скругление тоже). Грузится один раз
-/// крупной — в шапке та же картинка, без подмены. Кадр видео 16:9 в большом месте — целиком по ширине (задание 0008), в
-/// шапке — квадратом. В паузе большая обложка отступает, как у Apple Music: чуть меньше и с короткой тенью.
+/// крупной — в шапке та же картинка, без подмены; пока крупная грузится, на её месте та же обложка меньшего размера из
+/// памяти (задание 0033 §6). Кадр видео 16:9 в большом месте — целиком по ширине (задание 0008), в шапке — квадратом. В
+/// паузе большая обложка отступает, как у Apple Music: чуть меньше и с короткой тенью.
 private struct HeroArtwork: View {
     let url: String?
     let big: Bool
+    /// Картинка — кадр видео шире 1,2 : 1: раскладка рядом с текстом ставит его целиком (`OneBlockLayout`).
+    let onShape: (Bool) -> Void
     let onTap: () -> Void
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -513,6 +538,7 @@ private struct HeroArtwork: View {
             .accessibilityLabel(Text(big ? "player.lyrics" : "lyrics.artwork"))
         }
         .task(id: url) { await load() }
+        .onChange(of: wide, initial: true) { onShape(wide) }
     }
 
     @ViewBuilder
@@ -534,9 +560,31 @@ private struct HeroArtwork: View {
     private func load() async {
         // Одна крупная картинка на оба места: в шапке не грузится своя, поэтому при перелёте ничего не мигает
         let sized = Thumbnails.sized(url, px: Int((600 * displayScale).rounded(.up)))
-        let loaded = await ArtworkLoader.shared.image(sized)
-        image = loaded
-        wide = loaded.map { Double($0.width) > Double($0.height) * 1.2 } ?? false
+        let loader = ArtworkLoader.shared
+        if let ready = await loader.cached(sized) {
+            show(ready)
+            return
+        }
+        // Пока крупная грузится — та же обложка меньшего размера: она уже есть у мини-плеера (или он её как раз грузит),
+        // а не нота на пустом месте и не обложка прежнего трека. Крупная закрывает её, когда загрузится (задание 0033 §6,
+        // как у Linux f26b7e6 и Windows 69f4a58)
+        show(await loader.otherSize(of: sized, wait: false))
+        let waitsForSmall = image == nil
+        await withTaskGroup(of: (big: Bool, picture: CGImage?).self) { group in
+            group.addTask { (true, await loader.image(sized)) }
+            if waitsForSmall { group.addTask { (false, await loader.otherSize(of: sized, wait: true)) } }
+            for await result in group {
+                guard !Task.isCancelled else { break }
+                if let picture = result.picture { show(picture) }
+                // Крупная пришла — маленькая, если ещё в пути, уже не нужна; не пришла — остаётся маленькая
+                if result.big, result.picture != nil { break }
+            }
+        }
+    }
+
+    private func show(_ picture: CGImage?) {
+        image = picture
+        wide = picture.map { Double($0.width) > Double($0.height) * 1.2 } ?? false
     }
 }
 
