@@ -17,6 +17,7 @@ struct LyricsSearchSheet: View {
     @State private var query = ""
     @State private var results: [LrcLibTrack] = []
     @State private var searching = false
+    /// LRCLIB не ответил: ошибка сети или `LrcLibUnavailable` (503 и прочее).
     @State private var failed = false
     @State private var importing = false
 
@@ -59,8 +60,18 @@ struct LyricsSearchSheet: View {
                         }
                         .buttonStyle(.plain)
                     }
-                    if results.isEmpty, !searching, !query.isEmpty {
-                        Text(failed ? "error.offline" : "search.nothingFound").foregroundStyle(.secondary)
+                    if failed, !searching {
+                        // LRCLIB не ответил (под нагрузкой — 503, сеть при этом в порядке) — это не «ничего не нашлось»
+                        // (задание 0033 §6, как у Linux)
+                        ContentUnavailableView {
+                            Label("lyrics.find.unavailable", systemImage: "exclamationmark.icloud")
+                        } description: {
+                            Text("lyrics.find.unavailable.hint")
+                        } actions: {
+                            Button("common.retry") { search() }
+                        }
+                    } else if results.isEmpty, !searching, !query.isEmpty {
+                        Text("search.nothingFound").foregroundStyle(.secondary)
                     }
                 } footer: {
                     Text(verbatim: "LRCLIB")

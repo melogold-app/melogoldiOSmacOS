@@ -45,6 +45,12 @@ public struct LrcLibTrack: Decodable, Hashable, Sendable, Identifiable {
     public let syncedLyrics: String?
 }
 
+/// LRCLIB ответил не списком: под нагрузкой он отдаёт 503 (бывают и 429, 502), а сеть при этом в порядке. Это не «текстов
+/// нет» и не «нет сети» — «Найти текст» говорит «LrcLib не отвечает» и даёт повторить (задание 0033 §6, Linux `4ed1034`).
+public struct LrcLibUnavailable: Error, Equatable, Sendable {
+    public let status: Int
+}
+
 /// LRCLIB (Android `providers/lrclib`, Windows `LrcLib`): поиск по названию и исполнителю без альбома — YouTube Music
 /// называет альбомы по-своему, и одно слово мимо ничего не находит.
 public struct LrcLib: Sendable {
@@ -61,7 +67,7 @@ public struct LrcLib: Sendable {
         try await get("\(Self.baseURL)/api/search?track_name=\(escape(title))&artist_name=\(escape(artist))")
     }
 
-    /// Треки по запросу, у которых есть хоть какой-то текст («Найти текст»).
+    /// Треки по запросу, у которых есть хоть какой-то текст («Найти текст»). LRCLIB не ответил — `LrcLibUnavailable`.
     public func search(_ query: String) async throws -> [LrcLibTrack] {
         try await get("\(Self.baseURL)/api/search?q=\(escape(query))").filter {
             !($0.syncedLyrics ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -107,7 +113,10 @@ public struct LrcLib: Sendable {
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         request.setValue(userAgent, forHTTPHeaderField: "Lrclib-Client")
         let (data, response) = try await session.data(for: request)
-        guard (response as? HTTPURLResponse)?.statusCode == 200 else { return [] }
+        // Цепочка поиска текста (`LyricsFetcher`) по-прежнему считает это «не нашлось», не «нет сети»: ошибка не `URLError`
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        if status == 404 { return [] }
+        guard status == 200 else { throw LrcLibUnavailable(status: status) }
         return try JSONDecoder().decode([LrcLibTrack].self, from: data)
     }
 

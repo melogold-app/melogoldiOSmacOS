@@ -5877,6 +5877,40 @@
         }
       }
     },
+    "lyrics.find.unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LrcLib isn't responding"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "LrcLib не отвечает"
+          }
+        }
+      }
+    },
+    "lyrics.find.unavailable.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The lyrics service is overloaded or unreachable. Try again in a minute"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сервис текстов перегружен или недоступен. Попробуйте ещё раз через минуту"
+          }
+        }
+      }
+    },
     "lyrics.import" : {
       "extractionState" : "manual",
       "localizations" : {
