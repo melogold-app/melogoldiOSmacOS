@@ -244,7 +244,7 @@ enum DebugScript {
                 walk(root, 0)
             case "dock":
                 // dock: пункты меню в Dock; dock <часть названия>: нажать пункт (тот же путь, что щелчок по нему)
-                guard let delegate = NSApp.delegate as? NSApplicationDelegate, let menu = delegate.applicationDockMenu?(NSApp) else { log("dock: нет меню"); break }
+                guard let delegate = NSApp.delegate, let menu = delegate.applicationDockMenu?(NSApp) else { log("dock: нет меню"); break }
                 if arg.isEmpty {
                     log("dock: " + menu.items.map { $0.isSeparatorItem ? "—" : $0.title }.joined(separator: " | "))
                 } else if let item = menu.items.first(where: { $0.title.localizedCaseInsensitiveContains(arg) }) {
