@@ -275,6 +275,40 @@ struct StreamCutTests {
             engine.stop()
         }
 
+        /// Пока трек ждёт сеть, место выбирает человек: ползунок задаёт, откуда повторить, пауза снимает ожидание, «Играть»
+        /// пробует с того же места. Предел вышел — «Повторить» продолжает с той же секунды, а не с 0:00.
+        @Test func whileWaitingTheListenerPicksThePlaceAndRetryKeepsIt() async throws {
+            let engine = try await engine(youTubeOffline: true)
+            // Повтор — только по сигналу сети или действию человека
+            engine.networkWaitDelays = [60]
+            engine.networkWaitLimit = 0.3
+            engine.play(tracks: [track("aaaaaaaaaaa"), track("bbbbbbbbbbb")], startAt: 0)
+            try await until("трек ждёт сеть", engine: engine) { engine.isWaitingForNetwork }
+
+            engine.seek(to: 42)
+            #expect(engine.position == 42 && engine.isWaitingForNetwork, "перемотка не снимает ожидание")
+            engine.pause()
+            #expect(engine.phase == .paused && !engine.isWaitingForNetwork, "пауза — решил человек, повторов больше нет")
+            engine.play()
+            #expect(engine.position == 42, "«Играть» — с выбранного места")
+            try await until("снова ждёт сеть", engine: engine) { engine.isWaitingForNetwork }
+
+            // Сети всё нет, предел вышел — карточка «нет сети» на том же месте, ничего не пропущено
+            try await Task.sleep(for: .milliseconds(350))
+            engine.networkBecameAvailable()
+            try await until("плеер встал с ошибкой", engine: engine) { engine.phase == .failed }
+            #expect(engine.failure?.kind == .network && engine.position == 42 && engine.index == 0 && engine.notice == nil)
+
+            // Сеть вернулась: «Повторить» — с 0:42, первый запрос после начала файла — за фрагментом с этой секундой
+            FakeGoogleVideo.serve(Self.file)
+            engine.retryCurrent()
+            #expect(engine.position == 42)
+            try await until("снова играет", engine: engine) { engine.phase == .playing }
+            let first = FakeGoogleVideo.ranges.first { $0.videoId == "aaaaaaaaaaa" && $0.range.lowerBound > 0 }
+            #expect(first?.range.lowerBound == (try Self.fragmentOffset(at: 42)))
+            engine.stop()
+        }
+
         /// Задание 0033 §2: адрес googlevideo умер посреди трека (403 и на четыре свежих адреса — смена сети или сервера
         /// VPN), а сеть есть. Трек открывается заново с той же секунды со свежим адресом — дважды, потом пропуск. Раньше
         /// он начинался с 0:00.
