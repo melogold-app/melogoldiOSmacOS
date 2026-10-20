@@ -64,7 +64,7 @@ final class RemoteBridge {
         if state.playing, let at = IsoTime.date(state.at) {
             positionMs += min(max(0, Int64(Date().timeIntervalSince(at) * 1000)), 180_000)
         }
-        if let duration = state.durationMs, duration > 1000 { positionMs = min(positionMs, duration - 1000) }
+        if let duration = state.knownDurationMs, duration > 1000 { positionMs = min(positionMs, duration - 1000) }
         reporter.takeOver(from: state)
         // Сразу с места: перемотку до загрузки трека плеер пропускает, и трек начинался бы с начала.
         player.play(tracks: state.queue.map(\.track), startAt: state.index, from: Double(positionMs) / 1000)

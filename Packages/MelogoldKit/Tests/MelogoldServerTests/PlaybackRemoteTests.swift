@@ -72,6 +72,42 @@ struct PlaybackRemoteTests {
         #expect(Self.summary(positionMs: 212_000).livePositionMs(serverNow: at.addingTimeInterval(60)) == 213_000, "не дальше конца")
     }
 
+    /// Состояние, в котором устройство могло не прислать длительность: `duration` — его `durationMs`, `track` — поля трека.
+    static func bareSummary(positionMs: Int64, duration: String = "null", track: String = "") -> PlaybackSummary {
+        let json = """
+        {"rev":1,"deviceId":"phone","deviceName":"Pixel","sessionId":"s1","queueVersion":1,"index":0,"queueLength":1,
+         "track":{"videoId":"dQw4w9WgXcQ","title":"T"\(track)},"positionMs":\(positionMs),"durationMs":\(duration),
+         "playing":true,"at":"\(serverTime)","updatedAt":"\(serverTime)","handoffFrom":null,"volume":null}
+        """
+        return try! JSONDecoder().decode(PlaybackSummary.self, from: Data(json.utf8))
+    }
+
+    /// Задание 0033 §6 (Windows `Remote.DurationOf`): телефон не прислал длительность — позиция пульта всё равно не убегает
+    /// за конец трека; длительность — та же, что показывает плеер: из состояния, иначе из трека (`durationMs`, «4:21»).
+    @Test func livePositionStopsAtTheTrackEndWhenTheDeviceSentNoDuration() throws {
+        let at = try #require(IsoTime.date(Self.serverTime))
+        let later = at.addingTimeInterval(60)
+        let withTrack = Self.bareSummary(positionMs: 259_000, track: #","durationMs":261000"#)
+        #expect(withTrack.knownDurationMs == 261_000)
+        #expect(withTrack.livePositionMs(serverNow: later) == 261_000)
+        let withText = Self.bareSummary(positionMs: 259_000, duration: "0", track: #","durationText":"4:21""#)
+        #expect(withText.knownDurationMs == 261_000, "0 — не длительность, «4:21» — она")
+        #expect(withText.livePositionMs(serverNow: later) == 261_000)
+        // Нигде нет — неизвестна: позиция не обрезается
+        let bare = Self.bareSummary(positionMs: 10_000)
+        #expect(bare.knownDurationMs == nil)
+        #expect(bare.livePositionMs(serverNow: later) == 70_000)
+        // Присланная устройством важнее трека
+        #expect(Self.bareSummary(positionMs: 0, duration: "200000", track: #","durationMs":261000"#).knownDurationMs == 200_000)
+        // «Слушать здесь» берёт полное состояние: та же длительность — из играющего трека очереди
+        let state = try JSONDecoder().decode(PlaybackState.self, from: Data("""
+        {"rev":5,"deviceId":"pixel","deviceName":"Pixel","sessionId":"ps","queueVersion":3,"index":1,"positionMs":0,"durationMs":null,
+         "playing":true,"at":"\(Self.serverTime)","updatedAt":"\(Self.serverTime)","handoffFrom":null,"volume":null,
+         "queue":[{"videoId":"dQw4w9WgXcQ","title":"T","durationText":"9:59"},{"videoId":"a1B2c3D4e5F","title":"U","durationText":"3:45"}]}
+        """.utf8))
+        #expect(state.knownDurationMs == 225_000)
+    }
+
     // MARK: - Отчёт
 
     final class Clock {

@@ -29,12 +29,10 @@ extension AppModel {
         return services.player.isPlaying
     }
 
-    /// Длительность, секунды; 0 — неизвестна.
+    /// Длительность, секунды; 0 — неизвестна. У другого устройства — из его состояния, иначе из трека (`durationMs`,
+    /// «3:45»): той же длительностью пульт ограничивает позицию (`PlaybackSummary.knownDurationMs`).
     var playingDuration: Double {
-        if let remote = remoteTarget {
-            let ms = remote.state?.durationMs ?? remote.state?.track?.durationMs ?? 0
-            return Double(ms) / 1000
-        }
+        if let remote = remoteTarget { return Double(remote.state?.knownDurationMs ?? 0) / 1000 }
         return services.player.duration
     }
 

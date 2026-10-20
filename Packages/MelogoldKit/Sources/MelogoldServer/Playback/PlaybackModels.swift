@@ -1,4 +1,5 @@
 import Foundation
+import MelogoldCore
 
 // Воспроизведение и пульт (API §4.9, §6; задание 0020): что играет на устройствах аккаунта, команды другому
 // устройству. Ответы читаются терпимо, как в синке: отсутствующее поле — `nil`, неизвестные пропускаются.
@@ -42,6 +43,12 @@ public struct PlaybackState: Decodable, Sendable, Equatable {
     public let handoffFrom: PlaybackHandoff?
     /// 0..100 — громкость устройства-автора; `nil` — не сообщало.
     public let volume: Int?
+
+    /// Длительность играющего трека, мс: из состояния, а если устройство её не прислало, — из трека очереди
+    /// (`PlaybackSummary.knownDurationMs`); `nil` — неизвестна.
+    public var knownDurationMs: Int64? {
+        PlaybackSummary.duration(reported: durationMs, track: queue.indices.contains(index) ? queue[index] : nil)
+    }
 }
 
 public struct PlaybackStateResponse: Decodable, Sendable, Equatable {
@@ -67,14 +74,27 @@ public struct PlaybackSummary: Decodable, Sendable, Equatable {
     public let handoffFrom: PlaybackHandoff?
     public let volume: Int?
 
-    /// Позиция сейчас (DESIGN §3.12.5): от `at`, если играет, но не дальше конца трека.
+    /// Позиция сейчас (DESIGN §3.12.5): от `at`, если играет, но не дальше конца трека — той же длительности, что
+    /// показывает плеер (`knownDurationMs`). Устройство не прислало длительность — позиция всё равно не убегает за конец
+    /// (задание 0033 §6).
     public func livePositionMs(serverNow: Date) -> Int64 {
         var position = positionMs
         if playing, let at = IsoTime.date(at) {
             position += max(0, Int64(serverNow.timeIntervalSince(at) * 1000))
         }
-        if let durationMs, durationMs > 0 { position = min(position, durationMs) }
+        if let duration = knownDurationMs { position = min(position, duration) }
         return max(0, position)
+    }
+
+    /// Длительность трека на устройстве, мс: из состояния, а если устройство её не прислало (`durationMs` пуст или 0), —
+    /// из самого трека (`durationMs`, затем «3:45»); `nil` — неизвестна (задание 0033 §6, как `Remote.DurationOf` Windows).
+    public var knownDurationMs: Int64? { Self.duration(reported: durationMs, track: track) }
+
+    static func duration(reported: Int64?, track: TrackDto?) -> Int64? {
+        if let reported, reported > 0 { return reported }
+        if let known = track?.durationMs, known > 0 { return known }
+        if let parsed = Durations.parse(track?.durationText), parsed > 0 { return parsed }
+        return nil
     }
 }
 

@@ -124,7 +124,10 @@
 - **Пульт: позиция не убегает за конец.** `PlaybackSummary.livePositionMs` ограничивает продление позиции только
   `durationMs` из состояния; если устройство его не прислало — позиция растёт дальше конца трека. Ограничивать той же
   длительностью, что показывает `PlaybackFacade` (состояние → трек → разбор «3:45»), как `Remote.DurationOf` у Windows
-  (`melogoldWindows/src/Melogold.Server/Remote.cs`, `11ba594`).
+  (`melogoldWindows/src/Melogold.Server/Remote.cs`, `11ba594`). **Сделано (2026-10-20):** `PlaybackSummary.knownDurationMs`
+  (и `PlaybackState.knownDurationMs` для «Слушать здесь») — ею ограничены `livePositionMs`, длительность в плеере
+  (`PlaybackFacade.playingDuration`, теперь и с разбором «3:45» и с 0 как «не прислано») и позиция «Слушать здесь»; тест
+  `PlaybackRemoteTests.livePositionStopsAtTheTrackEndWhenTheDeviceSentNoDuration`.
 - **«Найти другой текст», LrcLib не ответил.** Сейчас пишет `error.offline` без кнопки. На Linux (`4ed1034`): «LrcLib не
   отвечает» с пояснением «Сервис текстов перегружен или недоступен. Попробуйте ещё раз через минуту» и кнопкой
   «Повторить» — LrcLib под нагрузкой отвечает 503, сеть при этом в порядке.
