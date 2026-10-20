@@ -138,7 +138,8 @@ public actor TrackReader {
         while result.count < length {
             try Task.checkCancellation()
             let chunk = try await source.read(offset: offset + Int64(result.count), length: length - result.count)
-            if chunk.isEmpty { throw StreamError(.network, "поток оборвался на \(offset + Int64(result.count))") }
+            // Файл кончился раньше своей длины (416): сеть тут ни при чём — не ждать её, а открыть трек заново
+            if chunk.isEmpty { throw StreamError(.extractor, "поток оборвался на \(offset + Int64(result.count))") }
             result.append(chunk)
         }
         return result

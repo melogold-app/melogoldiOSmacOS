@@ -149,6 +149,8 @@ public final class PlayerEngine {
     @ObservationIgnored var networkWaitDelays: [TimeInterval] = [2, 4, 8, 15, 30]
     @ObservationIgnored var networkWaitLimit: TimeInterval = 10 * 60
     @ObservationIgnored private let pathMonitor = NWPathMonitor()
+    /// Паузы перед свежими адресами googlevideo после 403 (`StreamSource.freshURLPauses`); тесты ставят нулевые.
+    @ObservationIgnored var freshURLPauses: [TimeInterval] = StreamSource.freshURLPauses
     private var tapTime: Date?
     /// Часы синхронизатора: где стояли и с какого момента — чтобы заметить, что при «играет» они не идут.
     @ObservationIgnored private var clockProbe: (time: Double, since: Date)?
@@ -786,7 +788,7 @@ public final class PlayerEngine {
     /// пробует один запрос. Следующий трек, который подаётся сам, и повторы движка — фон: закрытый адрес их не пробует.
     private func makeSegment(for item: QueueItem, start: CMTime, userInitiated: Bool = false) -> Segment {
         let source = StreamSource(videoId: item.track.videoId, resolver: resolver, cache: cache, downloads: downloads,
-                                  session: session, userInitiated: userInitiated)
+                                  session: session, userInitiated: userInitiated, freshURLPauses: freshURLPauses)
         return Segment(item: item, reader: TrackReader(source: source), start: start)
     }
 

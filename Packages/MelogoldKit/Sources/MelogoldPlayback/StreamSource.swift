@@ -15,11 +15,19 @@ public struct StreamContent: Sendable, Equatable {
 /// Байты трека для плеера (docs/PROMPT.md §4): сначала загрузки, затем кэш, недостающее — из googlevideo короткими
 /// диапазонами HTTP Range, и сразу в кэш (как `ChunkedYouTubeDataSource` Android и `HttpRangeReader` Windows).
 ///
-/// - 403, 401, 410 от googlevideo и истёкший адрес — не пропуск: адрес сбрасывается, берётся свежий, и чтение
-///   повторяется, до двух раз подряд (грабли §9 п. 1);
+/// - 403, 401, 410 от googlevideo и истёкший адрес — не пропуск: свежий адрес в новом сеансе YouTube и повтор, до четырёх
+///   раз подряд, перед вторым, третьим и четвёртым — паузы 1,5, 4 и 8 с (`freshURLPauses`; грабли §9 п. 1). Адрес
+///   googlevideo привязан к IP: после смены сети или сервера VPN и свежий адрес, взятый в ту же секунду, ещё получает 403,
+///   и песня обрывалась на середине (задание 0033 §2, как `HttpRangeReader` Windows и `reader.rs` Linux). Удачное чтение
+///   сбрасывает счёт; не помогли все четыре — ошибка с байтом и клиентом, и плеер переоткрывает трек;
+/// - 429 — проверка на бота, без повторов;
 /// - сетевая ошибка — повтор через 1 и 3 с;
 /// - трек целиком в кэше не делает ни одного запроса: ни `player`, ни googlevideo.
 public actor StreamSource {
+    /// Паузы перед свежими адресами подряд на 401/403/410, секунды: первый — сразу; их число — сколько адресов пробовать.
+    /// Те же, что у Linux (`FRESH_URL_DELAYS`) и Windows (`DefaultRefreshPauses`).
+    public static let freshURLPauses: [TimeInterval] = [0, 1.5, 4, 8]
+
     public nonisolated let videoId: String
     private let resolver: StreamResolver
     private let cache: AudioCache?
@@ -28,11 +36,16 @@ public actor StreamSource {
     /// Источник создан действием пользователя (нажатие, «Далее», «Повторить»): пока YouTube не пускает адрес, такой
     /// источник всё же пробует один запрос потока (`StreamResolver.resolve(_:userInitiated:)`).
     private let userInitiated: Bool
+    private let freshURLPauses: [TimeInterval]
     /// Трек скачан целиком: байты — из загрузок, сети не нужно.
     private var downloaded = false
     private var info: StreamInfo?
+    /// Растёт, когда адрес сменился (получен или сброшен): чтение, получившее 403, берёт свежий, только если адрес всё тот же.
     private var generation = 0
+    /// Сколько свежих адресов подряд не помогло; удачное чтение обнуляет.
     private var refreshes = 0
+    /// Свежий адрес — не раньше этого: пауза после 403 общая для всех чтений источника.
+    private var freshURLAt: Date?
     private var content: StreamContent?
 
     /// Последняя ошибка — для карточки ошибки и решения о пропуске.
@@ -42,10 +55,12 @@ public actor StreamSource {
     /// Сколько раз запрашивался адрес потока.
     public private(set) var resolveCount = 0
 
+    /// `freshURLPauses` — тестам нулевые.
     public init(videoId: String, resolver: StreamResolver, cache: AudioCache?, downloads: DownloadStore? = nil, session: URLSession,
-                userInitiated: Bool = false) {
+                userInitiated: Bool = false, freshURLPauses: [TimeInterval] = StreamSource.freshURLPauses) {
         self.videoId = videoId
         self.userInitiated = userInitiated
+        self.freshURLPauses = freshURLPauses
         self.resolver = resolver
         self.cache = cache
         self.downloads = downloads
@@ -121,6 +136,11 @@ public actor StreamSource {
 
     private func resolveInfo() async throws -> StreamInfo {
         if let info, !info.url.isEmpty, info.expiresAt > Date() { return info }
+        // Пауза перед свежим адресом после 403: сеть после переключения успевает устояться
+        if let freshURLAt, freshURLAt > Date() {
+            try await Task.sleep(for: .seconds(freshURLAt.timeIntervalSinceNow))
+            if let info, !info.url.isEmpty, info.expiresAt > Date() { return info }
+        }
         do {
             resolveCount += 1
             let fresh = try await resolver.resolve(videoId, userInitiated: userInitiated)
@@ -156,25 +176,32 @@ public actor StreamSource {
                 lastError = nil
                 return data
             } catch let status as HTTPStatusError where [401, 403, 410].contains(status.code) {
-                // Адрес истёк или не принят: свежий адрес и повтор. Параллельное чтение уже могло его обновить.
-                if seen == generation {
-                    refreshes += 1
-                    if refreshes > 2 {
-                        let error = StreamError(.network, "googlevideo \(status.code) после свежих адресов")
-                        lastError = error
-                        throw error
-                    }
-                    Log.warning("stream", "\(videoId): googlevideo \(status.code) — беру свежий адрес в новом сеансе")
-                    // В «помеченном» сеансе свежие адреса тоже обрываются на первом мегабайте.
-                    await resolver.renewVisitor()
-                    info = nil
+                // Адрес истёк или не принят: свежий адрес и повтор. Параллельное чтение уже могло его сменить — тогда
+                // просто повторить с новым.
+                guard seen == generation else { continue }
+                guard refreshes < freshURLPauses.count else {
+                    // Не «нет сети»: сеть есть, а адрес умер. Место и клиент — в тексте: по журналу видно, на каком байте и
+                    // у какого клиента оборвалось.
+                    let error = StreamError(.extractor, "googlevideo \(status.code) after \(freshURLPauses.count) fresh URLs at byte \(offset) of \(total) (\(current.source))")
+                    lastError = error
+                    throw error
                 }
+                let pause = freshURLPauses[refreshes]
+                refreshes += 1
+                Log.warning("stream", "\(videoId): googlevideo \(status.code) на байте \(offset) — свежий адрес в новом сеансе (\(refreshes)-й, пауза \(pause) с)")
+                info = nil
+                generation += 1
+                freshURLAt = Date().addingTimeInterval(pause)
+                // В «помеченном» сеансе свежие адреса тоже обрываются на первом мегабайте (задание 0025).
+                await resolver.renewVisitor()
                 continue
             } catch let status as HTTPStatusError where status.code == 429 {
-                // Лимит по адресу, как у `player`: проверка на бота, повторы только углубляют блок.
+                // Лимит по адресу, как у `player`: проверка на бота, повторы только углубляют блок. Адрес закрыт и для фона
+                // (заготовка следующих треков, загрузки), как у Linux и Windows.
                 let error = StreamError(.botCheck, "googlevideo 429")
                 Log.warning("stream", "\(videoId): \(error)")
                 lastError = error
+                await resolver.markBlocked(error)
                 throw error
             } catch let status as HTTPStatusError where status.code == 416 {
                 return Data()
