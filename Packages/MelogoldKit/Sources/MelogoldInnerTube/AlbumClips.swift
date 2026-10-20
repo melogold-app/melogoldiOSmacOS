@@ -201,7 +201,7 @@ extension YouTubeMusic {
     }
 
     /// Проверка на бота или блокировка (HTTP 403/429): после неё YouTube в этот раз больше не спрашивают.
-    static func isBotCheck(_ error: any Error) -> Bool {
+    public static func isBotCheck(_ error: any Error) -> Bool {
         (error as? YouTubeError)?.kind == .blocked
     }
 }

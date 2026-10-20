@@ -138,6 +138,15 @@ final class Services {
             Task.detached(priority: .utility) { cache.reconcile() }
         }
         downloads?.start()
+        #if !os(watchOS)
+        // Клипы из альбомов, сохранённые до задания 0029, — на песни: один раз, через 20 с после запуска (задание 0033 §3).
+        // Часы получают исправленное синком и YouTube ради этого не спрашивают.
+        if let library = library?.library {
+            Task.detached(priority: .utility) { [catalog] in
+                await AlbumClipsRepair.run(library: library, twins: { try await catalog.albumTwins($0) }, stopsAll: YouTubeMusic.isBotCheck)
+            }
+        }
+        #endif
         guard let paths else { return }
         let file = paths.root.appendingPathComponent("stream-clients.json")
         if let saved = StreamClients.saved(at: file) {
