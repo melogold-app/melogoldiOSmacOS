@@ -634,6 +634,8 @@ private struct MacToolbarHidden: NSViewRepresentable {
         private var wasVisible = true
         private var title = NSWindow.TitleVisibility.visible
         private var observer: (any NSObjectProtocol)?
+        /// Полосы под заголовком окна, которые спрятал этот вид: их и возвращает.
+        private var hiddenAccessories: [NSTitlebarAccessoryViewController] = []
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
@@ -655,6 +657,13 @@ private struct MacToolbarHidden: NSViewRepresentable {
             }
             if toolbar.isVisible { toolbar.isVisible = false }
             if window.titleVisibility != .hidden { window.titleVisibility = .hidden }
+            // Полосы под заголовком живут отдельно от панели: области поиска «Всё · Музыка · YouTube» (`searchScopes`)
+            // оставались поверх «Сейчас играет», когда под ним открыт Поиск (пользователь, 2026-10-20). Прячем и их —
+            // на каждом такте: SwiftUI показывает полосу заново при перестройке экрана под плеером
+            for accessory in window.titlebarAccessoryViewControllers where !accessory.isHidden {
+                accessory.isHidden = true
+                if !hiddenAccessories.contains(where: { $0 === accessory }) { hiddenAccessories.append(accessory) }
+            }
         }
 
         func restore() {
@@ -662,6 +671,8 @@ private struct MacToolbarHidden: NSViewRepresentable {
             observer = nil
             hiddenIn?.toolbar?.isVisible = wasVisible
             hiddenIn?.titleVisibility = title
+            for accessory in hiddenAccessories { accessory.isHidden = false }
+            hiddenAccessories = []
             hiddenIn = nil
         }
     }
