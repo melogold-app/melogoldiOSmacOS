@@ -4,6 +4,7 @@ import Observation
 import MelogoldCore
 import MelogoldData
 import MelogoldInnerTube
+import Network
 
 /// Плеер Melogold (docs/PROMPT.md §4) — свой движок на `AVSampleBufferAudioRenderer`: DASH-m4a YouTube разбирается
 /// по фрагментам, звук начинается после первого фрагмента, длительность честная. Очередь — по своим правилам.
@@ -131,6 +132,23 @@ public final class PlayerEngine {
     private var wantsToPlay = false
     private var consecutiveSkips = 0
     private var attempts: [UUID: Int] = [:]
+
+    /// Трек, ждущий сеть вместо пропуска (задание 0026): с какого момента, какой по счёту повтор, с какой позиции.
+    private struct NetworkWait {
+        let id: UUID
+        let since: Date
+        var attempt: Int
+        var position: Double
+    }
+
+    @ObservationIgnored private var networkWait: NetworkWait?
+    @ObservationIgnored private var networkWaitTask: Task<Void, Never>?
+    /// Следующий `startCurrent` — повтор ожидания сети, а не действие пользователя: ожидание не сбрасывать.
+    @ObservationIgnored private var retryingAfterNetwork = false
+    /// Паузы между повторами трека, ждущего сеть, и предел ожидания; тесты ставят короче.
+    @ObservationIgnored var networkWaitDelays: [TimeInterval] = [2, 4, 8, 15, 30]
+    @ObservationIgnored var networkWaitLimit: TimeInterval = 10 * 60
+    @ObservationIgnored private let pathMonitor = NWPathMonitor()
     private var tapTime: Date?
     /// Часы синхронизатора: где стояли и с какого момента — чтобы заметить, что при «играет» они не идут.
     @ObservationIgnored private var clockProbe: (time: Double, since: Date)?
@@ -189,6 +207,12 @@ public final class PlayerEngine {
             Task { @MainActor in self?.recoverFromAutomaticFlush() }
         }
         nowPlaying.install(self)
+        // Сеть появилась (или переподключился VPN): трек, ждущий её, пробуется сразу (задание 0026).
+        pathMonitor.pathUpdateHandler = { [weak self] path in
+            guard path.status == .satisfied else { return }
+            Task { @MainActor in self?.networkBecameAvailable() }
+        }
+        pathMonitor.start(queue: DispatchQueue(label: "app.melogold.player.network"))
     }
 
     // MARK: - Очередь
@@ -324,6 +348,8 @@ public final class PlayerEngine {
 
     public func pause() {
         flushSession()
+        // Пауза, пока трек ждёт сеть: решил пользователь — повторов больше нет.
+        clearNetworkWait()
         wantsToPlay = false
         pipeline.setRate(0)
         if phase != .failed, phase != .idle { phase = .paused }
@@ -714,6 +740,11 @@ public final class PlayerEngine {
     /// Начать текущий элемент заново: шкала с нуля, первый фрагмент, звук как только он есть.
     private func startCurrent(tapped: Bool, from offset: Double = 0) {
         flushSession()
+        if retryingAfterNetwork {
+            retryingAfterNetwork = false
+        } else {
+            clearNetworkWait()
+        }
         guard let current else { return }
         if tapped { tapTime = Date() }
         wantsToPlay = true
@@ -911,6 +942,7 @@ public final class PlayerEngine {
                 phase = .playing
                 loadingSince = nil
                 consecutiveSkips = 0
+                clearNetworkWait()
                 if let tapTime {
                     let latency = Date().timeIntervalSince(tapTime)
                     lastStartLatency = latency
@@ -1039,6 +1071,10 @@ public final class PlayerEngine {
             fail(PlaybackFailure(error, videoId: element.track.videoId))
             return
         }
+        if error.kind == .network || error.kind == .timeout {
+            waitForNetwork(element, error: error)
+            return
+        }
         let tries = attempts[element.id, default: 0]
         if !error.isFinal, tries < error.retries {
             attempts[element.id] = tries + 1
@@ -1046,6 +1082,63 @@ public final class PlayerEngine {
             return
         }
         skip(element, reason: PlaybackFailure(error, videoId: element.track.videoId))
+    }
+
+    /// Нет сети (задание 0026): трек не пропускается, а ждёт её на той же позиции. Повтор — сразу, как система сообщила о
+    /// сети (`NWPathMonitor`), иначе через `networkWaitDelays`. Через `networkWaitLimit` — карточка «нет соединения» с
+    /// «Повторить», очередь стоит. 07.10.2026 на Android туннель VPN 30 с не пропускал трафик, и плеер пропустил трек,
+    /// хотя через секунду сеть вернулась.
+    private func waitForNetwork(_ element: QueueItem, error: StreamError) {
+        let now = Date()
+        var wait = networkWait.flatMap { $0.id == element.id ? $0 : nil }
+            ?? NetworkWait(id: element.id, since: now, attempt: 0, position: position)
+        wait.position = max(0, position)
+        cancelProducers()
+        pipeline.setRate(0)
+        if now.timeIntervalSince(wait.since) >= networkWaitLimit {
+            Log.warning("player", "нет сети \(Int(networkWaitLimit)) с — останавливаюсь: \(error)")
+            clearNetworkWait()
+            wantsToPlay = false
+            fail(PlaybackFailure(error, videoId: element.track.videoId))
+            return
+        }
+        let delay = networkWaitDelays[min(wait.attempt, networkWaitDelays.count - 1)]
+        wait.attempt += 1
+        networkWait = wait
+        phase = .loading
+        if loadingSince == nil { loadingSince = Date() }
+        Log.info("player", "нет сети — «\(element.track.title)» ждёт её с \(Int(wait.position)) с, повтор через \(Int(delay)) с: \(error)")
+        networkWaitTask?.cancel()
+        networkWaitTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard !Task.isCancelled else { return }
+            self?.retryAfterNetwork()
+        }
+    }
+
+    /// Повтор трека, ждущего сеть, с той же позиции; время ожидания продолжает идти.
+    private func retryAfterNetwork() {
+        guard let wait = networkWait, current?.id == wait.id else {
+            clearNetworkWait()
+            return
+        }
+        networkWaitTask?.cancel()
+        networkWaitTask = nil
+        retryingAfterNetwork = true
+        startCurrent(tapped: false, from: wait.position)
+    }
+
+    /// Система сообщила о сети: трек, ждущий её, пробуется сразу, не дожидаясь паузы.
+    func networkBecameAvailable() {
+        guard networkWait != nil else { return }
+        Log.info("player", "сеть появилась — трек, ждавший её, пробуется сразу")
+        retryAfterNetwork()
+    }
+
+    private func clearNetworkWait() {
+        networkWait = nil
+        networkWaitTask?.cancel()
+        networkWaitTask = nil
     }
 
     /// Пропуск трека с причиной; после трёх подряд воспроизведение встаёт с карточкой (REWRITE §3.10.9).
