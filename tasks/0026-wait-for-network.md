@@ -1,6 +1,6 @@
 # Плеер: нет сети — трек ждёт её, а не пропускается
 
-Статус: сделано (2026-10-20; не выпущено). Ветка `fix/wait-for-network` собрана и проверена на Маке —
+Статус: сделано (2026-10-20, коммиты 61c6a95 и 8c5f0e6; не выпущено). Ветка `fix/wait-for-network` собрана и проверена на Маке —
 `PlayerEngine.waitForNetwork`, повтор по `NWPathMonitor`, паузы и предел — `networkWaitDelays`/`networkWaitLimit`.
 Linux — задание 0026, Windows — 0030, Android — 0025.
 

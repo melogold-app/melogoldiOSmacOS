@@ -1,6 +1,6 @@
 # Плеер: песня обрывается на первом мегабайте — свежий адрес брать в новом сеансе YouTube
 
-Статус: сделано (2026-10-20; не выпущено). Ветка `fix/stream-403-new-session` собрана и проверена на Маке:
+Статус: сделано (2026-10-20, коммит 8c5f0e6; не выпущено). Ветка `fix/stream-403-new-session` собрана и проверена на Маке:
 `StreamResolver.renewVisitor()` (сначала забывает адреса, потом `visitorData`) зовётся из `StreamSource` на 401/403/410 и
 из `DownloadManager.backgroundFailed`. Тест — `StreamCutTests` › `aForbiddenAnswerRenewsTheYouTubeSession` (подставные
 YouTube и googlevideo: после 403 свежий адрес берётся с новым `visitorData`). В журнале — «свежий адрес в новом сеансе».

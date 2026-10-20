@@ -27,9 +27,12 @@
 На остальных платформах это вышло 07–09.10. Порядок — как в 0028: `swift build && swift test` на каждой ветке, тест
 ожидания сети, Xcode iOS и macOS, слить в `main`.
 
+**Пункты 1–3 задания 0028 сделаны (2026-10-20, ветка `apple/t-playback`):** ветки собраны, правки проверены и
+исправлены (0025–0027), тесты написаны; осталось проверить руками на устройствах, слить в `main` и выпустить.
+
 ### 2. Обрыв посреди песни — продолжать с того же места (новое)
 
-**Сделано (2026-10-20; не выпущено).** Чтение — `StreamSource` (паузы `freshURLPauses`, ошибка с байтом и клиентом —
+**Сделано (2026-10-20, коммиты 8c5f0e6 и 30f7525; не выпущено).** Чтение — `StreamSource` (паузы `freshURLPauses`, ошибка с байтом и клиентом —
 отказ адреса, а не сеть; 429 закрывает адрес и для фона, как у Linux и Windows); плеер — `PlayerEngine.action(for:…)`:
 обрыв после того, как поток получен (`StreamSource.isOpen`), — заново с `livePosition()` со свежим адресом (адрес из кэша
 резолвера не берётся), до двух раз, потом пропуск; журнал `Reopening …` и `Skipped …`. Тесты — `StreamCutTests` (три 403
@@ -124,7 +127,7 @@
 - **Пульт: позиция не убегает за конец.** `PlaybackSummary.livePositionMs` ограничивает продление позиции только
   `durationMs` из состояния; если устройство его не прислало — позиция растёт дальше конца трека. Ограничивать той же
   длительностью, что показывает `PlaybackFacade` (состояние → трек → разбор «3:45»), как `Remote.DurationOf` у Windows
-  (`melogoldWindows/src/Melogold.Server/Remote.cs`, `11ba594`). **Сделано (2026-10-20):** `PlaybackSummary.knownDurationMs`
+  (`melogoldWindows/src/Melogold.Server/Remote.cs`, `11ba594`). **Сделано (2026-10-20, коммит 15af1f6):** `PlaybackSummary.knownDurationMs`
   (и `PlaybackState.knownDurationMs` для «Слушать здесь») — ею ограничены `livePositionMs`, длительность в плеере
   (`PlaybackFacade.playingDuration`, теперь и с разбором «3:45» и с 0 как «не прислано») и позиция «Слушать здесь»; тест
   `PlaybackRemoteTests.livePositionStopsAtTheTrackEndWhenTheDeviceSentNoDuration`.
