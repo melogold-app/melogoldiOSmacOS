@@ -135,13 +135,14 @@ extension AppModel {
         let positionMs = Int64(max(0, player.livePosition()) * 1000)
         player.pause()
         Task {
-            await remote.playQueue(queue, index: index)
+            await remote.playQueue(queue, index: index, positionMs: positionMs)
             await Self.seekWhenStarted(remote, videoId: track.videoId, positionMs: positionMs)
         }
     }
 
-    /// `play_queue` начинает трек с начала (сервер не передаёт позицию с очередью), а перемотку до загрузки трека плеер
-    /// цели пропускает. Ждём (до 15 с), пока цель сообщит, что этот трек играет, и тогда перематываем на место.
+    /// Запасной путь: позицию с очередью передаёт сервер с заданием 0005, а цель старой версии её не знает и начинает
+    /// трек с начала (перемотку до загрузки трека она пропускает). Ждём (до 15 с), пока цель сообщит, что этот трек
+    /// играет, и, если он далеко от места, перематываем.
     private static func seekWhenStarted(_ remote: RemoteControl, videoId: String, positionMs: Int64) async {
         guard positionMs > 3000 else { return }
         for _ in 0 ..< 60 {

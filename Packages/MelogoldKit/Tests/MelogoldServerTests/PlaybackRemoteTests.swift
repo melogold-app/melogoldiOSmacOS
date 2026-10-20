@@ -337,7 +337,9 @@ struct PlaybackRemoteTests {
         func remotePrevious() { calls.append("previous") }
         func remoteSeek(toMs positionMs: Int64) { calls.append("seek \(positionMs)") }
         func remoteSetVolume(_ volume: Int) { calls.append("volume \(volume)") }
-        func remotePlayQueue(_ tracks: [TrackDto], index: Int) { calls.append("queue \(tracks.count) \(index)") }
+        func remotePlayQueue(_ tracks: [TrackDto], index: Int, startMs: Int64) {
+            calls.append(startMs > 0 ? "queue \(tracks.count) \(index) \(startMs)" : "queue \(tracks.count) \(index)")
+        }
         func remoteStop() { calls.append("stop") }
     }
 

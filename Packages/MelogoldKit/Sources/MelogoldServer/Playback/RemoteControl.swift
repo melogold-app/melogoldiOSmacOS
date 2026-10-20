@@ -132,11 +132,12 @@ public final class RemoteControl {
         await send(.seek, positionMs: max(0, positionMs))
     }
 
-    /// Нажатие по треку в списке, пока пульт включён: эта очередь с этого трека на цели.
-    public func playQueue(_ tracks: [TrackInput], index: Int) async {
+    /// Нажатие по треку в списке, пока пульт включён: эта очередь с этого трека на цели. `positionMs` — с какой секунды
+    /// начать трек: очередь переезжает на цель с того же места, как AirPlay (задание 0027, сервер — задание 0005).
+    public func playQueue(_ tracks: [TrackInput], index: Int, positionMs: Int64? = nil) async {
         let (window, start) = PlaybackReporter.window(tracks, index: index)
         guard !window.isEmpty else { return }
-        await send(.playQueue, queue: window, index: start)
+        await send(.playQueue, positionMs: positionMs.flatMap { $0 > 0 ? $0 : nil }, queue: window, index: start)
     }
 
     /// Ползунок громкости: команда уходит через 150 мс после последнего движения.
@@ -216,7 +217,8 @@ public protocol RemotePlayable: AnyObject {
     func remoteSeek(toMs positionMs: Int64)
     /// 0..100 — громкость плеера приложения.
     func remoteSetVolume(_ volume: Int)
-    func remotePlayQueue(_ tracks: [TrackDto], index: Int)
+    /// Очередь с трека `index`, его — с `startMs` (перенос с другого устройства; 0 — с начала).
+    func remotePlayQueue(_ tracks: [TrackDto], index: Int, startMs: Int64)
     func remoteStop()
 }
 
@@ -257,7 +259,7 @@ public final class RemoteCommandExecutor {
             player.remoteSetVolume(min(100, max(0, volume)))
         case .playQueue:
             guard let queue = command.queue, !queue.isEmpty else { return nil }
-            player.remotePlayQueue(queue, index: min(max(0, command.index ?? 0), queue.count - 1))
+            player.remotePlayQueue(queue, index: min(max(0, command.index ?? 0), queue.count - 1), startMs: max(0, command.positionMs ?? 0))
         }
         let current = now()
         if let lastNotice, current.timeIntervalSince(lastNotice) < noticeInterval { return nil }
