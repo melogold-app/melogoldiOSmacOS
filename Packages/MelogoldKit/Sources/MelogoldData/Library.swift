@@ -486,7 +486,7 @@ public final class Library: Sendable {
         try String.fetchAll(db, sql: "SELECT video_id FROM playlist_items WHERE playlist_id = ? ORDER BY position", arguments: [id])
     }
 
-    private static func renumber(_ db: Database, _ id: Int64) throws {
+    static func renumber(_ db: Database, _ id: Int64) throws {
         try setOrder(db, id, videoIds(db, id))
     }
 
