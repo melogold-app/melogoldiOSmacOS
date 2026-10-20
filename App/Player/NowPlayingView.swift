@@ -232,11 +232,12 @@ struct NowPlayingView: View {
     /// `PreferenceKey` из листа на iPad она доходила и тут же сбрасывалась в `nil`, и строка вставала к верху, а не к
     /// середине обложки.
     private func coverSlot() -> some View {
-        GeometryReader { slot in
+        let space = nowPlayingSpace
+        return GeometryReader { slot in
             if slot.size.width >= 1, slot.size.height >= 1 {
                 Color.clear
                     .artworkSlot(big: true)
-                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(nowPlayingSpace)) } action: { coverFrame = $0 }
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(space)) } action: { coverFrame = $0 }
                     .onDisappear { coverFrame = nil }
             }
         }
