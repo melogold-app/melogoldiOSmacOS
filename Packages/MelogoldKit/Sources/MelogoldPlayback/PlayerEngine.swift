@@ -170,6 +170,8 @@ public final class PlayerEngine {
     /// Уровни звука на шкале синхронизатора (столбики) и недавние пики каждой полосы.
     @ObservationIgnored private var levelTimeline: [LevelFrame] = []
     @ObservationIgnored private var levelPeaks: (Float, Float, Float) = (0.02, 0.02, 0.02)
+    /// Спектр на шкале синхронизатора для живого фона «Сейчас играет» (задание 0031): с запасом чтения вперёд.
+    @ObservationIgnored private var spectrumTimeline: [SpectrumFrame] = []
     private var sleepTask: Task<Void, Never>?
     /// Читать вперёд не больше стольких секунд — память и трафик.
     private static let readAhead: Double = 40
@@ -461,6 +463,7 @@ public final class PlayerEngine {
         let time = CMTimeAdd(segment.start, CMTime(seconds: target, preferredTimescale: 44_100))
         generation = pipeline.reset(to: time)
         levelTimeline.removeAll()
+        spectrumTimeline.removeAll()
         position = target
         if wantsToPlay {
             phase = .loading
@@ -525,6 +528,31 @@ public final class PlayerEngine {
         let result = (min(1, frame.low / max(levelPeaks.0, 0.01)), min(1, frame.mid / max(levelPeaks.1, 0.01)),
                       min(1, frame.high / max(levelPeaks.2, 0.01)))
         return result
+    }
+
+    // MARK: - Спектр живого фона (задание 0031)
+
+    private func appendSpectrum(_ frames: [SpectrumFrame]) {
+        guard !frames.isEmpty else { return }
+        let now = pipeline.currentTime.seconds
+        spectrumTimeline.removeAll { $0.time < now - 1 }
+        spectrumTimeline.append(contentsOf: frames)
+        // Запас чтения — до 40 с, это ~3500 измерений; больше не держим
+        if spectrumTimeline.count > 6000 { spectrumTimeline.removeFirst(spectrumTimeline.count - 6000) }
+    }
+
+    /// Измерение, которое звучит сейчас: последнее не позже часов синхронизатора (они учитывают задержку вывода), а не
+    /// последнее прочитанное — оно опережает звук на запас чтения. На паузе и без данных рядом — `nil`.
+    public func currentSpectrum() -> SpectrumFrame? {
+        guard phase == .playing, !spectrumTimeline.isEmpty else { return nil }
+        let now = pipeline.currentTime.seconds
+        var lowIndex = 0, highIndex = spectrumTimeline.count - 1
+        while lowIndex < highIndex {
+            let middle = (lowIndex + highIndex + 1) / 2
+            if spectrumTimeline[middle].time <= now { lowIndex = middle } else { highIndex = middle - 1 }
+        }
+        let frame = spectrumTimeline[lowIndex]
+        return frame.time <= now && now - frame.time < 0.5 ? frame : nil
     }
 
     // MARK: - Таймер сна (REWRITE §3.10.7)
@@ -762,6 +790,7 @@ public final class PlayerEngine {
         let startTime = CMTime(seconds: max(0, offset), preferredTimescale: 44_100)
         generation = pipeline.reset(to: startTime)
         levelTimeline.removeAll()
+        spectrumTimeline.removeAll()
         let segment = makeSegment(for: current, start: .zero, userInitiated: tapped)
         segment.startOffset = max(0, offset)
         segments = [segment]
@@ -828,6 +857,7 @@ public final class PlayerEngine {
                     guard generation == self.generation else { return }
                     self.pipeline.append(batch, generation: generation)
                     self.appendLevels(batch.levels)
+                    self.appendSpectrum(batch.spectrum)
                     if number == timing.fragmentCount - 1 { segment.end = batch.end }
                 }
                 guard generation == self.generation else { return }

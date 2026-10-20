@@ -11,9 +11,10 @@ public struct LevelFrame: Sendable {
 }
 
 /// Столбики под реальный звук: те же сжатые буферы, что уходят рендереру, декодируются в PCM (`AVAudioConverter`)
-/// только для замера — моно, три полосы простыми фильтрами (до 200 Гц, 200 Гц … 3 кГц, выше 3 кГц), RMS каждые 1/30 с.
-/// Разрешения на микрофон не нужно: звук свой. Время кадра — на шкале синхронизатора, поэтому задержку вывода
-/// учитывают часы синхронизатора.
+/// только для замера — моно (среднее каналов), три полосы простыми фильтрами (до 200 Гц, 200 Гц … 3 кГц, выше 3 кГц),
+/// RMS каждые 1/30 с. Те же моно-сэмплы идут в спектр живого фона «Сейчас играет» (`SpectrumAnalyzer`, задание 0031):
+/// звук декодируется один раз. Разрешения на микрофон не нужно: звук свой. Время кадра — на шкале синхронизатора,
+/// поэтому задержку вывода учитывают часы синхронизатора.
 final class LevelAnalyzer {
     static let framesPerSecond = 30.0
     private let converter: AVAudioConverter
@@ -23,11 +24,15 @@ final class LevelAnalyzer {
     private var midState: Float = 0
     private let lowAlpha: Float
     private let midAlpha: Float
+    private let spectrum = SpectrumAnalyzer()
+    private var mono: [Float] = []
 
     init?(format: CMAudioFormatDescription) {
         let input = AVAudioFormat(cmAudioFormatDescription: format)
-        guard input.sampleRate > 0,
-              let output = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: input.sampleRate, channels: 1, interleaved: false),
+        // Каналы — как у звука: моно — их среднее (задание 0031, §2), а не первый канал, как дал бы конвертер
+        guard input.sampleRate > 0, input.channelCount > 0,
+              let output = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: input.sampleRate,
+                                         channels: input.channelCount, interleaved: false),
               let converter = AVAudioConverter(from: input, to: output) else { return nil }
         self.input = input
         self.output = output
@@ -40,17 +45,29 @@ final class LevelAnalyzer {
     /// Перемотка: прежнее состояние декодера и фильтров не относится к новому месту.
     func reset() {
         converter.reset()
+        spectrum.reset()
         lowState = 0
         midState = 0
     }
 
-    /// Кадры уровней буферов (время — начало буфера на шкале плюс номер кадра).
-    func analyze(_ buffers: [CMSampleBuffer]) -> [LevelFrame] {
+    /// Кадры уровней буферов (время — начало буфера на шкале плюс номер кадра) и измерения спектра.
+    func analyze(_ buffers: [CMSampleBuffer]) -> (levels: [LevelFrame], spectrum: [SpectrumFrame]) {
         var frames: [LevelFrame] = []
+        var measurements: [SpectrumFrame] = []
         for buffer in buffers {
-            guard let pcm = decode(buffer), let samples = pcm.floatChannelData?[0] else { continue }
+            guard let pcm = decode(buffer), let channels = pcm.floatChannelData else { continue }
             let count = Int(pcm.frameLength)
+            let channelCount = Int(pcm.format.channelCount)
+            if mono.count < count { mono = [Float](repeating: 0, count: count) }
+            for i in 0..<count {
+                var sum: Float = 0
+                for channel in 0..<channelCount { sum += channels[channel][i] }
+                mono[i] = sum / Float(channelCount)
+            }
             let start = CMSampleBufferGetPresentationTimeStamp(buffer).seconds
+            measurements += mono.withUnsafeBufferPointer { samples in
+                spectrum.feed(UnsafeBufferPointer(rebasing: samples[0..<count]), start: start, rate: input.sampleRate)
+            }
             let frameSize = max(1, Int(input.sampleRate / Self.framesPerSecond))
             var index = 0
             var frameNumber = 0
@@ -58,7 +75,7 @@ final class LevelAnalyzer {
                 let end = min(index + frameSize, count)
                 var low: Float = 0, mid: Float = 0, high: Float = 0
                 for i in index..<end {
-                    let x = samples[i]
+                    let x = mono[i]
                     lowState += lowAlpha * (x - lowState)
                     midState += midAlpha * (x - midState)
                     let l = lowState, m = midState - lowState, h = x - midState
@@ -73,7 +90,7 @@ final class LevelAnalyzer {
                 frameNumber += 1
             }
         }
-        return frames
+        return (frames, measurements)
     }
 
     private func decode(_ buffer: CMSampleBuffer) -> AVAudioPCMBuffer? {

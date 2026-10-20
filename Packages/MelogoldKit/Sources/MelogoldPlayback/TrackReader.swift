@@ -8,6 +8,8 @@ public struct SampleBatch: @unchecked Sendable {
     public let end: CMTime
     /// Уровни звука фрагмента для столбиков «играет».
     public var levels: [LevelFrame] = []
+    /// Спектр фрагмента для живого фона «Сейчас играет» (задание 0031).
+    public var spectrum: [SpectrumFrame] = []
 }
 
 /// Что известно о треке после чтения начала файла.
@@ -112,7 +114,7 @@ public actor TrackReader {
         // Декодер уровней помнит соседний фрагмент; не по порядку (перемотка) — начать заново.
         if let analyzer {
             if lastAnalyzed != number - 1 || trimBefore != nil { analyzer.reset() }
-            batch.levels = analyzer.analyze(buffers)
+            (batch.levels, batch.spectrum) = analyzer.analyze(buffers)
             lastAnalyzed = number
         }
         return batch
