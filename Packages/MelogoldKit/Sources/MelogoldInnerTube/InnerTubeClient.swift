@@ -49,7 +49,9 @@ public actor InnerTubeClient {
     }
 
     /// Язык InnerTube по списку поддерживаемых кодов, запасной — `en`; регион — страна локали, запасной — `US`
-    /// (REWRITE §4.8.4).
+    /// (REWRITE §4.8.4). Россия (`RU`) регионом не отправляется никогда — вместо неё `US` (пользователь, 2026-10-20: «удали
+    /// как таковой ru регион»): с `gl=RU` YouTube отдаёт каталог для России, где у крупных лейблов нет новых альбомов
+    /// (у Tyler, The Creator пропали всё после 2021 года), хотя через VPN они играют. Язык ответов при этом остаётся русским.
     public static func localeFrom(preferredLanguages: [String], locale: Locale) -> (language: String, region: String) {
         let tag = preferredLanguages.first ?? locale.identifier
         let normalized = tag.replacingOccurrences(of: "_", with: "-")
@@ -65,8 +67,11 @@ public actor InnerTubeClient {
             language = base
         }
         let region = locale.region?.identifier.uppercased() ?? "US"
-        return (language, region.count == 2 ? region : "US")
+        return (language, region.count == 2 && !excludedRegions.contains(region) ? region : "US")
     }
+
+    /// Регионы, которые YouTube не отправляются: их каталог урезан, вместо них — `US`.
+    static let excludedRegions: Set<String> = ["RU"]
 
     private static let supportedLanguages: Set<String> = [
         "af", "az", "id", "ms", "ca", "cs", "da", "de", "et", "en-GB", "en", "es", "es-419", "eu", "fil", "fr", "fr-CA", "gl", "hr",

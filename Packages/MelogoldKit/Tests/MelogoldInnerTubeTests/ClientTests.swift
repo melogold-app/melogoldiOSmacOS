@@ -5,10 +5,16 @@ import MelogoldCore
 
 @Suite("Клиент InnerTube: язык, регион, обложки")
 struct ClientTests {
-    @Test func russianLocaleGivesRuAndCountry() {
+    /// Русский язык остаётся, а регион России не отправляется: с `gl=RU` каталог урезан (пользователь, 2026-10-20).
+    @Test func russianLocaleGivesRuLanguageButNeverRuRegion() {
         let (language, region) = InnerTubeClient.localeFrom(preferredLanguages: ["ru-RU"], locale: Locale(identifier: "ru_RU"))
         #expect(language == "ru")
-        #expect(region == "RU")
+        #expect(region == "US")
+    }
+
+    @Test func otherCountriesStayAsTheyAre() {
+        let (_, region) = InnerTubeClient.localeFrom(preferredLanguages: ["en-GB"], locale: Locale(identifier: "en_GB"))
+        #expect(region == "GB")
     }
 
     @Test func kazakhstanRussian() {
