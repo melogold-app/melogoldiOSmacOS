@@ -52,4 +52,31 @@ struct SpectrumTests {
         let short = Array(second[0..<2000])
         #expect(short.withUnsafeBufferPointer { analyzer.feed($0, start: 1, rate: rate) }.isEmpty)
     }
+
+    /// Звук приходит буферами разной длины (декодер отдаёт пакеты по 1024 сэмпла и меньше): измерения те же, что при
+    /// одном большом буфере, — окно тянется через границу буферов, шаг не сбивается.
+    @Test func buffersOfAnySizeGiveTheSameMeasurements() {
+        let rate = 44_100.0
+        let signal = tone(440, rate: Float(rate), count: 12_000).enumerated().map { $1 + 0.01 * sin(Float($0) * 0.37) }
+        let whole = SpectrumAnalyzer()
+        let expected = signal.withUnsafeBufferPointer { whole.feed($0, start: 3, rate: rate) }
+        let pieces = SpectrumAnalyzer()
+        var frames: [SpectrumFrame] = []
+        var offset = 0
+        for length in [1, 700, 1024, 300, 2047, 2048, 5000] where offset < signal.count {
+            let end = min(offset + length, signal.count)
+            let piece = Array(signal[offset..<end])
+            frames += piece.withUnsafeBufferPointer { pieces.feed($0, start: 3 + Double(offset) / rate, rate: rate) }
+            offset = end
+        }
+        if offset < signal.count {
+            let rest = Array(signal[offset...])
+            frames += rest.withUnsafeBufferPointer { pieces.feed($0, start: 3 + Double(offset) / rate, rate: rate) }
+        }
+        #expect(frames.count == expected.count)
+        for (got, want) in zip(frames, expected) {
+            #expect(abs(got.time - want.time) < 1e-9)
+            #expect(got.bands == want.bands)
+        }
+    }
 }

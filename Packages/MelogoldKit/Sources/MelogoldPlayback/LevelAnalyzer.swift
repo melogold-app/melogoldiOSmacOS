@@ -1,3 +1,4 @@
+import Accelerate
 import AVFoundation
 import CoreMedia
 import Foundation
@@ -65,17 +66,19 @@ final class LevelAnalyzer {
             guard let pcm = decode(buffer), let channels = pcm.floatChannelData else { continue }
             let count = Int(pcm.frameLength)
             let channelCount = Int(pcm.format.channelCount)
-            if mono.count < count { mono = [Float](repeating: 0, count: count) }
-            for i in 0..<count {
-                var sum: Float = 0
-                for channel in 0..<channelCount { sum += channels[channel][i] }
-                mono[i] = sum / Float(channelCount)
+            // Моно — среднее каналов; vDSP, а не цикл по сэмплу: фрагмент — это ~10 с звука
+            mono = Array(UnsafeBufferPointer(start: channels[0], count: count))
+            if channelCount > 1 {
+                mono.withUnsafeMutableBufferPointer { out in
+                    guard let base = out.baseAddress else { return }
+                    for channel in 1..<channelCount { vDSP_vadd(base, 1, channels[channel], 1, base, 1, vDSP_Length(count)) }
+                    var scale = 1 / Float(channelCount)
+                    vDSP_vsmul(base, 1, &scale, base, 1, vDSP_Length(count))
+                }
             }
             let start = CMSampleBufferGetPresentationTimeStamp(buffer).seconds
             if let spectrum {
-                measurements += mono.withUnsafeBufferPointer { samples in
-                    spectrum.feed(UnsafeBufferPointer(rebasing: samples[0..<count]), start: start, rate: input.sampleRate)
-                }
+                measurements += mono.withUnsafeBufferPointer { spectrum.feed($0, start: start, rate: input.sampleRate) }
             }
             let frameSize = max(1, Int(input.sampleRate / Self.framesPerSecond))
             var index = 0
