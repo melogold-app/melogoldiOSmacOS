@@ -107,4 +107,140 @@ struct StreamCutTests {
             #expect(FakeGoogleVideo.players.count == 1 + 2)
         }
     }
+
+    // MARK: - Плеер
+
+    /// Плеер на подставке: настоящий файл формата YouTube (60 с, фрагменты по 10 с), звук выключен, рендерер настоящий.
+    @Suite("Плеер: обрыв посреди трека и ожидание сети")
+    @MainActor
+    struct Engine {
+        static let seconds = 60.0
+        static let file: Data = { (try? SyntheticMP4.audibleFile(seconds: seconds)) ?? Data() }()
+
+        /// Где в файле начинается фрагмент со звуком на `seconds` секунде трека.
+        static func fragmentOffset(at seconds: Double) throws -> Int {
+            let (header, index, _) = try #require(try FragmentedMP4.parseHeader(file))
+            let segments = try #require(index)
+            return segments.segments[segments.segment(at: seconds + Double(header.priming) / Double(header.timescale))].offset
+        }
+
+        func track(_ id: String) -> Track { Track(videoId: id, title: id, durationMs: Int64(Self.seconds * 1000)) }
+
+        func engine(youTubeOffline: Bool = false,
+                    answer: @escaping @Sendable (FakeGoogleVideo.Request) -> FakeGoogleVideo.Answer = { _ in .bytes }) async throws -> PlayerEngine {
+            try #require(!Self.file.isEmpty, "не собрался AAC")
+            FakeGoogleVideo.serve(Self.file, youTubeOffline: youTubeOffline, answer: answer)
+            let stack = await FakeGoogleVideo.stack()
+            let engine = PlayerEngine(catalog: stack.catalog, resolver: stack.resolver, cache: nil, session: FakeGoogleVideo.session())
+            // Тихо: рендерер настоящий, но без звука ещё до первого буфера
+            engine.outputMuted = true
+            engine.volume = 0
+            engine.autoplayEnabled = false
+            engine.pipeline.renderer.volume = 0
+            engine.pipeline.renderer.isMuted = true
+            engine.freshURLPauses = [0, 0, 0, 0]
+            return engine
+        }
+
+        /// Ждёт условия; не дождались — в сообщение и то, в каком состоянии плеер (`engine`).
+        func until(_ what: String, timeout: Double = 10, engine: PlayerEngine? = nil, _ condition: () -> Bool) async throws {
+            let started = Date()
+            while !condition() {
+                guard Date().timeIntervalSince(started) < timeout else {
+                    let state = engine.map {
+                        "\($0.phase), ждёт сеть \($0.isWaitingForNetwork), позиция \($0.position), \(String(describing: $0.failure)), будили подачу \($0.feederRecoveries)"
+                    }
+                    Issue.record("не дождались: \(what) — \(state ?? "")")
+                    return
+                }
+                try await Task.sleep(for: .milliseconds(20))
+            }
+        }
+
+        func players(_ videoId: String) -> Int { FakeGoogleVideo.players.filter { $0 == videoId }.count }
+
+        /// По образцу Linux `engine::without_network_the_track_waits_instead_of_skipping` и Windows `NetworkWaitTests`
+        /// (задание 0026): сети нет — трек не пропускается, а ждёт её в буферизации; «сеть появилась» — повтор сразу, не
+        /// дожидаясь паузы; предел ожидания вышел — ошибка «нет сети», трек и очередь на месте.
+        @Test func withoutNetworkTheTrackWaitsInsteadOfSkipping() async throws {
+            let engine = try await engine(youTubeOffline: true)
+            engine.networkWaitDelays = [2]
+            engine.networkWaitLimit = 3
+            engine.play(tracks: ["aaaaaaaaaaa", "bbbbbbbbbbb", "ccccccccccc"].map(track), startAt: 0)
+
+            // Отказ — буферизация на том же треке, не пропуск
+            try await until("трек ждёт сеть", engine: engine) { engine.isWaitingForNetwork }
+            #expect(engine.phase == .loading)
+            #expect(engine.currentTrack?.videoId == "aaaaaaaaaaa")
+            #expect(engine.notice == nil, "плашки «Пропущен…» нет")
+
+            // Сеть появилась — повтор сразу, раньше паузы в 2 с; ожидание и его счёт времени — прежние
+            let calls = players("aaaaaaaaaaa")
+            let asked = Date()
+            engine.networkBecameAvailable()
+            try await until("по сигналу сети YouTube спрошен снова", timeout: 1.5) { players("aaaaaaaaaaa") > calls }
+            #expect(Date().timeIntervalSince(asked) < 1, "повтор не ждал паузы")
+            #expect(engine.isWaitingForNetwork)
+
+            // Предел ожидания — ошибка «нет сети», трек и очередь на месте, ничего не пропущено
+            try await until("плеер встал с ошибкой", timeout: 15, engine: engine) { engine.phase == .failed }
+            #expect(engine.failure?.kind == .network)
+            #expect(engine.index == 0 && engine.currentTrack?.videoId == "aaaaaaaaaaa")
+            #expect(engine.notice == nil, "за всё ожидание ни одного пропуска")
+            #expect(!engine.isPlaying && !engine.isWaitingForNetwork)
+            engine.stop()
+        }
+
+        /// Сеть пропала посреди трека, когда 30 с звука уже поданы рендереру: трек ждёт на месте. Раньше часы шли по
+        /// поданному звуку, ожидание снималось как удачный старт, а когда звук кончался, трек вставал без подачи и без
+        /// повтора. Сеть вернулась — тот же трек с той же секунды.
+        @Test func aNetworkDropMidTrackWaitsAtItsPlace() async throws {
+            let cut = try Self.fragmentOffset(at: 30)
+            let engine = try await engine { $0.range.lowerBound < cut ? .bytes : .noNetwork }
+            // Повтор — только по сигналу сети
+            engine.networkWaitDelays = [60]
+            engine.play(tracks: [track("aaaaaaaaaaa")], startAt: 0)
+            // Чтение вперёд: сразу, через 1 и через 3 с — и отказ; под нагрузкой (подачу будят перемоткой) дольше
+            try await until("трек ждёт сеть", timeout: 40, engine: engine) { engine.isWaitingForNetwork }
+            let at = engine.position
+            try await Task.sleep(for: .milliseconds(600))
+            #expect(engine.isWaitingForNetwork, "ожидание сняли поданные вперёд 30 с")
+            #expect(engine.phase == .loading)
+            #expect(abs(engine.position - at) < 0.01, "позиция стоит: \(at) → \(engine.position)")
+
+            FakeGoogleVideo.answer { _ in .bytes }
+            engine.networkBecameAvailable()
+            #expect(abs(engine.position - at) < 0.01, "повтор — с того же места")
+            try await until("трек снова играет", engine: engine) { engine.phase == .playing }
+            #expect(!engine.isWaitingForNetwork && engine.index == 0 && engine.notice == nil)
+            engine.stop()
+        }
+
+        /// Чтение вперёд оборвалось на паузе (человек поставил паузу и вошёл в лифт): трек не ждёт сеть и не заигрывает сам,
+        /// когда она вернётся; «Играть» — с того же места.
+        @Test func aCutWhilePausedNeitherWaitsNorResumesByItself() async throws {
+            let cut = try Self.fragmentOffset(at: 30)
+            let engine = try await engine { $0.range.lowerBound < cut ? .bytes : .noNetwork }
+            engine.play(tracks: [track("aaaaaaaaaaa")], startAt: 0)
+            try await until("первый звук", engine: engine) { engine.phase == .playing }
+            engine.pause()
+            let generation = engine.pipeline.generation
+            // Чтение вперёд — сразу, через 1 и через 3 с — и отказ: поданный звук снят, трек остаётся на месте
+            try await until("чтение вперёд оборвалось", timeout: 40, engine: engine) { engine.pipeline.generation != generation }
+            #expect(FakeGoogleVideo.ranges.filter { $0.range.lowerBound >= cut }.count == 3)
+            let at = engine.position
+            #expect(engine.phase == .paused && !engine.isPlaying)
+            #expect(!engine.isWaitingForNetwork, "на паузе сеть не ждут")
+
+            FakeGoogleVideo.answer { _ in .bytes }
+            engine.networkBecameAvailable()
+            try await Task.sleep(for: .milliseconds(300))
+            #expect(engine.phase == .paused, "сам не заиграл")
+            #expect(engine.position == at)
+            engine.play()
+            #expect(engine.position == at, "с того же места")
+            try await until("снова играет", engine: engine) { engine.phase == .playing }
+            engine.stop()
+        }
+    }
 }

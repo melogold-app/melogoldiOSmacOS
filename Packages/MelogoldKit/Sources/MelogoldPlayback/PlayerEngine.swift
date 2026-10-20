@@ -363,6 +363,7 @@ public final class PlayerEngine {
     /// Остановить и очистить очередь.
     public func stop() {
         flushSession()
+        clearNetworkWait()
         wantsToPlay = false
         cancelProducers()
         generation = pipeline.reset(to: .zero)
@@ -451,9 +452,11 @@ public final class PlayerEngine {
     public func seek(to seconds: Double) {
         let target = max(0, duration > 0 ? min(seconds, duration - 0.3) : seconds)
         guard let segment = currentSegment else {
-            // Очередь восстановлена после перезапуска, трек ещё не открыт: ползунок выбирает, с какого места он начнётся
-            guard current != nil, !wantsToPlay else { return }
+            // Очередь восстановлена после перезапуска, трек ещё не открыт, или трек ждёт сеть: ползунок выбирает, с какого
+            // места он начнётся
+            guard current != nil, !wantsToPlay || networkWait != nil else { return }
             position = target
+            networkWait?.position = target
             syncNowPlaying()
             return
         }
@@ -487,14 +490,14 @@ public final class PlayerEngine {
         seek(to: at)
     }
 
-    /// Карточка ошибки › «Повторить».
+    /// Карточка ошибки › «Повторить»: с того же места (нет сети 10 минут — песня продолжается, а не начинается с 0:00).
     public func retryCurrent() {
         guard let current else { return }
         failure = nil
         consecutiveSkips = 0
         attempts[current.id] = 0
         Task { await resolver.invalidate(current.track.videoId) }
-        startCurrent(tapped: true)
+        startCurrent(tapped: true, from: position)
     }
 
     // MARK: - Столбики
@@ -686,6 +689,7 @@ public final class PlayerEngine {
         guard snapshot.items.indices.contains(snapshot.index) else { return }
         radioTask?.cancel()
         flushSession()
+        clearNetworkWait()
         items = snapshot.items.map { queueItem($0.track, fromAutoplay: $0.fromAutoplay) }
         index = snapshot.index
         queueId = UUID()
@@ -934,7 +938,9 @@ public final class PlayerEngine {
             trackChanged(to: playing)
         }
         guard let segment = currentSegment else { return }
-        position = min(max(0, (now - segment.start).seconds), max(duration, 0))
+        // Длительность ещё неизвестна (трек без неё, файл не открыт) — позиция не обнуляется: с неё трек и начат
+        let elapsed = max(0, (now - segment.start).seconds)
+        position = duration > 0 ? min(elapsed, duration) : elapsed
         watchClock(now.seconds)
         watchFeeder(now)
 
@@ -1061,6 +1067,9 @@ public final class PlayerEngine {
 
     // MARK: - Ошибки и пропуски
 
+    /// Трек ждёт сеть (задание 0026).
+    var isWaitingForNetwork: Bool { networkWait != nil }
+
     private func handleFailure(of element: QueueItem, error: StreamError) {
         Log.warning("player", "«\(element.track.title)» (\(element.track.videoId)): \(error)")
         guard element.id == current?.id else {
@@ -1076,7 +1085,13 @@ public final class PlayerEngine {
             return
         }
         if error.kind == .network || error.kind == .timeout {
-            waitForNetwork(element, error: error)
+            if wantsToPlay {
+                waitForNetwork(element, error: error)
+            } else {
+                // Пауза: чтение вперёд оборвалось, пока человек не слушает. Сеть не ждём, и сам трек не заиграет: «Играть»
+                // откроет его заново с этого места (`play()` без отрезка).
+                park(at: livePosition())
+            }
             return
         }
         let tries = attempts[element.id, default: 0]
@@ -1088,17 +1103,30 @@ public final class PlayerEngine {
         skip(element, reason: PlaybackFailure(error, videoId: element.track.videoId))
     }
 
+    /// Снять трек со шкалы, оставив его текущим на месте `seconds`: поданный вперёд звук не доигрывается. С этого места трек
+    /// откроется заново — повтором ожидания сети или по «Играть» (`play()` без отрезка начинает с `position`).
+    private func park(at seconds: Double) {
+        cancelProducers()
+        segments = []
+        generation = pipeline.reset(to: .zero)
+        levelTimeline.removeAll()
+        position = max(0, seconds)
+        syncNowPlaying()
+    }
+
     /// Нет сети (задание 0026): трек не пропускается, а ждёт её на той же позиции. Повтор — сразу, как система сообщила о
     /// сети (`NWPathMonitor`), иначе через `networkWaitDelays`. Через `networkWaitLimit` — карточка «нет соединения» с
     /// «Повторить», очередь стоит. 07.10.2026 на Android туннель VPN 30 с не пропускал трафик, и плеер пропустил трек,
     /// хотя через секунду сеть вернулась.
     private func waitForNetwork(_ element: QueueItem, error: StreamError) {
         let now = Date()
+        let at = max(0, livePosition())
         var wait = networkWait.flatMap { $0.id == element.id ? $0 : nil }
-            ?? NetworkWait(id: element.id, since: now, attempt: 0, position: position)
-        wait.position = max(0, position)
-        cancelProducers()
-        pipeline.setRate(0)
+            ?? NetworkWait(id: element.id, since: now, attempt: 0, position: at)
+        wait.position = at
+        // Поданный вперёд звук не доигрывается: иначе часы пошли бы по нему, ожидание снялось бы как удачный старт, а когда
+        // звук кончится, трек встал бы без подачи и без повтора.
+        park(at: at)
         if now.timeIntervalSince(wait.since) >= networkWaitLimit {
             Log.warning("player", "нет сети \(Int(networkWaitLimit)) с — останавливаюсь: \(error)")
             clearNetworkWait()
@@ -1111,7 +1139,7 @@ public final class PlayerEngine {
         networkWait = wait
         phase = .loading
         if loadingSince == nil { loadingSince = Date() }
-        Log.info("player", "нет сети — «\(element.track.title)» ждёт её с \(Int(wait.position)) с, повтор через \(Int(delay)) с: \(error)")
+        Log.info("player", "нет сети — «\(element.track.title)» ждёт её с \(Durations.format(seconds: at)), повтор через \(Int(delay)) с: \(error)")
         networkWaitTask?.cancel()
         networkWaitTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(delay))
