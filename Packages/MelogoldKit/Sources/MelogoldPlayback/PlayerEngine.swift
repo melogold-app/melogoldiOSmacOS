@@ -643,15 +643,6 @@ public final class PlayerEngine {
         sleepAtTrackEnd = false
     }
 
-    private func observeFlush(on renderer: RenderPipeline) {
-        renderer.onAutomaticFlush = { [weak self, weak renderer] in
-            Task { @MainActor in
-                guard let self, let renderer, self.pipeline === renderer else { return }
-                self.recoverFromAutomaticFlush()
-            }
-        }
-    }
-
     // MARK: - Очередь целиком
 
     /// Треки после текущего — для «Очистить» и его отмены.
@@ -868,7 +859,7 @@ public final class PlayerEngine {
                 fail(PlaybackFailure(kind: .noAudioRoute, videoId: current.track.videoId))
                 return
             }
-            guard self.current?.id == current.id else { return }
+            guard self.currentSegment === segment else { return }
             produce(segment, from: 0, trimBefore: offset > 0 ? startTime : nil)
             prefetch()
             maybeExtendRadio()
@@ -888,6 +879,7 @@ public final class PlayerEngine {
     private func produce(_ segment: Segment, from firstFragment: Int, trimBefore: CMTime?) {
         segment.producer?.cancel()
         let generation = generation
+        let renderingPipeline = pipeline
         segment.producer = Task { [weak self] in
             guard let self else { return }
             do {
@@ -918,22 +910,22 @@ public final class PlayerEngine {
                     trim = nil
                     // Отрезок сняли со шкалы (очередь изменилась), пока читался фрагмент.
                     try Task.checkCancellation()
-                    guard generation == self.generation else { return }
+                    guard generation == self.generation, renderingPipeline === self.pipeline else { return }
                     self.pipeline.append(batch, generation: generation)
                     self.appendLevels(batch.levels)
                     self.appendSpectrum(batch.spectrum)
                     if number == timing.fragmentCount - 1 { segment.end = batch.end }
                 }
-                guard generation == self.generation else { return }
+                guard generation == self.generation, renderingPipeline === self.pipeline else { return }
                 if segment.end == nil { segment.end = self.pipeline.enqueuedEnd }
                 self.segmentFinished(segment)
             } catch is CancellationError {
                 return
             } catch {
-                guard generation == self.generation else { return }
+                guard generation == self.generation, renderingPipeline === self.pipeline else { return }
                 let streamError = error as? StreamError ?? StreamError(.extractor, "\(error)")
                 let midStream = await segment.reader.source.isOpen
-                guard generation == self.generation else { return }
+                guard generation == self.generation, renderingPipeline === self.pipeline else { return }
                 self.handleFailure(of: segment.item, error: streamError, midStream: midStream)
             }
         }
