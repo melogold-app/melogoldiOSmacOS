@@ -11,6 +11,8 @@ struct PlaybackSettingsSection: View {
         @Bindable var settings = model.settings
         let player = model.services.player
         Section("settings.playback") {
+            Toggle("settings.crossfade", isOn: $settings.crossfade)
+                .onChange(of: settings.crossfade) { _, value in player.crossfade = value }
             Toggle("settings.normalize", isOn: $settings.normalization)
                 .onChange(of: settings.normalization) { _, value in player.normalization = value }
             Toggle("settings.autoplay", isOn: $settings.autoplay)

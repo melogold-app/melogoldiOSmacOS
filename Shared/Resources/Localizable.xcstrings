@@ -11341,6 +11341,23 @@
         }
       }
     },
+    "settings.crossfade" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crossfade (3 s)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Плавная смена треков (3 с)"
+          }
+        }
+      }
+    },
     "settings.normalize" : {
       "extractionState" : "manual",
       "localizations" : {

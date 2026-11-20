@@ -7,6 +7,7 @@ public enum SettingsKey {
     public static let lastTab = "shell.lastTab"
     public static let searchTipDismissed = "search.tipDismissed"
     public static let playbackNormalization = "playback.normalization"
+    public static let playbackCrossfade = "playback.crossfade"
     public static let playbackAutoplay = "playback.autoplay"
     public static let playbackSpeed = "playback.speed"
     public static let lyricsKeepScreenOn = "lyrics.keepScreenOn"

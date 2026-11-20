@@ -302,6 +302,8 @@ struct WatchPlaybackSection: View {
     var body: some View {
         @Bindable var settings = model.settings
         Section("settings.playback") {
+            Toggle("settings.crossfade", isOn: $settings.crossfade)
+                .onChange(of: settings.crossfade) { _, value in model.services.player.crossfade = value }
             Toggle("settings.normalize", isOn: $settings.normalization)
                 .onChange(of: settings.normalization) { _, value in model.services.player.normalization = value }
             Toggle("settings.historyPaused", isOn: $settings.historyPaused)

@@ -68,6 +68,7 @@ final class Services {
         library = database.map { LibraryStore(library: Library(database: $0), downloads: downloadManager) }
         player = PlayerEngine(catalog: catalog, resolver: resolver, cache: cache, downloads: downloadStore)
         player.normalization = settings.normalization
+        player.crossfade = settings.crossfade
         player.autoplayEnabled = settings.autoplay
         player.speed = Float(settings.speed)
         searchHistory = database.map { SearchHistory(database: $0) }

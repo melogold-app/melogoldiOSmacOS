@@ -23,6 +23,10 @@ public final class AppSettings {
         didSet { defaults.set(lastTab.rawValue, forKey: SettingsKey.lastTab) }
     }
 
+    public var crossfade: Bool {
+        didSet { store(crossfade, SettingsKey.playbackCrossfade, isDefault: !crossfade) }
+    }
+
     public var normalization: Bool {
         didSet { store(normalization, SettingsKey.playbackNormalization, isDefault: normalization) }
     }
@@ -90,6 +94,7 @@ public final class AppSettings {
         self.defaults = defaults
         theme = ThemeMode(rawValue: defaults.string(forKey: SettingsKey.themeMode) ?? "") ?? .system
         lastTab = AppSection(storedValue: defaults.string(forKey: SettingsKey.lastTab))
+        crossfade = defaults.bool(forKey: SettingsKey.playbackCrossfade)
         normalization = defaults.object(forKey: SettingsKey.playbackNormalization) as? Bool ?? true
         autoplay = defaults.object(forKey: SettingsKey.playbackAutoplay) as? Bool ?? true
         remoteControl = defaults.object(forKey: SettingsKey.remoteControl) as? Bool ?? true

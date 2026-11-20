@@ -102,7 +102,30 @@ public final class PlayerEngine {
     let cache: AudioCache?
     let downloads: DownloadStore?
     let session: URLSession
-    let pipeline = RenderPipeline()
+    @ObservationIgnored private(set) var pipeline = RenderPipeline()
+    @ObservationIgnored private var crossfadeTail: CrossfadeTail?
+    nonisolated private static let fadeSeconds: Double = 3
+
+    private struct CrossfadeTail {
+        let pipeline: RenderPipeline
+        let gainDb: Double
+        let retiredAt: TimeInterval
+        var fadeStarted: TimeInterval?
+
+        var progress: Double {
+            guard let fadeStarted else { return 0 }
+            return min(1, (ProcessInfo.processInfo.systemUptime - fadeStarted) / PlayerEngine.fadeSeconds)
+        }
+    }
+
+    public var crossfade = false {
+        didSet {
+            if !crossfade {
+                finishCrossfade()
+                if let segment = currentSegment { segmentFinished(segment) }
+            }
+        }
+    }
     let audioSession = AudioSessionController()
     private let nowPlaying = NowPlayingCenter()
     /// Системный пульт (медиаклавиши, Пункт управления) сначала спрашивает приложение: `true` — команду выполнил кто-то
@@ -211,9 +234,7 @@ public final class PlayerEngine {
             if shouldResume { self?.play() }
         }
         audioSession.onRouteLost = { [weak self] in self?.pause() }
-        pipeline.onAutomaticFlush = { [weak self] in
-            Task { @MainActor in self?.recoverFromAutomaticFlush() }
-        }
+        observeFlush(on: pipeline)
         nowPlaying.install(self)
         // Сеть появилась (или переподключился VPN): трек, ждущий её, пробуется сразу (задание 0026).
         pathMonitor.pathUpdateHandler = { [weak self] path in
@@ -221,6 +242,15 @@ public final class PlayerEngine {
             Task { @MainActor in self?.networkBecameAvailable() }
         }
         pathMonitor.start(queue: DispatchQueue(label: "app.melogold.player.network"))
+    }
+
+    private func observeFlush(on renderer: RenderPipeline) {
+        renderer.onAutomaticFlush = { [weak self, weak renderer] in
+            Task { @MainActor in
+                guard let self, let renderer, self.pipeline === renderer else { return }
+                self.recoverFromAutomaticFlush()
+            }
+        }
     }
 
     // MARK: - Очередь
@@ -357,6 +387,7 @@ public final class PlayerEngine {
     }
 
     public func pause() {
+        finishCrossfade()
         flushSession()
         // Пауза, пока трек ждёт сеть: решил пользователь — повторов больше нет.
         clearNetworkWait()
@@ -368,6 +399,7 @@ public final class PlayerEngine {
 
     /// Остановить и очистить очередь.
     public func stop() {
+        finishCrossfade()
         flushSession()
         clearNetworkWait()
         wantsToPlay = false
@@ -456,6 +488,7 @@ public final class PlayerEngine {
 
     /// Перемотка внутри текущего трека: с фрагмента, где лежит это время.
     public func seek(to seconds: Double) {
+        finishCrossfade()
         let target = max(0, duration > 0 ? min(seconds, duration - 0.3) : seconds)
         guard let segment = currentSegment else {
             // Очередь восстановлена после перезапуска, трек ещё не открыт, или трек ждёт сеть: ползунок выбирает, с какого
@@ -608,6 +641,15 @@ public final class PlayerEngine {
         sleepTask = nil
         sleepTimerEnd = nil
         sleepAtTrackEnd = false
+    }
+
+    private func observeFlush(on renderer: RenderPipeline) {
+        renderer.onAutomaticFlush = { [weak self, weak renderer] in
+            Task { @MainActor in
+                guard let self, let renderer, self.pipeline === renderer else { return }
+                self.recoverFromAutomaticFlush()
+            }
+        }
     }
 
     // MARK: - Очередь целиком
@@ -788,6 +830,16 @@ public final class PlayerEngine {
             clearNetworkWait()
         }
         guard let current else { return }
+        finishCrossfade()
+        // The outgoing pipeline owns a few seconds of already buffered audio.
+        // Keep it only when its timeline contains a single track.
+        if crossfade, offset == 0, phase == .playing, pipeline.rate > 0, bufferedAhead > 0.15,
+           segments.count == 1, let retiring = segments.first, retiring.item.track.videoId != current.track.videoId {
+            let db = normalization ? -max(0, retiring.loudnessDb ?? 0) : 0
+            crossfadeTail = CrossfadeTail(pipeline: pipeline, gainDb: db, retiredAt: ProcessInfo.processInfo.systemUptime)
+            pipeline = RenderPipeline()
+            observeFlush(on: pipeline)
+        }
         if tapped { tapTime = Date() }
         wantsToPlay = true
         failure = nil
@@ -889,7 +941,7 @@ public final class PlayerEngine {
 
     /// Трек подан целиком: подать следующий сразу за ним (не при повторе трека).
     private func segmentFinished(_ segment: Segment) {
-        guard repeatMode != .one, !sleepAtTrackEnd, let end = segment.end,
+        guard !crossfade, repeatMode != .one, !sleepAtTrackEnd, let end = segment.end,
               let position = items.firstIndex(where: { $0.id == segment.item.id }),
               let following = nextPlayable(after: position),
               !segments.contains(where: { $0.item.id == items[following].id }) else { return }
@@ -962,6 +1014,7 @@ public final class PlayerEngine {
 
     /// Раз в 100 мс: позиция, смена трека на шкале, ожидание данных, конец очереди.
     private func tick() {
+        tickCrossfade()
         guard current != nil, phase != .idle, phase != .failed else {
             sessionTickAt = nil
             return
@@ -1004,6 +1057,17 @@ public final class PlayerEngine {
                 phase = .loading
                 loadingSince = Date()
                 syncNowPlaying()
+            }
+        }
+
+        if crossfade, crossfadeTail == nil, phase == .playing, !sleepAtTrackEnd, repeatMode != .one,
+           segments.count == 1, let end = segment.end, let following = nextItem, following.track.videoId != segment.item.track.videoId,
+           let nextIndex = items.firstIndex(where: { $0.id == following.id }) {
+            let remaining = (end - now).seconds
+            if remaining > 0.15, remaining <= Self.fadeSeconds * Double(speed) {
+                index = nextIndex
+                startCurrent(tapped: false)
+                return
             }
         }
 
@@ -1267,6 +1331,7 @@ public final class PlayerEngine {
     }
 
     private func fail(_ reason: PlaybackFailure) {
+        finishCrossfade()
         pipeline.setRate(0)
         failure = reason
         phase = .failed
@@ -1279,7 +1344,34 @@ public final class PlayerEngine {
     /// Громкие треки тише (`loudnessDb` > 0). Тихие не усиливаются: громкость рендерера — не больше 1.
     private func applyVolume() {
         let gain = Float(pow(10, appliedGainDb / 20))
-        pipeline.volume = outputMuted ? 0 : max(0, min(1, volume * gain))
+        let progress = Float(crossfadeTail?.progress ?? 1)
+        pipeline.volume = outputMuted ? 0 : max(0, min(1, volume * gain)) * progress
+        if let tail = crossfadeTail {
+            let gain = Float(pow(10, tail.gainDb / 20))
+            tail.pipeline.volume = outputMuted ? 0 : max(0, min(1, volume * gain)) * (1 - progress)
+        }
+    }
+
+    private func tickCrossfade() {
+        guard var tail = crossfadeTail else { return }
+        let now = ProcessInfo.processInfo.systemUptime
+        if phase == .playing, tail.fadeStarted == nil {
+            tail.fadeStarted = now
+            crossfadeTail = tail
+        }
+        if tail.progress >= 1 || now - tail.retiredAt >= Self.fadeSeconds * 2 {
+            finishCrossfade()
+        } else {
+            applyVolume()
+        }
+    }
+
+    private func finishCrossfade() {
+        guard let tail = crossfadeTail else { return }
+        crossfadeTail = nil
+        tail.pipeline.setRate(0)
+        _ = tail.pipeline.reset(to: .zero)
+        applyVolume()
     }
 
     /// Усиление нормализации текущего трека, дБ: 0 или меньше.
