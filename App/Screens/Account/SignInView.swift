@@ -289,7 +289,7 @@ struct RecoveryCodeView: View {
     }
 }
 
-/// Хост сервера для подписей: `178-250-187-202.sslip.io`, `music.example.com:8080`.
+/// Хост сервера для подписей: `music.example.org`, `music.example.com:8080`.
 enum ServerHost {
     static func display(_ url: String) -> String {
         guard let components = URLComponents(string: url), let host = components.host else { return url }

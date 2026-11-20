@@ -111,9 +111,9 @@ struct ShareURLsTests {
     }
 
     @Test func melogoldShareRoundTripsThroughTheParser() throws {
-        let url = try #require(ShareURLs.melogoldShare(server: "https://178-250-187-202.sslip.io", shareId: "Ab3dE6gH9j"))
+        let url = try #require(ShareURLs.melogoldShare(server: "https://music.example.org", shareId: "Ab3dE6gH9j"))
         let parsed = try #require(ShareLink.parse(url))
-        #expect(parsed.shareId == "Ab3dE6gH9j" && parsed.server == "https://178-250-187-202.sslip.io")
+        #expect(parsed.shareId == "Ab3dE6gH9j" && parsed.server == "https://music.example.org")
     }
 }
 

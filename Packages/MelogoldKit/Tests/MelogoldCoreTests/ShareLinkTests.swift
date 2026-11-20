@@ -12,8 +12,8 @@ struct ShareLinkTests {
     }
 
     @Test func webPage() {
-        #expect(ShareLink.parse(URL(string: "https://178-250-187-202.sslip.io/s/Ab3dE5gH9k")!)
-            == ShareLink(server: "https://178-250-187-202.sslip.io", shareId: "Ab3dE5gH9k"))
+        #expect(ShareLink.parse(URL(string: "https://music.example.org/s/Ab3dE5gH9k")!)
+            == ShareLink(server: "https://music.example.org", shareId: "Ab3dE5gH9k"))
         #expect(ShareLink.parse(URL(string: "https://example.org/melogold/s/Ab3dE5gH9k?utm=x")!)?.server == "https://example.org/melogold")
         #expect(ShareLink.parse(URL(string: "https://www.youtube.com/s/Ab3dE5gH9k")!) == nil)
         #expect(ShareLink.parse(URL(string: "https://example.org/s/Ab3dE5gH9")!) == nil)

@@ -6,6 +6,8 @@
 
 <p align="center">Клиент <a href="https://github.com/melogold-app/melogoldAndroid">Melogold</a> для iPhone, iPad, Mac, Apple Vision Pro и Apple Watch: музыка из YouTube Music и обычного YouTube с общими Избранным, плейлистами и сохранёнными альбомами на всех устройствах.</p>
 
+Melogold работает локально. Для синхронизации между устройствами укажите адрес собственного [сервера Melogold](https://github.com/melogold-app/melogoldServer) в настройках. Публичный сервер закрывается 21 ноября 2026 года.
+
 ## Статус
 
 В разработке. Основа клиента — [docs/PROMPT.md](docs/PROMPT.md), задания — [tasks/](tasks/).

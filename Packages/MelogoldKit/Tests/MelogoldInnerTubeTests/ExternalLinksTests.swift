@@ -77,8 +77,8 @@ struct AppLinkTests {
     @Test func melogoldShareLinks() {
         let deep = "Смотри: melogold://share?v=1&url=https%3A%2F%2Fmusic.example.com&id=Ab3dE5gH9k."
         #expect(AppLink.classify(deep) == .sharedPlaylist(ShareLink(server: "https://music.example.com", shareId: "Ab3dE5gH9k")))
-        let page = "https://178-250-187-202.sslip.io/s/Ab3dE5gH9k)"
-        #expect(AppLink.classify(page) == .sharedPlaylist(ShareLink(server: "https://178-250-187-202.sslip.io", shareId: "Ab3dE5gH9k")))
+        let page = "https://music.example.org/s/Ab3dE5gH9k)"
+        #expect(AppLink.classify(page) == .sharedPlaylist(ShareLink(server: "https://music.example.org", shareId: "Ab3dE5gH9k")))
         // Своя схема — ничья другая: испорченная ссылка Melogold не уходит в поиск
         #expect(AppLink.classify("melogold://share?v=1&id=bad") == .melogold(URL(string: "melogold://share?v=1&id=bad")!))
         if case .melogold(let url) = AppLink.classify("melogold://server?v=1&url=https%3A%2F%2Fa.b") { #expect(url.host == "server") } else { Issue.record("server") }

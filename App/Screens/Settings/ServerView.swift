@@ -24,7 +24,7 @@ struct ServerView: View {
     var body: some View {
         Form {
             Section {
-                TextField("server.address", text: $address, prompt: Text(verbatim: ServerDefaults.baseURL))
+                TextField("server.address", text: $address, prompt: Text(verbatim: "https://music.example.com"))
                     .textContentType(.URL)
                     .autocorrectionDisabled()
                     #if os(iOS) || os(visionOS)
@@ -47,12 +47,6 @@ struct ServerView: View {
                     }
                 }
                 .disabled(result.url == nil || result.url == model.settings.serverURL || checking)
-                if model.settings.serverURL != ServerDefaults.baseURL {
-                    Button("server.resetDefault") {
-                        model.settings.serverURL = ServerDefaults.baseURL
-                        address = ServerDefaults.baseURL
-                    }
-                }
             }
         }
         .formStyle(.grouped)

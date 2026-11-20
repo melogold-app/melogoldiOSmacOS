@@ -67,15 +67,24 @@ public final class Account {
         self.urlSession = urlSession
         self.now = now
         let stored = secrets.data(Self.sessionAccount).flatMap { try? JSONDecoder().decode(StoredSession.self, from: $0) }
+        if let stored, ServerAddressPolicy.normalize(stored.serverURL).url == nil {
+            secrets.delete(Self.sessionAccount)
+            session = nil
+            state = .signedOut
+            return
+        }
         session = stored
         state = stored.map { .signedIn(login: $0.login) } ?? .signedOut
     }
 
     public var isSignedIn: Bool { session != nil }
 
-    public func api(_ url: String? = nil) -> ServerAPI {
+    public func api(_ url: String? = nil) throws -> ServerAPI {
         let address = url ?? session?.serverURL ?? settings.serverURL
-        return ServerAPI(baseURL: URL(string: address) ?? URL(string: ServerDefaults.baseURL)!, userAgent: identity.userAgent, session: urlSession)
+        guard let normalized = ServerAddressPolicy.normalize(address).url, let endpoint = URL(string: normalized) else {
+            throw APIError(status: 0, code: "server_not_configured", message: "Set your server address in Settings")
+        }
+        return ServerAPI(baseURL: endpoint, userAgent: identity.userAgent, session: urlSession)
     }
 
     // MARK: - Сервер
@@ -98,10 +107,10 @@ public final class Account {
     public func serverChanged() {
         guard let session, session.serverURL != settings.serverURL else { return }
         let token = session.refreshToken
-        let old = api(session.serverURL)
+        let old = try? api(session.serverURL)
         clear(to: .signedOut)
         serverInfo = nil
-        Task { try? await old.logout(refreshToken: token) }
+        Task { try? await old?.logout(refreshToken: token) }
     }
 
     // MARK: - Вход и регистрация
@@ -112,7 +121,7 @@ public final class Account {
         guard info.registrationOpen else {
             throw APIError(status: 403, code: "registration_closed", message: "Registration is closed")
         }
-        let api = api(settings.serverURL)
+        let api = try api(settings.serverURL)
         let device = identity.input(serverId: info.serverId)
         var pow = info.features.registrationPow == nil ? nil : try await solvePow(api)
         do {
@@ -139,10 +148,10 @@ public final class Account {
     /// Выход и на сервере: устройство удаляется из аккаунта. Библиотека остаётся на устройстве.
     public func signOut() async {
         guard let session else { return }
-        let api = api(session.serverURL)
+        let api = try? api(session.serverURL)
         clear(to: .signedOut)
         do {
-            try await api.logout(refreshToken: session.refreshToken)
+            try await api?.logout(refreshToken: session.refreshToken)
         } catch {
             Log.warning("account", "Выход на сервере не прошёл: \(error)")
         }
@@ -188,7 +197,7 @@ public final class Account {
         guard let current = session else { throw APIError(status: 401, code: "unauthorized", message: "Not signed in") }
         if !force, current.accessTokenExpiresAt.timeIntervalSince(now()) > Self.refreshEarly { return current }
 
-        let api = api(current.serverURL)
+        let api = try api(current.serverURL)
         let patch = DevicePatch(hwid: identity.hwid(serverId: current.serverId), clientVersion: identity.clientVersion)
         let task = Task { try await api.refresh(RefreshRequest(refreshToken: current.refreshToken, device: patch)) }
         let wrapper = Task<StoredSession, any Error> { @MainActor in

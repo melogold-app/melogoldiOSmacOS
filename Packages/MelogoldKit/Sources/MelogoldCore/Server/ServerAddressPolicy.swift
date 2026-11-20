@@ -69,6 +69,8 @@ public enum ServerAddressPolicy {
             guard isValidHostName(host) else { return .invalid(.malformed) }
         }
 
+        guard host != "178.250.187.202", host != "178-250-187-202.sslip.io" else { return .invalid(.malformed) }
+
         var port = ""
         if !portText.isEmpty {
             guard portText.allSatisfy(\.isASCIIDigit), let number = Int(portText), (1...65535).contains(number) else {
