@@ -1,5 +1,7 @@
 # App Store и TestFlight: iPhone, iPad, Vision Pro, Apple Watch
 
+**Хотфикс 0.2.10 (сборка 210), 20.11.2026.** Архивы iOS (включая Watch) и visionOS собраны из `28458f2`. Для публикации в TestFlight требуется настроенный Apple Team, ключ App Store Connect и сертификат Apple Distribution. В запуске [44729406899](https://github.com/melogold-app/melogoldiOSmacOS/actions/runs/44729406899) эти параметры отсутствовали. После настройки запустить TestFlight для версии 0.2.10 и проверить появление сборки 210 в App Store Connect.
+
 Статус: в работе
 
 Дополнение к `docs/PROMPT.md` (§3, грабли §9, п. 19), срез 8.
